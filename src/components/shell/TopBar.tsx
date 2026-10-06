@@ -49,8 +49,8 @@ export function TopBar() {
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-8 min-w-0 gap-2 whitespace-nowrap px-2 font-medium">
             <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span className="truncate">{TENANT.workspace}</span>
-            <span className="hidden text-muted-foreground xl:inline">· {bu ? bu.name : "All business units"}</span>
+            <span className="shrink-0">{TENANT.workspace}</span>
+            {bu && <span className="min-w-0 truncate text-muted-foreground">· {bu.name}</span>}
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
@@ -73,11 +73,11 @@ export function TopBar() {
       <button
         type="button"
         disabled
-        className="flex h-8 w-64 items-center gap-2 rounded-md border border-input bg-background px-2.5 text-sm text-muted-foreground disabled:cursor-not-allowed"
+        className="flex h-8 w-56 min-w-0 shrink items-center gap-2 rounded-md border border-input bg-background px-2.5 text-sm text-muted-foreground disabled:cursor-not-allowed"
       >
-        <Search className="h-3.5 w-3.5" />
+        <Search className="h-3.5 w-3.5 shrink-0" />
         <span className="flex-1 text-left">Search</span>
-        <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-2xs font-medium">Ctrl K</kbd>
+        <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-2xs font-medium xl:inline">Ctrl K</kbd>
       </button>
 
       <button

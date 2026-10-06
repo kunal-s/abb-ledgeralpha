@@ -24,13 +24,16 @@ export interface ProfitCentre {
   businessUnitId: string;
 }
 
+export type ProjectStage = "Execution" | "Commissioned" | "In DLP" | "DLP ended" | "Closed" | "On hold";
+
 export interface Project {
   wbs: string; // PS_POSID
   name: string;
   customerId: string;
   profitCentreId: string;
-  stage: "Execution" | "Commissioned" | "In DLP" | "DLP ended" | "Closed" | "On hold";
+  stage: ProjectStage;
   contractValue: Amount;
+  startDate: IsoDate;
   dlpEnd?: IsoDate;
 }
 
@@ -50,6 +53,8 @@ export type AccountCategory =
   | "deposits" // EMD / security deposits
   | "statutory-dues" // withholding / indirect tax / PF payable
   | "employee-adv"
+  | "prepaid"
+  | "other-payables" // salaries payable, capital creditors
   | "cwip" // capital work in progress
   | "fixed-assets"
   | "inventory"
@@ -143,11 +148,17 @@ export interface Party {
   id: string; // VEND-0142 / CUST-0217
   type: "Vendor" | "Customer" | "Group company";
   name: string;
+  /** legal-entity key: accounts with the same tax ID belong to one legal entity */
   taxIdMasked: string; // PAN in the India pack
   indirectTaxIdMasked?: string; // GSTIN in the India pack
+  /** withholding-tax deductor ID (TAN in the India pack) — customers only */
+  deductorIdMasked?: string;
   status: "Active" | "Blocked" | "Inactive";
   msme?: "Micro" | "Small" | "Medium";
   governmentOrPsu?: boolean;
+  /** foreign vendors / group companies */
+  currency?: string;
+  country: string;
 }
 
 export interface PurchaseOrderStatus {
@@ -179,12 +190,22 @@ export interface BankGuarantee {
 
 /** One withholding-tax credit line from the tax authority statement (Form 26AS / AIS). */
 export interface TaxCreditStatementLine {
+  id: string;
   deductorTaxIdMasked: string; // TAN
   customerId: string;
-  taxYearQuarter: string; // "FY2026-27 Q2"
+  taxYearQuarter: string; // "Q2 FY2026-27"
+  transactionDate: IsoDate;
   natureOfPayment: string;
   amountPaid: Amount;
   taxCredited: Amount;
+}
+
+/** Month-end closing and period-average rates, INR per unit of currency. */
+export interface FxRate {
+  currency: string;
+  periodEnd: IsoDate;
+  closing: number;
+  average: number;
 }
 
 export interface BankStatementLine {
@@ -315,4 +336,57 @@ export interface Person {
   name: string;
   roleId: RoleId;
   title: string;
+  /** ERP user ID (USNAM) — how this person appears on documents they enter */
+  userId: string;
+}
+
+// ---------------------------------------------------------------------------
+// The loaded world (docs/FRD.md §4.1) — one dataset every module reads
+// ---------------------------------------------------------------------------
+export interface BusinessUnit {
+  id: string;
+  name: string;
+}
+
+/** One dataset as it arrived from a source system. */
+export interface SourceDataset {
+  id: string;
+  name: string;
+  sourceSystem: string;
+  /** extract / file type, e.g. "ACDOCA line-item extract" */
+  format: string;
+  records: number;
+  coverageFrom?: IsoDate;
+  coverageTo: IsoDate;
+  extractedAt: string; // "2026-10-01T06:15"
+}
+
+export interface DataQualityCheck {
+  id: string;
+  name: string;
+  checked: number;
+  exceptions: number;
+  /** examples of failing records, for drill-down */
+  samples: string[];
+}
+
+export interface World {
+  asOf: IsoDate;
+  extractedAt: string;
+  businessUnits: BusinessUnit[];
+  profitCentres: ProfitCentre[];
+  projects: Project[];
+  people: Person[];
+  parties: Party[];
+  glAccounts: GlAccount[];
+  lines: LineItem[];
+  purchaseOrders: PurchaseOrderStatus[];
+  bankGuarantees: BankGuarantee[];
+  taxCredits: TaxCreditStatementLine[];
+  fxRates: FxRate[];
+  /**
+   * Internal test hook: planted demo scenarios → the line keys that carry them.
+   * Never rendered; used by scenario tests and later by rule tests.
+   */
+  anchors: Record<string, string[]>;
 }

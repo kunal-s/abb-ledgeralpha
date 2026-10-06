@@ -32,6 +32,12 @@ export function fmtDate(iso: IsoDate): string {
   return `${String(d.getDate()).padStart(2, "0")}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
 }
 
+/** "06:15" or "23:42" → "6:15 AM" / "11:42 PM" */
+export function fmtTime(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
 /** "Sep 2026" */
 export function fmtMonth(iso: IsoDate): string {
   const d = parseIsoDate(iso);
@@ -58,4 +64,44 @@ export function fiscalQuarterLabel(iso: IsoDate, startMonth: number, prefix: str
   const d = parseIsoDate(iso);
   const offset = (d.getMonth() + 1 - startMonth + 12) % 12; // months into the fiscal year
   return `Q${Math.floor(offset / 3) + 1} ${fiscalYearLabel(iso, startMonth, prefix)}`;
+}
+
+/** The calendar year in which the fiscal year containing `iso` starts (SAP GJAHR for Jan starts). */
+export function fiscalYearOf(iso: IsoDate, startMonth: number): number {
+  return fiscalYearStart(parseIsoDate(iso), startMonth);
+}
+
+/** First day of the fiscal year containing `iso`. */
+export function fiscalYearStartDate(iso: IsoDate, startMonth: number): IsoDate {
+  return `${fiscalYearOf(iso, startMonth)}-${String(startMonth).padStart(2, "0")}-01`;
+}
+
+/** Date → "YYYY-MM-DD" (local calendar date). */
+export function toIsoDate(d: Date): IsoDate {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Calendar arithmetic: `iso` plus `days` (negative to go back). */
+export function addDays(iso: IsoDate, days: number): IsoDate {
+  const d = parseIsoDate(iso);
+  d.setDate(d.getDate() + days);
+  return toIsoDate(d);
+}
+
+/** Last day of the month containing `iso`. */
+export function monthEnd(iso: IsoDate): IsoDate {
+  const d = parseIsoDate(iso);
+  return toIsoDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+}
+
+/** Month-ends from the month of `from` to the month of `to`, inclusive. */
+export function monthEndsBetween(from: IsoDate, to: IsoDate): IsoDate[] {
+  const out: IsoDate[] = [];
+  const end = monthEnd(to);
+  let cur = monthEnd(from);
+  while (cur <= end) {
+    out.push(cur);
+    cur = monthEnd(addDays(cur, 1));
+  }
+  return out;
 }

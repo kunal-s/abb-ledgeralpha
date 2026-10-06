@@ -29,6 +29,7 @@ describe("INR formatting", () => {
     expect(fmtDrCr(1180000)).toBe("₹11,80,000 Dr");
     expect(fmtDrCr(-1180000)).toBe("₹11,80,000 Cr");
     expect(fmtDrCr(-1180000, true)).toBe("₹11.8 lakh Cr");
+    expect(fmtDrCr(0)).toBe("₹0");
   });
 
   it("formats percentages to one decimal", () => {

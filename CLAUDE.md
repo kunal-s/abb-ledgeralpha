@@ -47,6 +47,18 @@ workspace (currently set up for an ABB India workshop, week of 12-Oct-2026).
 - **The module registry is the map:** `src/lib/modules.ts` drives routes and the sidebar. When a module is
   built, map its path to the page in `src/App.tsx` (`BUILT`).
 
+## Data foundation (I1)
+- Modules read data only through `src/data` (`WORLD`, `BALANCES`, `QUALITY`, `DATASETS`, the `*_BY_ID`
+  maps, `openItems`, `balanceAt`). Never construct ledger figures inside a page.
+- New data is posted through `LedgerBuilder` (`src/data/generator/builder.ts`) as balanced documents;
+  open items are cleared with `builder.clear`. Never push raw lines.
+- Workspace-specific inputs live in `src/data/workspace/` (spec, chart of accounts, planted scenarios);
+  the generator in `src/data/generator/` stays generic. Scenario IDs never appear in data — use
+  `ctx.anchors` for tests.
+- `src/data/world.test.ts` must stay green: every load check at zero exceptions, the independent
+  closing-balance recomputation equal to the trial balance, and every planted scenario exact.
+  Adding data shifts the random stream; that is fine as long as these tests pass.
+
 ## Harvesting
 Design system and components come from LedgerAlpha (`/app/app-ledger-alpha`); matching-engine ideas may
 come from Recon-Alpha (`/app/app-recon-alpha`). **Copy, never import across repos, never modify either

@@ -27,3 +27,18 @@ export const APPROVAL_BANDS = [
   { id: "B2", upTo: 50_00_000, chain: ["controller", "escalation-1"] },
   { id: "B3", upTo: null, chain: ["controller", "escalation-1", "escalation-2"] },
 ] as const satisfies readonly { id: string; upTo: number | null; chain: readonly string[] }[];
+
+export const APPROVER_LABELS: Record<string, string> = {
+  controller: "Financial Controller",
+  "escalation-1": "Escalation 1",
+  "escalation-2": "Escalation 2",
+};
+
+/** Actions that always need tax review, whatever the band. */
+export const TAX_REVIEW_POLICY = ["Write back", "Write off of tax receivables"] as const;
+
+/** How approved journals leave the platform. */
+export const WRITE_BACK_POLICY = {
+  mode: "proposal-file" as "proposal-file" | "governed-posting",
+  label: "Proposal file for posting in the ERP",
+};

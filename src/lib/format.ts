@@ -46,6 +46,7 @@ export function fmtINRCompact(amount: number): string {
 /** "₹12,450 Dr" / "₹12,450 Cr" — sign expressed as Dr/Cr, the way SAP users read it. */
 export function fmtDrCr(amount: number, compact = false): string {
   const body = compact ? fmtINRCompact(Math.abs(amount)) : fmtINR(Math.abs(amount));
+  if (amount === 0) return body;
   return `${body} ${amount < 0 ? "Cr" : "Dr"}`;
 }
 

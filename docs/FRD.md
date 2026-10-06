@@ -680,26 +680,40 @@ A workspace defines:
 - **Data mode:** demo (synthetic data on the SAP line-item layout).
 
 ### 9.2 Synthetic dataset (one coherent world)
+**Built in I1** (`src/data/`). Counts are as generated; the generator is deterministic.
+
+- **How it is built.**
+  - Every figure is posted as a balanced SAP-style document through one ledger builder (`src/data/generator/builder.ts`), so the trial balance ties by construction.
+  - Open items, clearing and balances always agree.
+  - Workspace-specific inputs live in `src/data/workspace/`: the world spec, chart of accounts and planted scenarios. The generator in `src/data/generator/` is generic.
 - **Ledger:**
-  - Monthly balances January–September 2026 for about 250 GLs, with a trial balance that ties.
-  - About 25,000 line items. About 8,000 open items in the balance sheet review categories, with posting dates from 2022.
-  - About 15% of items from legacy SAP.
-- **Organisation:** 4 business units, about 12 profit centres, about 190 projects / WBS.
-- **Parties:** about 240 vendors (MSME-flagged subset), about 110 customers (government / PSU-flagged subset, linked by tax ID across business units), and group companies.
-- **Sub-ledgers and external data:**
-  - AR / AP open items.
-  - About 1,200 bank receipts across 4 bank accounts.
-  - About 60 BGs.
-  - Form 26AS lines.
-  - GSTR-2B lines.
-  - Intercompany confirmations.
-  - FX open items and forwards.
-  - Budget by profit centre.
-  - Close checklist (about 120 tasks).
-  - Controls register (about 40 controls).
-  - PBC list (about 30 requests).
-  - Fictional people.
-- **Determinism:** a seeded generator, so every rehearsal sees the same data. Amounts are not round, except where roundness is the point.
+  - About 39,400 line items in about 12,700 documents, from an opening-balance migration (31-Dec-2021) to 30-Sep-2026.
+  - Monthly trial balance for every period. P&L closes to retained earnings at each fiscal year end.
+  - About 8,750 open items on 38 open-item-managed accounts.
+  - Items posted before the Central Finance go-live (01-Jan-2024) come from legacy SAP: about 2% of lines and 3% of open items. ABB's answer to A11 recalibrates this.
+- **Chart of accounts:** 115 GLs across 23 categories, mapped to Schedule III (Division II) lines, with owner, reviewer, risk tier and review frequency.
+- **Organisation:** 4 business units plus Corporate, 13 profit centres, 195 projects / WBS (190 generated plus 5 for planted scenarios).
+- **Parties:**
+  - 240 vendors: about 12% foreign; an MSME-flagged subset paid inside the statutory window except S-24.
+  - 122 customers: 110 domestic, of which 18 are second accounts of the same legal entity (shared PAN and TAN); a government / PSU-flagged subset; and 12 export customers.
+  - 6 group companies.
+- **Activity:**
+  - Monthly per profit centre, January 2025–September 2026: billing, collections, purchases, payments, payroll with statutory deposits, expenses, depreciation, warranty provision, month-end accruals with reversals.
+  - Company-level: interest, gratuity, ECL, GST settlement, income tax with advance tax, and treasury funding.
+  - Current-year revenue is about ₹10,000 cr, profit after tax about ₹1,470 cr, DSO including unbilled revenue and retention about 69 days.
+- **Reference data:**
+  - About 1,790 purchase-order lines (status, last GR, last invoice; from legacy MM).
+  - About 115 bank guarantees (issued and received).
+  - About 750 Form 26AS lines (matched, short, missing, wrong-quarter, unbooked; current quarter not yet available).
+  - Month-end FX rates for 5 currencies.
+- **Extended by later increments on the same foundation:**
+  - bank statement lines (I4 / I5);
+  - customer statements and confirmations (I4);
+  - budget by profit centre and copper-linked PO prices (I8);
+  - GSTR-2B, intercompany confirmations and forward contracts (I9);
+  - close checklist (I7);
+  - controls register and PBC list (I6 / I9).
+- **Determinism:** a seeded generator (seed 20261006), so every rehearsal sees the same data. Amounts are not round, except where roundness is the point. Load time in the browser is about 0.6 s.
 
 ### 9.3 Story threads (what makes the product cohesive in the demo)
 
@@ -740,6 +754,10 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | S-22 | Variance / Mgmt | Copper-linked material PO price ₹780 → ₹890 per kg-eq on a fixed-price project | ≈ ₹44 lakh | Top variance driver (T4) |
 | S-23 | GST | Supplier invoices in books missing in GSTR-2B | ₹6,84,200 ITC | Mismatch list |
 | S-24 | Working Capital | MSME vendor invoices unpaid beyond 45 days | ₹38,90,000 | MSME overdue view |
+
+**Planting:**
+- **In the I1 dataset, each asserted by a scenario test** (`src/data/world.test.ts`): S-01 to S-16, the ledger side of S-18, S-20, S-21 and S-24.
+- **Added with their modules:** S-17 (I5), the customer confirmation for S-18 and S-19 (I4), S-22 (I8), and S-23 (I9).
 
 ### 9.5 Workshop mapping
 
@@ -882,7 +900,7 @@ One increment per prompt, each ending with §10.6.
 | Inc. | Scope | Depth delivered |
 |---|---|---|
 | **I0** | Product scaffold: module registry and navigation, workspace / localisation / policy config, shell (scope, period, role, data mode), page anatomy, formats with tests, draft data contract, this FRD | ✔ |
-| **I1** | Data foundation: seeded world generator (§9.2), stores, Data Sources, Settings (read) | Working |
+| **I1** | Data foundation: seeded world generator (§9.2), balances and load checks, Data Sources, Settings (read) | ✔ Working |
 | **I2** | Platform core: rules engine, recommendation framework, workflow and approvals, follow-ups, activity log; Rules & Policies, Activity Log | Working |
 | **I3** | Balance Sheet Review: all views, rules BSR-01 to BSR-18, decisions, sign-off | **Deep** |
 | **I4** | Reconciliations: all types; bank statement view; customer statement + confirmation | **Deep** |
@@ -941,7 +959,7 @@ One increment per prompt, each ending with §10.6.
 | Document type | SA |
 | Header text | GR/IR write-back, PO 4500187321 |
 | Line | 1 / 2 |
-| GL account | 211300 / 811500 (illustrative) |
+| GL account | 211300 GR/IR clearing — Materials / 461500 Liabilities no longer required written back |
 | Debit / Credit | Dr / Cr |
 | Amount | 18,64,320.00 |
 | Profit centre / WBS | PC-MO-12 / P-2023-0418 |

@@ -4,11 +4,16 @@ import { AppShell } from "@/components/shell/AppShell";
 import { DETAIL_ROUTES, ENABLED_MODULES, isModuleEnabled } from "@/lib/modules";
 import { ModulePage } from "@/pages/ModulePage";
 import { NotFound } from "@/pages/NotFound";
+import { DataSources } from "@/pages/DataSources";
+import { Settings } from "@/pages/Settings";
 
 // Routes come from the module registry (src/lib/modules.ts), filtered by the
 // workspace's enabled modules. As a module is built, map its path to the real
 // page here; unbuilt modules render the scaffold page.
-const BUILT: Record<string, ReactNode> = {};
+const BUILT: Record<string, ReactNode> = {
+  "/data": <DataSources />,
+  "/settings": <Settings />,
+};
 
 const router = createBrowserRouter([
   {
