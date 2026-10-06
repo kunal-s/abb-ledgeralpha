@@ -1,8 +1,7 @@
-// Date helpers (FRD §11.2). Two calendars matter for ABB India:
-//  - ABB India's financial year is the calendar year (Jan–Dec), so the review
-//    period reads "Q3 CY2026".
-//  - Income-tax (TDS, Form 26AS) runs on the Indian FY (Apr–Mar), so a TDS
-//    credit reads "FY2026-27 Q2".
+// Date helpers (docs/FRD.md §7.1). Two calendars can differ:
+//  - the company's fiscal year (tenant config: e.g. Jan–Dec, labelled "CY2026",
+//    or Apr–Mar, labelled "FY2026-27");
+//  - the statutory tax year (India: Apr–Mar), used for withholding-tax credits.
 // ISO dates ("2026-09-30") are parsed as calendar dates, never through UTC, so
 // ageing does not shift by a day with the machine's timezone.
 
@@ -27,23 +26,36 @@ export function daysBetween(from: IsoDate, to: IsoDate): number {
   return Math.round((utcB - utcA) / 86_400_000);
 }
 
-/** "30-Sep-2026" — DD-MMM-YYYY, the format SAP India users and auditors read. */
+/** "30-Sep-2026" */
 export function fmtDate(iso: IsoDate): string {
   const d = parseIsoDate(iso);
   return `${String(d.getDate()).padStart(2, "0")}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
 }
 
-/** "Q3 CY2026" — ABB India reporting quarter (calendar-year FY). */
-export function abbQuarterLabel(iso: IsoDate): string {
+/** "Sep 2026" */
+export function fmtMonth(iso: IsoDate): string {
   const d = parseIsoDate(iso);
-  return `Q${Math.floor(d.getMonth() / 3) + 1} CY${d.getFullYear()}`;
+  return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-/** "FY2026-27 Q2" — Indian income-tax FY quarter (Apr–Mar), used for TDS / 26AS. */
-export function indianFyQuarterLabel(iso: IsoDate): string {
+function fiscalYearStart(d: Date, startMonth: number): number {
+  return d.getMonth() + 1 >= startMonth ? d.getFullYear() : d.getFullYear() - 1;
+}
+
+/**
+ * Fiscal year label. A January start reads as a single year ("CY2026");
+ * any other start spans two years ("FY2026-27").
+ */
+export function fiscalYearLabel(iso: IsoDate, startMonth: number, prefix: string): string {
   const d = parseIsoDate(iso);
-  const month = d.getMonth(); // 0 = Jan
-  const fyStart = month >= 3 ? d.getFullYear() : d.getFullYear() - 1;
-  const quarter = Math.floor(((month + 9) % 12) / 3) + 1; // Apr–Jun = Q1
-  return `FY${fyStart}-${String((fyStart + 1) % 100).padStart(2, "0")} Q${quarter}`;
+  const start = fiscalYearStart(d, startMonth);
+  if (startMonth === 1) return `${prefix}${start}`;
+  return `${prefix}${start}-${String((start + 1) % 100).padStart(2, "0")}`;
+}
+
+/** Fiscal quarter label: "Q3 CY2026", "Q2 FY2026-27". */
+export function fiscalQuarterLabel(iso: IsoDate, startMonth: number, prefix: string): string {
+  const d = parseIsoDate(iso);
+  const offset = (d.getMonth() + 1 - startMonth + 12) % 12; // months into the fiscal year
+  return `Q${Math.floor(offset / 3) + 1} ${fiscalYearLabel(iso, startMonth, prefix)}`;
 }

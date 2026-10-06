@@ -1,5 +1,5 @@
-// Indian-format money and number helpers (FRD §11.2). Every amount in this app
-// is INR in company-code currency, signed the SAP way: debit +, credit −.
+// Money and number helpers for the India localisation pack (docs/FRD.md §7.1).
+// Amounts are in company-code currency, signed the SAP way: debit +, credit −.
 
 const RUPEE = "₹";
 

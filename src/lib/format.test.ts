@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { fmtDrCr, fmtINR, fmtINRCompact, fmtInt, fmtPct } from "@/lib/format";
 import {
-  abbQuarterLabel,
   daysBetween,
+  fiscalQuarterLabel,
+  fiscalYearLabel,
   fmtDate,
-  indianFyQuarterLabel,
+  fmtMonth,
   parseIsoDate,
 } from "@/lib/dates";
 
@@ -15,7 +16,7 @@ describe("INR formatting", () => {
     expect(fmtINR(-12450)).toBe("-₹12,450");
   });
 
-  it("compacts to lakh and crore (debrief worked example)", () => {
+  it("compacts to lakh and crore", () => {
     expect(fmtINRCompact(12450)).toBe("₹12,450");
     expect(fmtINRCompact(4350000)).toBe("₹43.5 lakh");
     expect(fmtINRCompact(19650000)).toBe("₹1.97 cr");
@@ -48,20 +49,23 @@ describe("dates", () => {
     expect(daysBetween("2026-09-30", "2026-09-30")).toBe(0);
   });
 
-  it("formats DD-MMM-YYYY", () => {
+  it("formats dates and months", () => {
     expect(fmtDate("2026-09-30")).toBe("30-Sep-2026");
     expect(fmtDate("2026-01-05")).toBe("05-Jan-2026");
+    expect(fmtMonth("2026-09-30")).toBe("Sep 2026");
   });
 
-  it("labels ABB calendar-year quarters", () => {
-    expect(abbQuarterLabel("2026-09-30")).toBe("Q3 CY2026");
-    expect(abbQuarterLabel("2026-01-01")).toBe("Q1 CY2026");
+  it("labels a calendar-year fiscal year", () => {
+    expect(fiscalYearLabel("2026-09-30", 1, "CY")).toBe("CY2026");
+    expect(fiscalQuarterLabel("2026-09-30", 1, "CY")).toBe("Q3 CY2026");
+    expect(fiscalQuarterLabel("2026-01-01", 1, "CY")).toBe("Q1 CY2026");
   });
 
-  it("labels Indian income-tax FY quarters for TDS / 26AS", () => {
-    expect(indianFyQuarterLabel("2026-09-30")).toBe("FY2026-27 Q2");
-    expect(indianFyQuarterLabel("2026-04-01")).toBe("FY2026-27 Q1");
-    expect(indianFyQuarterLabel("2026-03-31")).toBe("FY2025-26 Q4");
-    expect(indianFyQuarterLabel("2026-12-15")).toBe("FY2026-27 Q3");
+  it("labels an April–March year (Indian tax year)", () => {
+    expect(fiscalYearLabel("2026-09-30", 4, "FY")).toBe("FY2026-27");
+    expect(fiscalQuarterLabel("2026-09-30", 4, "FY")).toBe("Q2 FY2026-27");
+    expect(fiscalQuarterLabel("2026-04-01", 4, "FY")).toBe("Q1 FY2026-27");
+    expect(fiscalQuarterLabel("2026-03-31", 4, "FY")).toBe("Q4 FY2025-26");
+    expect(fiscalQuarterLabel("2026-12-15", 4, "FY")).toBe("Q3 FY2026-27");
   });
 });

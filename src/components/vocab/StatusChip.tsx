@@ -3,18 +3,18 @@ import { cn } from "@/lib/utils";
 type Tone = "ok" | "warn" | "danger" | "info" | "neutral";
 
 // Central status -> {label, tone} map. Keys match the status unions in
-// src/types (ItemStatus, AccountReviewStatus) and src/lib/screens (BuildStatus).
+// src/types (ItemStatus, AccountReviewStatus). Modules add their statuses here.
 const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
-  // Open item lifecycle (FRD §9.1)
+  // Item lifecycle (docs/FRD.md §4.4)
   "within-policy": { label: "Within policy", tone: "ok" },
   flagged: { label: "Flagged", tone: "danger" },
   "in-follow-up": { label: "In follow-up", tone: "warn" },
   "decision-proposed": { label: "Decision proposed", tone: "info" },
   approved: { label: "Approved", tone: "ok" },
   rejected: { label: "Rejected", tone: "danger" },
-  exported: { label: "Exported to JV sheet", tone: "info" },
-  "closed-in-sap": { label: "Closed in SAP", tone: "ok" },
-  // Account review lifecycle (FRD §9.2)
+  exported: { label: "Exported", tone: "info" },
+  "closed-in-erp": { label: "Closed in ERP", tone: "ok" },
+  // Account sign-off lifecycle (docs/FRD.md §4.4)
   "not-started": { label: "Not started", tone: "neutral" },
   "in-review": { label: "In review", tone: "info" },
   "ready-for-signoff": { label: "Ready for sign-off", tone: "warn" },
@@ -24,10 +24,6 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   // Tax review
   cleared: { label: "Tax cleared", tone: "ok" },
   objected: { label: "Tax objection", tone: "danger" },
-  // Build status (scaffold phase)
-  built: { label: "Built", tone: "ok" },
-  planned: { label: "Planned", tone: "neutral" },
-  blocked: { label: "Waiting on ABB", tone: "warn" },
 };
 
 const TONE_CLS: Record<Tone, { wrap: string; dot: string }> = {

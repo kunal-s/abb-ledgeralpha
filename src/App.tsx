@@ -1,20 +1,23 @@
+import type { ReactNode } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AppShell } from "@/components/shell/AppShell";
-import { SCREENS } from "@/lib/screens";
-import { ScreenPlaceholder } from "@/pages/ScreenPlaceholder";
+import { DETAIL_ROUTES, ENABLED_MODULES, isModuleEnabled } from "@/lib/modules";
+import { ModulePage } from "@/pages/ModulePage";
 import { NotFound } from "@/pages/NotFound";
 
-// Routes come from the screen registry (src/lib/screens.ts). As each screen is
-// built, map its path to the real page here instead of the placeholder.
-const BUILT: Record<string, React.ReactNode> = {};
+// Routes come from the module registry (src/lib/modules.ts), filtered by the
+// workspace's enabled modules. As a module is built, map its path to the real
+// page here; unbuilt modules render the scaffold page.
+const BUILT: Record<string, ReactNode> = {};
 
 const router = createBrowserRouter([
   {
     element: <AppShell />,
     children: [
-      ...SCREENS.map((s) => ({
-        path: s.path,
-        element: BUILT[s.path] ?? <ScreenPlaceholder />,
+      ...ENABLED_MODULES.map((m) => ({ path: m.path, element: BUILT[m.path] ?? <ModulePage /> })),
+      ...DETAIL_ROUTES.filter((d) => isModuleEnabled(d.moduleId)).map((d) => ({
+        path: d.path,
+        element: BUILT[d.path] ?? <ModulePage />,
       })),
       { path: "*", element: <NotFound /> },
     ],
@@ -22,5 +25,5 @@ const router = createBrowserRouter([
 ]);
 
 export default function App() {
-  return <RouterProvider router={router} />;
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
 }
