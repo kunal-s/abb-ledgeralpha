@@ -189,7 +189,8 @@ export function buildChartOfAccounts(): GlAccount[] {
       openItemManaged: d.openItemManaged,
       reconAccount: d.reconAccount ?? false,
       ownerId: d.ownerId,
-      reviewerId: "P01",
+      // the controller's own accounts are reviewed by the Head of Finance (four-eyes)
+      reviewerId: d.ownerId === "P01" ? "P13" : "P01",
       riskTier: d.riskTier,
       reviewFrequency: d.reviewFrequency,
     };

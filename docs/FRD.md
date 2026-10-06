@@ -395,16 +395,18 @@ Each module states its purpose, what it shows, what users can do, the agents and
    - accounts signed off (x / y);
    - proposed write-backs / write-offs / provisions.
 
-   Lead visual: account category × ageing bucket heatmap (amount / count). Also shows movement since the last review and the ten highest-value undecided items. Filters: category, owner, profit centre, source system.
-2. **Accounts.** Register: GL, description, category, statement line, owner, reviewer, risk, balance, value over threshold, flags, review status. Lead visual: risk tier × review status.
+   Lead visual: account category × ageing bucket heatmap (amount / items, gross of debits and credits). Every cell drills to its items. Also shows movement since the last review, sign-off progress by category, and "Needs a decision": the ten highest-value flagged items whose recommended action is not a follow-up and that have no decision yet. Filters: owner, profit centre, source system (and the business-unit scope in the top bar); all filters persist in the URL.
+2. **Accounts.** Register: GL, description, category, statement line, owner, reviewer, risk, balance, value over threshold, flags, review status. Lead visual: risk tier × review status. Export to CSV.
 3. **Account detail** (`/balance-sheet-review/:gl`).
    - Header: balance (Dr/Cr), statement line, owner, reviewer, movement, status.
-   - Lead visual: balance broken down by ageing bucket and by suggested action, each segment expandable to its items.
-   - Items table with rule chips, suggested action, confidence (with derivation) and status.
-   - Commentary drafted from facts and editable by the owner.
-   - Preparer / reviewer sign-off.
-4. **Exceptions.** Lead visual: flagged → in follow-up → proposed → approved pipeline (click to filter), and hits by rule. Queue: plain-language reason, owner, comments, evidence references. Bulk actions.
-5. **Decisions.** Proposed actions by type × approval band, approval and tax review in place, and the hand-off to Journals.
+   - Lead visual: balance broken down by ageing bucket and by recommended action; each segment filters the items below. Balance-only accounts show the month-end balance trend instead.
+   - Items table with rule chips, suggested action, confidence and status, with paging, sorting and bulk actions. Balance-only accounts list the postings in the review period.
+   - Commentary drafted from facts and editable by the owner ("edited" marker).
+   - Readiness checks, preparer and reviewer sign-off, reopen with a reason.
+4. **Exceptions.** Lead visual: flagged → in follow-up → decision proposed → approved → exported pipeline (click to filter), and value flagged by rule. Queue of flagged items or all open items, filterable by category, age, rule, status, owner and text, with bulk follow-up and bulk "propose recommended actions".
+5. **Decisions.** Proposed actions by type × approval band, and who each decision is waiting on. Approve and tax-review in place (single or bulk), export approved decisions as a journal proposal file (Appendix C), and a simulated "mark posted".
+
+**Item drawer** (every document reference, in every module): non-modal side panel under the top bar, so the role can be switched while an item is open. Shows the recommendation with its confidence arithmetic, rule findings, the decision with its approval chain and controls for the acting role, follow-up (drafted message, copy, response), related records (partner, PO and its documents, counter-item, bank guarantee, tax credit line, project, document postings), document fields with SAP names, and the item's history.
 
 **Rules** (product defaults; workspace may edit, disable or add):
 
@@ -689,9 +691,10 @@ A workspace defines:
   - Open items, clearing and balances always agree.
   - Workspace-specific inputs live in `src/data/workspace/`: the world spec, chart of accounts and planted scenarios. The generator in `src/data/generator/` is generic.
 - **Ledger:**
-  - About 39,400 line items in about 12,700 documents, from an opening-balance migration (31-Dec-2021) to 30-Sep-2026.
+  - About 72,000 line items from an opening-balance migration (31-Dec-2021) to 30-Sep-2026.
   - Monthly trial balance for every period. P&L closes to retained earnings at each fiscal year end.
   - About 8,750 open items on 38 open-item-managed accounts.
+  - **Settled in the quarter:** the open items are only those still open at 30-Sep. A second population, open at 30-Jun and cleared during Q3 (receivables, payables, GR/IR, advances, unbilled revenue, retention, deposits, withholding tax, CWIP, suspense), makes the June balances realistic: each category moves by about ±5% over the quarter, so "movement since the last review" reads like a real quarter.
   - Items posted before the Central Finance go-live (01-Jan-2024) come from legacy SAP: about 2% of lines and 3% of open items. ABB's answer to A11 recalibrates this.
 - **Chart of accounts:** 115 GLs across 23 categories, mapped to Schedule III (Division II) lines, with owner, reviewer, risk tier and review frequency.
 - **Organisation:** 4 business units plus Corporate, 13 profit centres, 195 projects / WBS (190 generated plus 5 for planted scenarios).
@@ -897,6 +900,11 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | D-15 | The review period runs from the day after the previous fiscal quarter end to the selected period end. Outlier rules (BSR-12 to BSR-15) look at balance-sheet lines in that period; ageing rules look at items open at the period end | Agreed (I2) |
 | D-16 | Escalation approvers are product roles (Head of Finance, CFO), so every band can be demonstrated end to end; the workspace maps them to its DoA | Agreed (I2) |
 | D-17 | Workflow state (decisions, follow-ups, sign-offs, rule changes, session activity) persists in the browser for rehearsal continuity; Settings → Reset demo returns to the seeded workspace state | Agreed (I2) |
+| D-18 | The item drawer is a non-modal panel below the top bar: the presenter can switch roles with an item open, and clicking another row swaps its content | Agreed (I3) |
+| D-19 | Sign-off readiness: every flagged item at or above the materiality amount needs a decision or a dated follow-up. Because age alone flags many items, the drawer and account page offer a bulk follow-up (drafted per item) for the remainder. A rejected decision does not count as documented | Agreed (I3) |
+| D-20 | An acting role resolves to the account owner when the owner holds that role (so work on an account shows the person who owns it); otherwise to the role's first person. Accounts owned by the Financial Controller are reviewed by the Head of Finance (four-eyes) | Agreed (I3) |
+| D-21 | Bulk actions validate each item on its own and write one activity event covering the batch; item history includes events of batches that covered the item | Agreed (I3) |
+| D-22 | Recommended confidence for a follow-up is capped by its factors (about 0.70): follow-up is the cautious default, not a certainty. Opening a follow-up lowers the confidence of write-back and write-off, because nothing should be written back while the counterparty is being asked | Agreed (I3) |
 
 ## 13. Build plan
 
@@ -907,7 +915,7 @@ One increment per prompt, each ending with §10.6.
 | **I0** | Product scaffold: module registry and navigation, workspace / localisation / policy config, shell (scope, period, role, data mode), page anatomy, formats with tests, draft data contract, this FRD | ✔ |
 | **I1** | Data foundation: seeded world generator (§9.2), balances and load checks, Data Sources, Settings (read) | ✔ Working |
 | **I2** | Platform core: rules engine (BSR-01 to BSR-18), recommendation framework with derived confidence, workflow and approvals (bands, four-eyes, tax review, export), follow-ups, sign-off, activity log with seeded history; Rules & Policies, Activity Log, Reset demo | ✔ Working |
-| **I3** | Balance Sheet Review: all views, rules BSR-01 to BSR-18, decisions, sign-off | **Deep** |
+| **I3** | Balance Sheet Review: Overview, Accounts, Account detail, Exceptions, Decisions; the item drawer; bulk follow-up, propose and approve; journal proposal export; commentary and sign-off | ✔ **Deep** |
 | **I4** | Reconciliations: all types; bank statement view; customer statement + confirmation | **Deep** |
 | **I5** | Cash Application (matcher with deduction inference) and TDS | Working |
 | **I6** | Journals (proposals outbox, review, accruals) and Audit Readiness (schedules, PBC, evidence) | Working |
@@ -920,6 +928,12 @@ One increment per prompt, each ending with §10.6.
 **Workshop-critical path:** I1–I5 and I7; then I6 and I8. Anything not finished before the workshop is disabled in the workspace configuration (D-13), never shown as a placeholder.
 
 ---
+
+## 14. Parked items (agreed, not yet scheduled)
+
+| ID | Item | Why | Shape |
+|---|---|---|---|
+| P-01 | **Rule sets for every module, not only Balance Sheet Review.** Rules & Policies lists all rules, with a module selector (dropdown) in the page header; hits, parameters and the change log work the same way for every module | Other modules already need deterministic rules that a controller wants to tune | Reconciliations (tolerances, auto-certify thresholds, reconciling-item classification), Cash Application (match levels, tolerance, deduction tables: withholding rates, GST TDS, retention, LD, bank charges), Journals (pre-posting and anomaly checks), TDS and GST (matching tolerances, credit-at-risk windows), Close Cockpit (slippage and escalation), Controls (test frequency). The engine already carries a `module` on every rule (`RuleModule`), `PRODUCT_RULES` is a registry, and evaluators are registered per rule set. Add per-module ID prefixes (REC-, CAP-, JNL-, TDS-, GST-) and move BSR-17 and BSR-18 (payables and indirect tax) to the modules they belong to. Each module's own page also shows its rules in context |
 
 ## Appendix A: Glossary
 

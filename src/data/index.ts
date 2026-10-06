@@ -23,6 +23,25 @@ export const PROJECT_BY_WBS = new Map<string, Project>(WORLD.projects.map((p) =>
 export const PERSON_BY_ID = new Map<string, Person>(WORLD.people.map((p) => [p.id, p]));
 export const PC_BY_ID = new Map<string, ProfitCentre>(WORLD.profitCentres.map((p) => [p.id, p]));
 
+export const LINE_BY_KEY = new Map<string, LineItem>(WORLD.lines.map((l) => [l.key, l]));
+
+function group<K>(lines: LineItem[], keyOf: (l: LineItem) => K | undefined): Map<K, LineItem[]> {
+  const m = new Map<K, LineItem[]>();
+  for (const l of lines) {
+    const k = keyOf(l);
+    if (k === undefined) continue;
+    const list = m.get(k);
+    if (list) list.push(l);
+    else m.set(k, [l]);
+  }
+  return m;
+}
+
+/** All lines of one document (the double entry). */
+export const LINES_BY_DOC = group(WORLD.lines, (l) => `${l.fiscalYear}-${l.docNo}`);
+/** All lines posted against one purchase order. */
+export const LINES_BY_PO = group(WORLD.lines, (l) => l.po?.number);
+
 export { balanceAt, isOpenAt };
 
 /** Line items on open-item-managed accounts that are open at `asOf`. */

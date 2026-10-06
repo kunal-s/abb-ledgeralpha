@@ -71,6 +71,20 @@ workspace (currently set up for an ABB India workshop, week of 12-Oct-2026).
 - Recommendation confidence is the sum of met factor weights; below 0.60 the action falls back to Follow up.
 - Settings → Reset demo restores the seeded workspace state (`src/data/workspace/activity.ts`).
 
+## Balance Sheet Review (I3)
+- One review model for the whole app: `ReviewProvider` (AppShell) computes it once from the rule run,
+  recommendations, decisions, follow-ups, sign-offs, business-unit scope and period; read it with
+  `useReview()` (`src/state/ReviewContext.tsx`). Do not call `useComputeReview` anywhere else, and do not
+  rebuild item rows in a page.
+- Aggregates (heatmap, ledger scan, readiness, account status) are pure functions in `src/engine/review.ts`;
+  commentary, follow-up drafts and journal proposals are in `src/engine/{commentary,followup,journals}.ts`.
+  Keep new logic there with tests, and keep pages to formatting and drilling.
+- Any document reference opens the item drawer: use `<DocLink itemKey>` (`useItemDrawer`). The drawer is
+  non-modal on purpose — it must not block the top bar.
+- Filters live in the URL (`useQueryParams`); each tab uses its own param names.
+- Data generator: new categories need a "settled in the quarter" maker in `src/data/generator/settled.ts`
+  or their quarterly movement will look wrong.
+
 ## Harvesting
 Design system and components come from LedgerAlpha (`/app/app-ledger-alpha`); matching-engine ideas may
 come from Recon-Alpha (`/app/app-recon-alpha`). **Copy, never import across repos, never modify either

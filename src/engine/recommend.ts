@@ -31,9 +31,9 @@ const num = (h: RuleHit, k: string) => Number(h.facts[k] ?? 0);
 const str = (h: RuleHit, k: string) => String(h.facts[k] ?? "");
 
 /** Customer named in a bank narration (first word of the customer's name). */
-function customerFromNarration(narration: string): string | undefined {
+function customerFromNarration(narration: string) {
   const upper = narration.toUpperCase();
-  return WORLD.parties.find((p) => p.type === "Customer" && p.country === "IN" && upper.includes(p.name.split(" ")[0].toUpperCase()))?.name;
+  return WORLD.parties.find((p) => p.type === "Customer" && p.country === "IN" && upper.includes(p.name.split(" ")[0].toUpperCase()));
 }
 
 function draft(ctx: EvalContext, item: LineItem, hit: RuleHit, all: RuleHit[], openFollowUp: boolean): Draft {
@@ -228,8 +228,12 @@ function draft(ctx: EvalContext, item: LineItem, hit: RuleHit, all: RuleHit[], o
         return named
           ? {
               action: "Reclassify",
-              factors: [f("Parked beyond the threshold", 0.3, true), f("Remitter identified from the narration", 0.4, true), f("Customer has open invoices", 0.3, true)],
-              rationale: `Receipt of ${amount} parked ${ageDays} days; the narration names ${named}. Apply it to the customer's open invoices in Cash Application.`,
+              factors: [
+                f("Parked beyond the threshold", 0.3, true),
+                f("Remitter identified from the narration", 0.4, true),
+                f("Customer has open invoices", 0.3, ctx.customersWithOpenInvoices.has(named.id)),
+              ],
+              rationale: `Receipt of ${amount} parked ${ageDays} days; the narration names ${named.name}. Apply it to the customer's open invoices in Cash Application.`,
               nextStep: "Apply to the customer in Cash Application",
             }
           : {
@@ -314,7 +318,7 @@ function draft(ctx: EvalContext, item: LineItem, hit: RuleHit, all: RuleHit[], o
       };
       return {
         action: "Follow up",
-        factors: [f("Older than the review threshold", 0.4, true), f("Business partner active", 0.3, partnerActive), f("No open follow-up", 0.3, !openFollowUp)],
+        factors: [f("Older than the review threshold", 0.35, true), f("Business partner active", 0.2, partnerActive), f("No open follow-up", 0.15, !openFollowUp)],
         rationale: `${amount} open ${ageDays} days on ${gl.description.toLowerCase()}${partner ? ` — ${partner.name}` : ""}.`,
         nextStep: steps[gl.category] ?? "Review and document",
       };

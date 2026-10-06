@@ -4,22 +4,27 @@ import { TopBar } from "@/components/shell/TopBar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/Toaster";
+import { ItemDrawer } from "@/components/review/ItemDrawer";
+import { ReviewProvider } from "@/state/ReviewContext";
 
 export function AppShell() {
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
-        <Sidebar />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar />
-          <ScrollArea className="flex-1">
-            <main className="mx-auto w-full max-w-[1600px] px-6 py-5">
-              <Outlet />
-            </main>
-          </ScrollArea>
+      <ReviewProvider>
+        <div className="flex h-screen w-full overflow-hidden bg-background text-foreground">
+          <Sidebar />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <TopBar />
+            <ScrollArea className="flex-1">
+              <main className="mx-auto w-full max-w-[1600px] px-6 py-5">
+                <Outlet />
+              </main>
+            </ScrollArea>
+          </div>
+          <ItemDrawer />
+          <Toaster />
         </div>
-        <Toaster />
-      </div>
+      </ReviewProvider>
     </TooltipProvider>
   );
 }

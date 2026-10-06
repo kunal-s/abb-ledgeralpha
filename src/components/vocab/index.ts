@@ -11,3 +11,4 @@ export { Sparkline } from "@/components/vocab/Sparkline";
 export { MethodBadge, type MethodKind } from "@/components/vocab/MethodBadge";
 export { RecordRef } from "@/components/vocab/RecordRef";
 export { Panel } from "@/components/vocab/Panel";
+export { DocLink } from "@/components/vocab/DocLink";

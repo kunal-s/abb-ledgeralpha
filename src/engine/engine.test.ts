@@ -202,11 +202,14 @@ describe("workflow", () => {
     expect(wf().proposeDecision({ itemKey: anchor("S-03"), module: "balance-sheet-review", action: "Follow up", amount: 4_06_950, justification: "Chase stores", hits: [], rulesVersion: base.version }).ok).toBe(true);
   });
 
-  it("sign-off needs the preparer first and a different reviewer", () => {
+  it("sign-off needs commentary, then the preparer, then a different reviewer", () => {
     as("controller");
     expect(wf().signOff("211300", AS_OF, "reviewer").ok).toBe(false);
     as("gl-accountant");
+    expect(wf().signOff("211300", AS_OF, "preparer")).toEqual({ ok: false, error: "Save the commentary before signing" });
+    expect(wf().setCommentary("211300", AS_OF, "Reviewed; items documented.", false).ok).toBe(true);
     expect(wf().signOff("211300", AS_OF, "preparer").ok).toBe(true);
+    expect(wf().setCommentary("211300", AS_OF, "Changed after sign-off", true).ok).toBe(false);
     as("controller");
     expect(wf().signOff("211300", AS_OF, "reviewer").ok).toBe(true);
     expect(wf().signOffs[`211300|${AS_OF}`].reviewer?.personId).toBe("P01");

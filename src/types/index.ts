@@ -354,6 +354,8 @@ export interface AccountSignOff {
   preparer?: { personId: string; at: string };
   reviewer?: { personId: string; at: string };
   commentary?: string;
+  /** true once the owner has edited the drafted commentary */
+  commentaryEdited?: boolean;
   reopened?: { personId: string; at: string; reason: string };
 }
 
@@ -364,6 +366,8 @@ export interface ActivityEvent {
   actorKind: "Person" | "Agent" | "System";
   module: string; // module id
   object: { type: string; id: string; label?: string };
+  /** every line item the event concerns (bulk actions touch many) */
+  itemKeys?: string[];
   action: string;
   before?: string;
   after?: string;

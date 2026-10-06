@@ -26,6 +26,8 @@ export interface EvalContext {
   glPostingDates: Map<string, IsoDate[]>;
   /** manual balance-sheet lines by assignment */
   manualByAssignment: Map<string, LineItem[]>;
+  /** customers with at least one open receivable */
+  customersWithOpenInvoices: Set<string>;
 }
 
 const cache = new Map<IsoDate, EvalContext>();
@@ -100,6 +102,7 @@ export function buildContext(asOf: IsoDate): EvalContext {
     lastBillingByCustomer,
     glPostingDates,
     manualByAssignment,
+    customersWithOpenInvoices: new Set(open.filter((l) => l.gl === "140100" && l.amount > 0 && l.partner).map((l) => l.partner!.id)),
   };
   cache.set(asOf, ctx);
   return ctx;

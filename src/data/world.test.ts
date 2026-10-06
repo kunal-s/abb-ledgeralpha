@@ -55,7 +55,7 @@ describe("world generation", () => {
   it("has realistic volumes", () => {
     const open = world.lines.filter((l) => world.glAccounts.find((g) => g.gl === l.gl)?.openItemManaged && isOpenAt(l, world.asOf));
     expect(world.lines.length).toBeGreaterThan(25_000);
-    expect(world.lines.length).toBeLessThan(70_000);
+    expect(world.lines.length).toBeLessThan(90_000);
     expect(open.length).toBeGreaterThan(7_000);
     expect(open.length).toBeLessThan(12_000);
     expect(world.projects.length).toBeGreaterThanOrEqual(190);

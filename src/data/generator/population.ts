@@ -273,7 +273,7 @@ function withholdingReceivable(ctx: Ctx): void {
 // ---------------------------------------------------------------------------
 // Payables, GR/IR and advances
 // ---------------------------------------------------------------------------
-function vendorInvoice(ctx: Ctx, vendor: Party, date: IsoDate, taxable: number, opts: { gl?: string; pcId?: string; wbs?: string; clearAfterDays?: number } = {}): LineItem {
+export function vendorInvoice(ctx: Ctx, vendor: Party, date: IsoDate, taxable: number, opts: { gl?: string; pcId?: string; wbs?: string; clearAfterDays?: number } = {}): LineItem {
   const { rng } = ctx;
   const pcId = opts.pcId ?? pickPc(ctx).id;
   const gst = gstLegs(taxable, "input", rng.chance(0.5), pcId);

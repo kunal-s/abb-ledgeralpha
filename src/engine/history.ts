@@ -4,11 +4,11 @@
 // rules as configured at that time.
 
 import type { ActivityEvent } from "@/types";
-import { WORLD, DATASETS, QUALITY } from "@/data";
+import { WORLD, DATASETS, QUALITY, GL_BY_ID } from "@/data";
 import { addDays, fmtDate, monthEnd } from "@/lib/dates";
 import { previousQuarterEnd } from "@/engine/context";
 import { effectiveRules, runRules, type RuleOverrides } from "@/engine/run";
-import { SEEDED_RULE_CHANGES } from "@/data/workspace/activity";
+import { SEEDED_RULE_CHANGES, seededSignOffs } from "@/data/workspace/activity";
 import { fmtINRCompact } from "@/lib/format";
 
 let cached: ActivityEvent[] | null = null;
@@ -55,6 +55,14 @@ export function seededHistory(): ActivityEvent[] {
       after: `${run.items.size.toLocaleString("en-IN")} items flagged · ${fmtINRCompact(run.flaggedValue)}`,
       details: { asOf: m, itemsFlagged: run.items.size, rulesVersion: run.version, durationMs: Math.round(run.durationMs) },
     });
+  }
+
+  // sign-offs completed before the session (balance-only accounts)
+  for (const so of Object.values(seededSignOffs())) {
+    const label = GL_BY_ID.get(so.gl)?.description;
+    const object = { type: "account", id: so.gl, label };
+    if (so.preparer) events.push({ id: id(), at: so.preparer.at, actorId: so.preparer.personId, actorKind: "Person", module: "balance-sheet-review", object, action: "Signed off as preparer", after: "Preparer signed", details: { period: so.periodEnd } });
+    if (so.reviewer) events.push({ id: id(), at: so.reviewer.at, actorId: so.reviewer.personId, actorKind: "Person", module: "balance-sheet-review", object, action: "Signed off as reviewer", before: "Preparer signed", after: "Signed off", details: { period: so.periodEnd } });
   }
 
   for (const c of SEEDED_RULE_CHANGES) {

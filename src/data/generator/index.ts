@@ -14,6 +14,7 @@ import { LedgerBuilder } from "@/data/generator/builder";
 import { buildMasters } from "@/data/generator/masters";
 import { createContext } from "@/data/generator/context";
 import { generatePopulation } from "@/data/generator/population";
+import { generateSettled } from "@/data/generator/settled";
 import { postMigration, postMonthlyActivity, postSettlements } from "@/data/generator/activity";
 import { buildBankGuarantees, buildFxRates, buildPurchaseOrders, buildTaxCredits } from "@/data/generator/reference";
 
@@ -31,6 +32,7 @@ export function generateWorld(): World {
 
   postMigration(ctx);
   generatePopulation(ctx);
+  generateSettled(ctx);
   plantScenarios(ctx, refs);
   postMonthlyActivity(ctx);
   postSettlements(ctx);
