@@ -1,4 +1,4 @@
-// Bulk actions over selected item rows — shared by the exceptions queue and the
+// Bulk actions over selected item rows, shared by the exceptions queue and the
 // account page. Each row is validated on its own by the workflow store; one
 // activity event covers the batch.
 
@@ -9,9 +9,17 @@ import { useWorkflow } from "@/state/workflow";
 import type { ItemRow } from "@/state/hooks";
 
 const MODULE = "balance-sheet-review";
+const LIVE = ["proposed", "approved", "exported"];
+
+/** Rows that can still receive a follow-up: none open already. */
+export const followable = (rows: ItemRow[]) => rows.filter((r) => !(r.followUp && r.followUp.status !== "closed"));
+
+/** Rows with a recommended action other than follow-up and no live decision. */
+export const proposable = (rows: ItemRow[]) =>
+  rows.filter((r) => r.rec && r.rec.action !== "Follow up" && !(r.decision && LIVE.includes(r.decision.status)));
 
 export function followUpRows(rows: ItemRow[], asOf: string): boolean {
-  const targets = rows.filter((r) => !(r.followUp && r.followUp.status !== "closed"));
+  const targets = followable(rows);
   if (!targets.length) {
     toast("Nothing to follow up", { description: "Every selected item already has an open follow-up.", tone: "info" });
     return false;
@@ -32,11 +40,8 @@ export function followUpRows(rows: ItemRow[], asOf: string): boolean {
 }
 
 export function proposeRows(rows: ItemRow[], rulesVersion: string): boolean {
-  const targets = rows.filter((r) => r.rec && r.rec.action !== "Follow up" && !(r.decision && ["proposed", "approved", "exported"].includes(r.decision.status)));
-  if (!targets.length) {
-    toast("Nothing to propose", { description: "Selected items have no recommended action other than follow-up, or already have a decision.", tone: "info" });
-    return false;
-  }
+  const targets = proposable(rows);
+  if (!targets.length) return false;
   const res = useWorkflow.getState().proposeDecisions(
     targets.map((r) => ({
       itemKey: r.key,

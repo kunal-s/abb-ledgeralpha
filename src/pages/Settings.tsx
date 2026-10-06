@@ -139,8 +139,8 @@ function People() {
               <TableCell className="text-muted-foreground">{p.title}</TableCell>
               <TableCell>{ROLES[p.roleId].label}</TableCell>
               <TableCell className="font-mono text-xs">{p.userId}</TableCell>
-              <TableCell className="text-right tnum">{owned(p.id) || "—"}</TableCell>
-              <TableCell className="text-right tnum">{reviewed(p.id) || "—"}</TableCell>
+              <TableCell className="text-right tnum">{owned(p.id) || "-"}</TableCell>
+              <TableCell className="text-right tnum">{reviewed(p.id) || "-"}</TableCell>
             </TableRow>
           ))}
         </TableBody>

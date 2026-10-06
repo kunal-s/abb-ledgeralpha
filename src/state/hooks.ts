@@ -139,7 +139,7 @@ export interface Review {
 const isDocumented = (r: ItemRow) =>
   (r.decision && ["proposed", "approved", "exported", "closed-in-erp"].includes(r.decision.status)) || (r.followUp && !!r.followUp.dueDate);
 
-/** Computes the review model. Mounted once, in ReviewProvider — read it with `useReview()`. */
+/** Computes the review model. Mounted once, in ReviewProvider - read it with `useReview()`. */
 export function useComputeReview(): Review {
   const run = useRuleRun();
   const recs = useRecommendations(run);

@@ -24,6 +24,13 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   // Tax review
   cleared: { label: "Tax cleared", tone: "ok" },
   objected: { label: "Tax objection", tone: "danger" },
+  // Counterparty confirmation (docs/FRD.md §6.7)
+  "not-sent": { label: "Not sent", tone: "neutral" },
+  sent: { label: "Awaiting reply", tone: "info" },
+  "reply-received": { label: "Reply received", tone: "warn" },
+  confirmed: { label: "Confirmed", tone: "ok" },
+  "counter-statement": { label: "Counter-statement", tone: "warn" },
+  disputed: { label: "Disputed", tone: "danger" },
 };
 
 const TONE_CLS: Record<Tone, { wrap: string; dot: string }> = {
@@ -48,7 +55,7 @@ export function StatusChip({ status, className, dot = true, label }: StatusChipP
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-2xs font-medium",
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-md px-1.5 py-0.5 text-2xs font-medium",
         tc.wrap,
         className
       )}

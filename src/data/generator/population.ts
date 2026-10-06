@@ -78,7 +78,7 @@ export function postCustomerInvoice(
         wbs: opts.project?.wbs,
         assignment: reference,
         dueDate: addDays(date, opts.dueDays ?? ctx.rng.pick([30, 45, 60, 60, 90])),
-        text: opts.text ?? (opts.project ? `Milestone billing — ${opts.project.name}` : "Supply of products"),
+        text: opts.text ?? (opts.project ? `Milestone billing - ${opts.project.name}` : "Supply of products"),
       },
       { gl: opts.project ? "410200" : revenueGl(ctx, pc), amount: -taxable, pc: pc.id, wbs: opts.project?.wbs },
       ...gst,
@@ -157,7 +157,7 @@ function receivables(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
         partner: { type: "Customer", id: project.customerId },
         wbs: project.wbs,
         assignment: project.wbs,
-        text: `Retention ${rng.pick([5, 10, 10, 5])}% — ${project.name}`,
+        text: `Retention ${rng.pick([5, 10, 10, 5])}% - ${project.name}`,
       },
       { gl: "410200", amount: -amount, pc: project.profitCentreId, wbs: project.wbs },
     ]);
@@ -171,7 +171,7 @@ function receivables(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
     const date = dateForAge(ctx, age);
     const services = project.profitCentreId === "PC-RA-03" || rng.chance(0.1);
     const amount = rng.money(1_40_00_000, 0.95, 4_00_000, 25_00_00_000);
-    ctx.b.post({ docType: "SA", postingDate: date, enteredBy: U.projects, text: "Revenue recognition — percentage of completion", entryTime: "02:10" }, [
+    ctx.b.post({ docType: "SA", postingDate: date, enteredBy: U.projects, text: "Revenue recognition - percentage of completion", entryTime: "02:10" }, [
       { gl: services ? "141200" : "141100", amount, pc: project.profitCentreId, partner: { type: "Customer", id: project.customerId }, wbs: project.wbs, assignment: project.wbs },
       { gl: services ? "410300" : "410200", amount: -amount, pc: project.profitCentreId, wbs: project.wbs },
     ]);
@@ -200,7 +200,7 @@ function receivables(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
         partner: { type: "Customer", id: customer.id },
         wbs: project?.wbs,
         assignment: project?.wbs ?? "ADVANCE",
-        text: project ? `Mobilisation advance — ${project.name}` : "Advance against purchase order",
+        text: project ? `Mobilisation advance - ${project.name}` : "Advance against purchase order",
       },
     ]);
   }
@@ -244,10 +244,10 @@ export function postReceiptWithTds(
       pc: inv.line.profitCentre,
       partner: { type: "Customer", id: customer.id },
       assignment: inv.reference,
-      text: `TDS ${rate.nature.toLowerCase()} — ${quarter}`,
+      text: `TDS ${rate.nature.toLowerCase()} - ${quarter}`,
     },
     ...(gstTds
-      ? [{ gl: "162400", amount: gstTds, pc: inv.line.profitCentre, partner: { type: "Customer" as const, id: customer.id }, assignment: inv.reference, text: `GST TDS — ${quarter}` }]
+      ? [{ gl: "162400", amount: gstTds, pc: inv.line.profitCentre, partner: { type: "Customer" as const, id: customer.id }, assignment: inv.reference, text: `GST TDS - ${quarter}` }]
       : []),
     { gl: "140100", amount: -inv.gross, pc: inv.line.profitCentre, partner: { type: "Customer", id: customer.id }, assignment: inv.reference },
   ]);
@@ -468,7 +468,7 @@ function otherItems(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
     const amount = rng.money(travel ? 42_000 : 85_000, 0.7, 5_000, 2_50_000);
     const pcId = pickPc(ctx).id;
     ctx.b.post({ docType: "SA", postingDate: date, enteredBy: U.travel, entryTime: bizTime(ctx) }, [
-      { gl: travel ? "152100" : "152200", amount, pc: pcId, assignment: `EMP-${rng.int(10000, 19999)}`, text: travel ? `Travel advance — ${rng.pick(CITIES)}` : "Salary advance" },
+      { gl: travel ? "152100" : "152200", amount, pc: pcId, assignment: `EMP-${rng.int(10000, 19999)}`, text: travel ? `Travel advance - ${rng.pick(CITIES)}` : "Salary advance" },
       { gl: "181200", amount: -amount, pc: pcId },
     ]);
   }
@@ -495,7 +495,7 @@ function otherItems(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
         pc: pcId,
         partner,
         assignment: kind === "153200" ? `TENDER-${rng.int(1000, 9999)}` : undefined,
-        text: kind === "153100" ? `Security deposit — premises, ${rng.pick(CITIES)}` : kind === "153200" ? "Earnest money deposit — tender" : rng.pick(["Deposit under protest — appeal", "Electricity deposit", "Customs duty deposit"]),
+        text: kind === "153100" ? `Security deposit - premises, ${rng.pick(CITIES)}` : kind === "153200" ? "Earnest money deposit - tender" : rng.pick(["Deposit under protest - appeal", "Electricity deposit", "Customs duty deposit"]),
       },
       { gl: "181200", amount: -amount, pc: pcId },
     ]);
@@ -543,7 +543,7 @@ function otherItems(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
     const date = dateForAge(ctx, pickAge(ctx, PROFILES.moderate));
     const amount = rng.money(2_10_000, 1.2, 1_000, 60_00_000) * (rng.chance(0.65) ? 1 : -1);
     const pcId = pickPc(ctx).id;
-    ctx.b.post({ docType: "SA", postingDate: date, enteredBy: rng.pick(accountants), manual: true, entryTime: bizTime(ctx), text: rng.pick(["Unidentified difference — to be investigated", "Parked pending supporting documents", "Temporary posting — awaiting cost centre"]) }, [
+    ctx.b.post({ docType: "SA", postingDate: date, enteredBy: rng.pick(accountants), manual: true, entryTime: bizTime(ctx), text: rng.pick(["Unidentified difference - to be investigated", "Parked pending supporting documents", "Temporary posting - awaiting cost centre"]) }, [
       { gl: "171100", amount, pc: pcId },
       { gl: amount > 0 ? "181300" : "531900", amount: -amount, pc: pcId },
     ]);
@@ -565,7 +565,7 @@ function otherItems(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
   for (let i = 0; i < N.bankChargesClearing; i++) {
     const date = dateForAge(ctx, pickAge(ctx, PROFILES.moderate));
     const amount = rng.money(1_800, 1.0, 150, 25_000);
-    ctx.b.post({ docType: "SA", postingDate: date, enteredBy: U.bank, entryTime: bizTime(ctx), text: "Bank charges debited — allocation pending" }, [
+    ctx.b.post({ docType: "SA", postingDate: date, enteredBy: U.bank, entryTime: bizTime(ctx), text: "Bank charges debited - allocation pending" }, [
       { gl: "171400", amount, pc: S.corporateProfitCentre.id },
       { gl: "181100", amount: -amount, pc: S.corporateProfitCentre.id },
     ]);
@@ -587,7 +587,7 @@ function otherItems(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
     const date = dateForAge(ctx, pickAge(ctx, PROFILES.moderate));
     const amount = rng.money(9_00_000, 1.0, 25_000, 2_00_00_000);
     const pcId = pickPc(ctx).id;
-    ctx.b.post({ docType: "SA", postingDate: date, enteredBy: rng.pick(accountants), manual: true, entryTime: bizTime(ctx), text: rng.pick(["Cross-charge — shared engineering", "Recovery of expenses incurred on behalf", "Warranty claim recoverable"]) }, [
+    ctx.b.post({ docType: "SA", postingDate: date, enteredBy: rng.pick(accountants), manual: true, entryTime: bizTime(ctx), text: rng.pick(["Cross-charge - shared engineering", "Recovery of expenses incurred on behalf", "Warranty claim recoverable"]) }, [
       { gl: "164100", amount, pc: pcId, partner: { type: "Group company", id: gc.id }, docCurrency: gc.currency, amountDoc: docAmount(amount, gc.currency!, date), assignment: gc.id },
       { gl: "410300", amount: -amount, pc: pcId },
     ]);
@@ -611,7 +611,7 @@ function otherItems(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
     const pcId = pickPc(ctx).id;
     const gst = gstLegs(value, "input", rng.chance(0.5), pcId);
     const gross = value + gst.reduce((s, l) => s + l.amount, 0);
-    const lines = ctx.b.post({ docType: "KR", postingDate: date, enteredBy: AP_TEAM, entryTime: bizTime(ctx), text: "Capital purchase — asset under construction" }, [
+    const lines = ctx.b.post({ docType: "KR", postingDate: date, enteredBy: AP_TEAM, entryTime: bizTime(ctx), text: "Capital purchase - asset under construction" }, [
       { gl: rng.chance(0.3) ? "120100" : "120200", amount: value, pc: pcId, assignment: `AUC-${rng.int(40000, 49999)}`, text: rng.pick(["Assembly line expansion", "Test bay upgrade", "Factory roof solar plant", "Warehouse racking", "Paint shop modernisation", "New office fit-out"]) },
       ...gst,
       { gl: "261200", amount: -gross, pc: pcId, partner: { type: "Vendor", id: vendor.id }, assignment: vendor.id },

@@ -1,6 +1,6 @@
 // Harvested from LedgerAlpha (src/components/vocab/PageHeader.tsx), reduced to
 // the production pattern: breadcrumbs, title, status badge, actions. There is
-// deliberately no description slot — pages carry no narrative under the title.
+// deliberately no description slot - pages carry no narrative under the title.
 import { Link } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";

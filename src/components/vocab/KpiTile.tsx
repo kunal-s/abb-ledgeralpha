@@ -10,7 +10,7 @@ interface KpiTileProps {
   /** trend direction relative to a target/prior; semantics set by `goodWhen` */
   delta?: string;
   trend?: "up" | "down" | "flat";
-  /** which direction is "good" — colors the delta accordingly */
+  /** which direction is "good" - colors the delta accordingly */
   goodWhen?: "up" | "down";
   sublabel?: ReactNode;
   icon?: ReactNode;

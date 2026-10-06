@@ -6,7 +6,7 @@ review, approve and sign off; every figure traces to its document.
 
 - Requirements: [`docs/FRD.md`](docs/FRD.md)
 - Working rules: [`CLAUDE.md`](CLAUDE.md)
-- Status: increment **I0** — product scaffold (navigation, workspace/localisation config, shell, page
+- Status: increment **I0** - product scaffold (navigation, workspace/localisation config, shell, page
   anatomy). Modules are built increment by increment (FRD §13).
 
 ```bash

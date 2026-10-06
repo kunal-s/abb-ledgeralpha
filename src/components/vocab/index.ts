@@ -1,4 +1,4 @@
-// Reusable component vocabulary — harvested from LedgerAlpha (/app/app-ledger-alpha,
+// Reusable component vocabulary - harvested from LedgerAlpha (/app/app-ledger-alpha,
 // src/components/vocab) and adapted. Import from "@/components/vocab".
 // TraceToSource is harvested in I4, when the document drill-down exists.
 export { KpiTile } from "@/components/vocab/KpiTile";

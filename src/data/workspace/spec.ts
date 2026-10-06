@@ -1,4 +1,4 @@
-// Demo workspace world specification — the parameters the generator turns
+// Demo workspace world specification - the parameters the generator turns
 // into one coherent synthetic ledger (docs/FRD.md §9.2). Workspace data only;
 // names of people and parties are fictional.
 
@@ -37,12 +37,12 @@ export const WORLD_SPEC = {
 
   people: [
     { id: "P01", name: "Meera Iyer", roleId: "controller", title: "Financial Controller", userId: "MIYER" },
-    { id: "P02", name: "Rohan Deshpande", roleId: "gl-accountant", title: "Senior Accountant — Procurement and Inventory", userId: "RDESHPANDE" },
-    { id: "P03", name: "Kavya Menon", roleId: "gl-accountant", title: "Accountant — Fixed Assets and Advances", userId: "KMENON" },
-    { id: "P04", name: "Arjun Malhotra", roleId: "gl-accountant", title: "Accountant — Provisions and Intercompany", userId: "AMALHOTRA" },
-    { id: "P05", name: "Sneha Kulkarni", roleId: "gl-accountant", title: "Accountant — Statutory and Deposits", userId: "SKULKARNI" },
+    { id: "P02", name: "Rohan Deshpande", roleId: "gl-accountant", title: "Senior Accountant - Procurement and Inventory", userId: "RDESHPANDE" },
+    { id: "P03", name: "Kavya Menon", roleId: "gl-accountant", title: "Accountant - Fixed Assets and Advances", userId: "KMENON" },
+    { id: "P04", name: "Arjun Malhotra", roleId: "gl-accountant", title: "Accountant - Provisions and Intercompany", userId: "AMALHOTRA" },
+    { id: "P05", name: "Sneha Kulkarni", roleId: "gl-accountant", title: "Accountant - Statutory and Deposits", userId: "SKULKARNI" },
     { id: "P06", name: "Vikram Nair", roleId: "ar-specialist", title: "Receivables Lead", userId: "VNAIR" },
-    { id: "P07", name: "Pooja Bhatt", roleId: "ar-specialist", title: "Receivables Specialist — Projects", userId: "PBHATT" },
+    { id: "P07", name: "Pooja Bhatt", roleId: "ar-specialist", title: "Receivables Specialist - Projects", userId: "PBHATT" },
     { id: "P08", name: "Farhan Qureshi", roleId: "treasury-analyst", title: "Treasury Analyst", userId: "FQURESHI" },
     { id: "P09", name: "Lakshmi Subramanian", roleId: "tax-specialist", title: "Tax Manager", userId: "LSUBRAMANIAN" },
     { id: "P10", name: "Nikhil Agarwal", roleId: "reporting-analyst", title: "Business Finance Analyst", userId: "NAGARWAL" },

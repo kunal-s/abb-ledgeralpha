@@ -122,9 +122,9 @@ function EventDetail({ event, onClose }: { event?: ActivityEvent; onClose: () =>
                     ["Decision", `${decision.id} · ${decision.action} · ${fmtINR(Math.abs(decision.amount))}`],
                     ["Status", decision.status],
                     ["Proposed", `${PERSON_BY_ID.get(decision.proposedBy)?.name} · ${fmtDateTime(decision.proposedAt)}`],
-                    ["Justification", decision.justification || "—"],
+                    ["Justification", decision.justification || "-"],
                     ["Approval band", `${decision.approvalBandId} · ${decision.chain.length} approver${decision.chain.length > 1 ? "s" : ""}${decision.taxReviewRequired ? " + tax review" : ""}`],
-                    ["Approvals", decision.approvals.length ? decision.approvals.map((a) => `${PERSON_BY_ID.get(a.personId)?.name} (${fmtDateTime(a.at)})`).join("; ") : "—"],
+                    ["Approvals", decision.approvals.length ? decision.approvals.map((a) => `${PERSON_BY_ID.get(a.personId)?.name} (${fmtDateTime(a.at)})`).join("; ") : "-"],
                     ["Tax review", decision.taxReview ? `${decision.taxReview.outcome} by ${PERSON_BY_ID.get(decision.taxReview.personId)?.name}` : decision.taxReviewRequired ? "Pending" : "Not required"],
                     ["Rule configuration", decision.snapshot.rulesVersion],
                   ]}
@@ -285,7 +285,7 @@ export function ActivityLog() {
             ))}
           </TableBody>
         </Table>
-        {visible.length > 200 && <div className="border-t border-border/70 px-4 py-2 text-xs text-muted-foreground">Showing the latest 200 of {fmtInt(visible.length)} — export for the full log</div>}
+        {visible.length > 200 && <div className="border-t border-border/70 px-4 py-2 text-xs text-muted-foreground">Showing the latest 200 of {fmtInt(visible.length)} - export for the full log</div>}
       </Panel>
 
       <EventDetail event={open} onClose={() => setOpen(undefined)} />

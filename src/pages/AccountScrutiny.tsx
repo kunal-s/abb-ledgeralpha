@@ -7,7 +7,7 @@ import { BalanceBreakdown, type BreakdownAction, type BreakdownBucket } from "@/
 import { BalanceTrend, type TrendPoint } from "@/components/review/BalanceTrend";
 import { ItemsTable } from "@/components/review/ItemsTable";
 import { SignOffPanel } from "@/components/review/SignOffPanel";
-import { followUpRows, proposeRows } from "@/components/review/bulk";
+import { BulkButtons } from "@/components/review/BulkButtons";
 import { BALANCES, GL_BY_ID, PERSON_BY_ID, WORLD } from "@/data";
 import { useReview, rowFor } from "@/state/ReviewContext";
 import { AGEING_POLICY } from "@/config/policies";
@@ -104,7 +104,7 @@ export function AccountScrutiny() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label="Balance" value={fmtDrCr(s.closing, true)} sublabel={`${account.statementLine} · ${CATEGORY_LABELS[account.category]}`} />
-        <KpiTile label={`Since ${fmtDate(review.priorDate)}`} value={change === 0 ? "—" : `${change > 0 ? "+" : "−"}${fmtINRCompact(Math.abs(change))}`} sublabel={`was ${fmtDrCr(s.prior, true)}`} />
+        <KpiTile label={`Since ${fmtDate(review.priorDate)}`} value={change === 0 ? "-" : `${change > 0 ? "+" : "−"}${fmtINRCompact(Math.abs(change))}`} sublabel={`was ${fmtDrCr(s.prior, true)}`} />
         {account.openItemManaged ? (
           <>
             <KpiTile label={`Older than ${AGEING_POLICY.reviewThresholdDays} days`} value={fmtINRCompact(s.overAmount)} sublabel={`${fmtInt(s.overCount)} of ${fmtInt(s.openCount)} open items`} accent={s.overCount ? "warn" : "none"} />
@@ -155,16 +155,7 @@ export function AccountScrutiny() {
           rows={account.openItemManaged ? tableRows : periodLines}
           bulk={
             account.openItemManaged
-              ? (selected, clear) => (
-                  <>
-                    <Button size="sm" variant="outline" className="h-8" onClick={() => followUpRows(selected, review.asOf) && clear()}>
-                      Request follow-up
-                    </Button>
-                    <Button size="sm" className="h-8" onClick={() => proposeRows(selected, review.run.version) && clear()}>
-                      Propose recommended actions
-                    </Button>
-                  </>
-                )
+              ? (selected, clear) => <BulkButtons selected={selected} clear={clear} asOf={review.asOf} rulesVersion={review.run.version} />
               : undefined
           }
           empty={show === "flagged" && account.openItemManaged ? "No flagged items" : "No items"}

@@ -1,4 +1,4 @@
-// Module registry — the product's information architecture (docs/FRD.md §3).
+// Module registry - the product's information architecture (docs/FRD.md §3).
 // Drives routes and the sidebar. Which modules a workspace sees is tenant
 // configuration (src/config/tenant.ts), never a code change.
 

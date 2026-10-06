@@ -21,7 +21,7 @@ function tone(score: number) {
   return "danger";
 }
 
-/** Confidence chip — every agent-touched figure carries one (A4). */
+/** Confidence chip - every agent-touched figure carries one (A4). */
 export function ConfidenceChip({
   score,
   className,
@@ -52,7 +52,7 @@ export function ConfidenceChip({
         </span>
       </TooltipTrigger>
       <TooltipContent>
-        Confidence {(score * 100).toFixed(1)}% — derived from the evidence
+        Confidence {(score * 100).toFixed(1)}% - derived from the evidence
         factors shown with this recommendation.
       </TooltipContent>
     </Tooltip>

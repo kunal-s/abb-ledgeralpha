@@ -9,7 +9,7 @@ import { TENANT } from "@/config/tenant";
 
 export interface EvalContext {
   asOf: IsoDate;
-  /** last day of the previous fiscal quarter — the review period runs from the day after */
+  /** last day of the previous fiscal quarter - the review period runs from the day after */
   reviewFrom: IsoDate;
   open: LineItem[];
   /** balance-sheet lines posted in the review period */

@@ -11,7 +11,7 @@ interface PanelProps {
   bodyClassName?: string;
 }
 
-/** Titled card section — the one shared panel header (no per-page variants). */
+/** Titled card section - the one shared panel header (no per-page variants). */
 export function Panel({ title, actions, children, className, bodyClassName }: PanelProps) {
   return (
     <Card className={cn("overflow-hidden", className)}>

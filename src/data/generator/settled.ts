@@ -60,7 +60,7 @@ export function generateSettled(ctx: Ctx): void {
     const date = priorQuarterDate(ctx, prior);
     const amount = rng.money(16_00_000, 1.0, 50_000, 3_00_00_000);
     const [ret] = b.post({ docType: "DR", postingDate: date, enteredBy: U.billing, reference: ctx.nextInvoiceRef(p.profitCentreId, date), entryTime: bizTime(ctx) }, [
-      { gl: "142100", amount, pc: p.profitCentreId, partner: { type: "Customer", id: p.customerId }, wbs: p.wbs, assignment: p.wbs, text: `Retention — ${p.name}` },
+      { gl: "142100", amount, pc: p.profitCentreId, partner: { type: "Customer", id: p.customerId }, wbs: p.wbs, assignment: p.wbs, text: `Retention - ${p.name}` },
       { gl: "410200", amount: -amount, pc: p.profitCentreId, wbs: p.wbs },
     ]);
     const paid = settleDate(ctx, prior, date);
@@ -78,7 +78,7 @@ export function generateSettled(ctx: Ctx): void {
     const p = rng.pick(live);
     const date = priorQuarterDate(ctx, prior);
     const amount = rng.money(1_40_00_000, 0.95, 4_00_000, 25_00_00_000);
-    const [rec] = b.post({ docType: "SA", postingDate: date, enteredBy: U.projects, entryTime: "02:10", text: "Revenue recognition — percentage of completion" }, [
+    const [rec] = b.post({ docType: "SA", postingDate: date, enteredBy: U.projects, entryTime: "02:10", text: "Revenue recognition - percentage of completion" }, [
       { gl: "141100", amount, pc: p.profitCentreId, partner: { type: "Customer", id: p.customerId }, wbs: p.wbs, assignment: p.wbs },
       { gl: "410200", amount: -amount, pc: p.profitCentreId, wbs: p.wbs },
     ]);
@@ -191,7 +191,7 @@ export function generateSettled(ctx: Ctx): void {
     const date = priorQuarterDate(ctx, prior);
     const amount = rng.money(4_20_000, 1.1, 10_000, 1_50_00_000);
     const pcId = pickPc(ctx).id;
-    const [dep] = b.post({ docType: "SA", postingDate: date, enteredBy: "SKULKARNI", manual: true, entryTime: bizTime(ctx), text: "Earnest money deposit — tender" }, [
+    const [dep] = b.post({ docType: "SA", postingDate: date, enteredBy: "SKULKARNI", manual: true, entryTime: bizTime(ctx), text: "Earnest money deposit - tender" }, [
       { gl: "153200", amount, pc: pcId, partner: { type: "Customer", id: customer.id }, assignment: `TENDER-${rng.int(1000, 9999)}` },
       { gl: "181200", amount: -amount, pc: pcId },
     ]);
@@ -225,7 +225,7 @@ export function generateSettled(ctx: Ctx): void {
     const date = priorQuarterDate(ctx, prior);
     const value = rng.money(38_00_000, 1.1, 1_00_000, 12_00_00_000);
     const pcId = pickPc(ctx).id;
-    const [auc] = b.post({ docType: "KR", postingDate: date, enteredBy: "AP_SSC01", entryTime: bizTime(ctx), text: "Capital purchase — asset under construction" }, [
+    const [auc] = b.post({ docType: "KR", postingDate: date, enteredBy: "AP_SSC01", entryTime: bizTime(ctx), text: "Capital purchase - asset under construction" }, [
       { gl: "120200", amount: value, pc: pcId, assignment: `AUC-${rng.int(40000, 49999)}` },
       { gl: "261200", amount: -value, pc: pcId, partner: { type: "Vendor", id: vendor.id }, assignment: vendor.id },
     ]);

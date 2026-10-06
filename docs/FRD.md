@@ -367,7 +367,7 @@ Each module states its purpose, what it shows, what users can do, the agents and
   - **Accruals & provisions** (Overview): GR-not-invoiced accruals; warranty, LD and other provisions (Ind AS 37) with movement and reversal calendar.
 - **Actions:** export the proposal batch (Excel / CSV, Appendix C); mark as posted (simulated, labelled).
 - **Agent:** Journal reviewer.
-- **FR-JNL-01 (M):** export includes source item keys and approval references; the footer states "Proposal — post in ERP after review".
+- **FR-JNL-01 (M):** export includes source item keys and approval references; the footer states "Proposal - post in ERP after review".
 
 ### 6.5 Intercompany · `/intercompany` · Overview
 - **Purpose:** group-company balances and related-party visibility.
@@ -488,6 +488,12 @@ Each module states its purpose, what it shows, what users can do, the agents and
 - **Agent:** Reconciler. Low-risk recs with zero unexplained difference may be auto-prepared, but still need reviewer sign-off (policy).
 - **FR-REC-01 (M):** bank, sub-ledger, schedule-supported and customer-statement types are fully worked in the demo data. Other types are present with real data.
 - **FR-REC-02 (M):** unexplained difference = books − source − Σ classified reconciling items, always shown. A rec with an unexplained difference above tolerance cannot be signed off.
+- **FR-REC-03 (M):** tolerance by type (policy, `RECON_POLICY`): Bank ₹100, Sub-ledger nil, Schedule-supported ₹1,000, Tax account ₹100, Intercompany ₹1,000, Customer and Vendor statements ₹1,000. A reconciling item that is not a presentation difference and is older than 30 days is flagged as aged.
+- **FR-REC-04 (M):** every reconciling item has a class from its type's taxonomy, and each class has a treatment: timing, classification, adjust books, source to correct, dispute or investigate. The reconciler suggests a class with a confidence; the preparer accepts or changes it. An unclassified item blocks sign-off.
+- **FR-REC-05 (M):** an item that needs an entry in the books becomes an "Adjust books" decision that carries its own journal. It follows the delegation bands, four-eyes, tax review (for tax a customer deducted and the company has not recognised) and the proposal-file export. Items to correct at the source, disputes and items to investigate get a follow-up. Sign-off needs a decision or follow-up on each of them.
+- **FR-REC-06 (M):** customer statement flow: request, reply received, reply applied, then confirmed or counter-statement. Applying a reply sets the source balance and the reconciler explains the difference from the ledger: the smallest set of candidates that sums to it exactly (invoices of the last 10 days the customer has not booked, retention, and short-payment residuals split into tax deducted at a standard rate and deductions that tax does not explain). If nothing sums exactly the reconciler adds nothing and says so; the preparer adds the items by hand.
+- **FR-REC-07 (S):** the statement of account downloads as a CSV of the counterparty's open items. The opening balance, receipts and deductions view is deferred.
+- **Built in I4:** Overview (KPIs, type by status bars, needs-attention list, items by treatment), Register, Statements (confirmation tracking for customers, vendors and group companies), Decisions (entries proposed from reconciling items), the reconciliation page (difference explained, confirmation, items, decisions, commentary and sign-off), and the reconciling-item drawer. The reconciliations are generated from the ledger for the loaded period only.
 
 ### 6.8 Cash Application · `/cash-application` · Working
 - **Purpose:** apply customer receipts to open invoices when remittance detail is missing and receipts are net of deductions, and keep unapplied credits under control.
@@ -753,16 +759,18 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | S-16 | BSR | TDS payable line open 7 months | ₹1,84,300 Cr | BSR-16 |
 | S-17 | Cash App | Invoice ₹1,00,00,000 + GST ₹18,00,000 = ₹1,18,00,000. Receipt ₹1,16,85,850 = less TDS 1% on taxable value (₹1,00,000) and bank charges (₹14,150); no remittance advice | ₹1,16,85,850 receipt | L3 match, residual explained line by line |
 | S-18 | Recs | Customer balance ₹2,40,00,000 vs confirmation ₹1,96,50,000; gap ₹43,50,000 = timing ₹23,60,000 + retention ₹11,80,000 + TDS ₹2,00,000 + disputed LD ₹6,10,000 | ₹43,50,000 | Customer statement rec, all classified |
-| S-19 | Recs | Bank account: unidentified receipt, unpresented cheque, bank charges | various | Bank reconciliation statement |
+| S-19 | Recs | Bank accounts: three deposits in transit (₹14,20,500, ₹6,85,300, ₹22,40,000), four unpresented vendor payments (₹9,45,000, ₹3,18,250, ₹17,92,600, ₹5,60,000), bank charges ₹2,360 and interest ₹1,18,420 not booked, one unidentified receipt of ₹3,75,000 | various | Bank reconciliation statements; the unidentified receipt is left for the preparer to classify |
 | S-20 | BG | Performance BG ₹3.5 cr expiring in 45 days, acceptance pending | ₹3.50 cr | Red watchlist |
 | S-21 | FX | EUR 5,00,000 import payable booked at ₹96.00, closing ₹97.50; forward at ₹96.40 | ₹7,50,000 unrealised loss | FX exposure / coverage |
 | S-22 | Variance / Mgmt | Copper-linked material PO price ₹780 → ₹890 per kg-eq on a fixed-price project | ≈ ₹44 lakh | Top variance driver (T4) |
 | S-23 | GST | Supplier invoices in books missing in GSTR-2B | ₹6,84,200 ITC | Mismatch list |
 | S-24 | Working Capital | MSME vendor invoices unpaid beyond 45 days | ₹38,90,000 | MSME overdue view |
+| S-25 | Recs | Manual journals posted straight to the receivables control account (₹4,87,300 Dr) and the payables control account (₹2,15,900 Cr) without a business partner | ₹4,87,300 and ₹2,15,900 | Sub-ledger reconciling items; the receivable is classified as a direct posting, the payable is left for the preparer |
 
 **Planting:**
 - **In the I1 dataset, each asserted by a scenario test** (`src/data/world.test.ts`): S-01 to S-16, the ledger side of S-18, S-20, S-21 and S-24.
-- **Added with their modules:** S-17 (I5), the customer confirmation for S-18 and S-19 (I4), S-22 (I8), and S-23 (I9).
+- **Added with their modules:** S-17 (I5), S-22 (I8) and S-23 (I9).
+- **Added in I4 (Reconciliations), asserted in `src/engine/recs.test.ts`:** S-19 and S-25 in the ledger, and the customer's reply for S-18 (received, not yet applied: applying it makes the reconciler find the four items).
 
 ### 9.5 Workshop mapping
 
@@ -772,7 +780,7 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | #2 Account reconciliation, whatever S2 means | **All four interpretations exist in the product:** (a) receipt matching / unapplied → Cash Application; (b) customer statements → Reconciliations (customer statement); (c) GL account recs → Reconciliations (bank, sub-ledger, schedule); (d) vendor recs → Reconciliations (vendor statement). S2 sets emphasis, not build | 40–45 min |
 | Working capital and division-level, transaction-level reporting | Working Capital, Variance Analysis, Management Reporting; business-unit scope in the top bar | 25 min |
 | BG lifecycle and FX (raised 18-Sep, Phase 2) | Bank Guarantees, FX Exposure, shown as existing modules | 5–10 min |
-| "Existing first" | The whole product, configured on the ABB workspace | — |
+| "Existing first" | The whole product, configured on the ABB workspace | - |
 
 ### 9.6 Discussion topics likely to come up, and where they are answered
 
@@ -905,6 +913,11 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | D-20 | An acting role resolves to the account owner when the owner holds that role (so work on an account shows the person who owns it); otherwise to the role's first person. Accounts owned by the Financial Controller are reviewed by the Head of Finance (four-eyes) | Agreed (I3) |
 | D-21 | Bulk actions validate each item on its own and write one activity event covering the batch; item history includes events of batches that covered the item | Agreed (I3) |
 | D-22 | Recommended confidence for a follow-up is capped by its factors (about 0.70): follow-up is the cautious default, not a certainty. Opening a follow-up lowers the confidence of write-back and write-off, because nothing should be written back while the counterparty is being asked | Agreed (I3) |
+| D-23 | A reconciling item's amount is as it appears (books side) or would appear (source side) in the books, debit positive. Its effect on the difference (books less source) is +amount for a books-side item and -amount for a source-side item. Unexplained = difference less the effects of classified items | Agreed (I4) |
+| D-24 | Items that need action (adjust books, source to correct, dispute, investigate) need a decision or an open follow-up before sign-off. Timing and classification items need none. A rec outside its tolerance cannot be signed off, whatever the commentary says | Agreed (I4) |
+| D-25 | The reconciler never guesses: it proposes only a set of ledger items that sums exactly to the difference, the smallest such set; the preparer owns every other item. Its classes carry a confidence and are applied only when the reconciliation is prepared or the preparer accepts them | Agreed (I4) |
+| D-26 | A reconciling item is addressed as `REC-id::item-id` so decisions, follow-ups and the activity log treat it like a ledger line. An entry for an item is a decision with its own journal (action "Adjust books"), through the same bands, four-eyes and export as ledger decisions | Agreed (I4) |
+| D-27 | Reconciliations are generated for the loaded period; choosing another period shows a prompt to switch back instead of empty or invented data | Agreed (I4) |
 
 ## 13. Build plan
 
@@ -916,14 +929,14 @@ One increment per prompt, each ending with §10.6.
 | **I1** | Data foundation: seeded world generator (§9.2), balances and load checks, Data Sources, Settings (read) | ✔ Working |
 | **I2** | Platform core: rules engine (BSR-01 to BSR-18), recommendation framework with derived confidence, workflow and approvals (bands, four-eyes, tax review, export), follow-ups, sign-off, activity log with seeded history; Rules & Policies, Activity Log, Reset demo | ✔ Working |
 | **I3** | Balance Sheet Review: Overview, Accounts, Account detail, Exceptions, Decisions; the item drawer; bulk follow-up, propose and approve; journal proposal export; commentary and sign-off | ✔ **Deep** |
-| **I4** | Reconciliations: all types; bank statement view; customer statement + confirmation | **Deep** |
+| **I4** | Reconciliations: all types; bank statement view; customer statement + confirmation | ✔ **Deep** |
 | **I5** | Cash Application (matcher with deduction inference) and TDS | Working |
 | **I6** | Journals (proposals outbox, review, accruals) and Audit Readiness (schedules, PBC, evidence) | Working |
 | **I7** | Home, My Work, Close Cockpit | Working |
 | **I8** | Working Capital, Variance Analysis; Management Reporting and Financial Statements | Working / Overview |
 | **I9** | Bank Guarantees (working); FX Exposure, GST, Intercompany, Controls (overview) | Working / Overview |
 | **I10** | Agents, Ask LedgerAlpha, Explain, global search | Working |
-| **I11** | Workspace calibration to the client's answers; masked data import if approved; full dry run | — |
+| **I11** | Workspace calibration to the client's answers; masked data import if approved; full dry run | - |
 
 **Workshop-critical path:** I1–I5 and I7; then I6 and I8. Anything not finished before the workshop is disabled in the workspace configuration (D-13), never shown as a placeholder.
 
@@ -978,7 +991,7 @@ One increment per prompt, each ending with §10.6.
 | Document type | SA |
 | Header text | GR/IR write-back, PO 4500187321 |
 | Line | 1 / 2 |
-| GL account | 211300 GR/IR clearing — Materials / 461500 Liabilities no longer required written back |
+| GL account | 211300 GR/IR clearing - Materials / 461500 Liabilities no longer required written back |
 | Debit / Credit | Dr / Cr |
 | Amount | 18,64,320.00 |
 | Profit centre / WBS | PC-MO-12 / P-2023-0418 |
@@ -986,7 +999,7 @@ One increment per prompt, each ending with §10.6.
 | Source module and item key | Balance Sheet Review · IN01-2025-5000412873-2 |
 | Approval references | Controller 09-Oct-2026 · Tax cleared 09-Oct-2026 |
 
-Footer: "Proposal — to be reviewed and posted in the ERP. Generated by LedgerAlpha on {data mode} data."
+Footer: "Proposal - to be reviewed and posted in the ERP. Generated by LedgerAlpha on {data mode} data."
 
 ## Appendix D: Auditor schedule (per account)
 1. **Header:** entity, GL and description, statement line, period, owner, reviewer.

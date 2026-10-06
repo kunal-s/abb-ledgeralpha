@@ -172,7 +172,7 @@ export function buildMasters(rng: Rng): Masters {
     const short = customer.name.split(" ")[0];
     projects.push({
       wbs: `P-${startYear}-${String(1000 + i * 7 + rng.int(0, 6)).padStart(4, "0")}`,
-      name: `${S.customers.sectors[sector].project} — ${short}`,
+      name: `${S.customers.sectors[sector].project} - ${short}`,
       customerId: customer.id,
       profitCentreId: rng.pick(projectPcs).id,
       stage,

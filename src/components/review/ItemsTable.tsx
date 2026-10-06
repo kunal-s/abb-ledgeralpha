@@ -144,7 +144,7 @@ export function ItemsTable({ rows, showAccount, bulk, pageSize = 25, empty = "No
                   </TableCell>
                 )}
                 <TableCell className="max-w-56 py-2">
-                  <div className="truncate text-sm">{party?.name ?? r.item.text ?? "—"}</div>
+                  <div className="truncate text-sm">{party?.name ?? r.item.text ?? "-"}</div>
                   {party && r.item.text && <div className="truncate text-2xs text-muted-foreground">{r.item.text}</div>}
                 </TableCell>
                 <TableCell className="whitespace-nowrap py-2">
@@ -160,7 +160,7 @@ export function ItemsTable({ rows, showAccount, bulk, pageSize = 25, empty = "No
                       </span>
                     ))}
                     {r.hits.length > 2 && <span className="text-2xs text-muted-foreground">+{r.hits.length - 2}</span>}
-                    {r.hits.length === 0 && <span className="text-2xs text-muted-foreground">—</span>}
+                    {r.hits.length === 0 && <span className="text-2xs text-muted-foreground">-</span>}
                   </div>
                 </TableCell>
                 <TableCell className="whitespace-nowrap py-2">
@@ -170,7 +170,7 @@ export function ItemsTable({ rows, showAccount, bulk, pageSize = 25, empty = "No
                       <ConfidenceChip score={r.rec.confidence} showIcon={false} />
                     </div>
                   ) : (
-                    <span className="text-2xs text-muted-foreground">—</span>
+                    <span className="text-2xs text-muted-foreground">-</span>
                   )}
                 </TableCell>
                 <TableCell className="py-2">

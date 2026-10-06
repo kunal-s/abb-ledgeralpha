@@ -22,7 +22,7 @@ function middleTruncate(id: string, head = 10, tail = 5): string {
 }
 
 /**
- * RecordRef — de-emphasised coded identifier for tabular and header use. Rows
+ * RecordRef - de-emphasised coded identifier for tabular and header use. Rows
  * lead with the business object; the coded reference sits here as a muted,
  * monospace secondary element with hover-to-see-full and click-to-copy. Kept
  * present for traceability and audit, never the visual anchor.

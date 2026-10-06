@@ -8,12 +8,12 @@ import {
 
 import type { MethodKind } from "@/types";
 
-/** How a figure was produced — the deterministic / judgement seam. */
+/** How a figure was produced - the deterministic / judgement seam. */
 export type { MethodKind };
 
 interface MethodBadgeProps {
   method: MethodKind;
-  /** 0..1 — shown only for judgement (never for deterministic). */
+  /** 0..1 - shown only for judgement (never for deterministic). */
   confidence?: number;
   /** default true; set false to show the judgement marker without a score. */
   showConfidence?: boolean;
@@ -22,10 +22,10 @@ interface MethodBadgeProps {
 }
 
 /**
- * MethodBadge — the visible line between deterministic output (rules &
+ * MethodBadge - the visible line between deterministic output (rules &
  * arithmetic, reproducible without model weights) and model judgement
  * (inferred; confidence shown). Placed wherever an agent-touched figure
- * appears. Confidence renders ONLY on judgement — that asymmetry is the
+ * appears. Confidence renders ONLY on judgement - that asymmetry is the
  * honesty marker. This is method, not status, so it uses a neutral vs. info
  * treatment rather than the status palette.
  */
@@ -43,8 +43,8 @@ export function MethodBadge({
     ? "bg-secondary text-muted-foreground border border-border"
     : "bg-info-subtle text-info-foreground";
   const tip = det
-    ? "Deterministic — rules and arithmetic (ageing, thresholds, counter-item matching, 26AS lookup). Same input, same result, every time."
-    : "Judgement — a recommendation weighed from evidence (proposed action, drafted commentary). Confidence is derived from the evidence factors shown with it.";
+    ? "Deterministic - rules and arithmetic (ageing, thresholds, counter-item matching, 26AS lookup). Same input, same result, every time."
+    : "Judgement - a recommendation weighed from evidence (proposed action, drafted commentary). Confidence is derived from the evidence factors shown with it.";
 
   return (
     <Tooltip>

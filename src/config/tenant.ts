@@ -1,4 +1,4 @@
-// Workspace (tenant) configuration — the only place a customer is described.
+// Workspace (tenant) configuration - the only place a customer is described.
 // Modules read from here; nothing in a page or component names a customer.
 // The demo workspace is configured for the ABB India workshop (docs/FRD.md §8–§9).
 

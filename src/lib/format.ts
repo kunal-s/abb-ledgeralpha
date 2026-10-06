@@ -8,12 +8,12 @@ const IN_INT = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
 const LAKH = 1_00_000;
 const CRORE = 1_00_00_000;
 
-/** "1,23,45,678" — Indian digit grouping, no decimals. */
+/** "1,23,45,678" - Indian digit grouping, no decimals. */
 export function fmtInt(v: number): string {
   return IN_INT.format(Math.round(v));
 }
 
-/** "₹1,23,45,678" / "-₹12,450" — full amount with Indian grouping. */
+/** "₹1,23,45,678" / "-₹12,450" - full amount with Indian grouping. */
 export function fmtINR(amount: number): string {
   const sign = amount < 0 ? "-" : "";
   return `${sign}${RUPEE}${fmtInt(Math.abs(amount))}`;
@@ -23,7 +23,7 @@ export function fmtINR(amount: number): string {
  * Compact lakh/crore form for tiles, charts and chips:
  *   12,450 → "₹12,450" · 43,50,000 → "₹43.5 lakh" · 1,96,50,000 → "₹1.97 cr"
  *   1,32,03,00,00,000 → "₹13,203 cr"
- * Below one lakh the full figure is shown (no "K" — not used in Indian reporting).
+ * Below one lakh the full figure is shown (no "K" - not used in Indian reporting).
  */
 export function fmtINRCompact(amount: number): string {
   const sign = amount < 0 ? "-" : "";
@@ -43,7 +43,7 @@ export function fmtINRCompact(amount: number): string {
   return `${sign}${RUPEE}${fmtInt(abs)}`;
 }
 
-/** "₹12,450 Dr" / "₹12,450 Cr" — sign expressed as Dr/Cr, the way SAP users read it. */
+/** "₹12,450 Dr" / "₹12,450 Cr" - sign expressed as Dr/Cr, the way SAP users read it. */
 export function fmtDrCr(amount: number, compact = false): string {
   const body = compact ? fmtINRCompact(Math.abs(amount)) : fmtINR(Math.abs(amount));
   if (amount === 0) return body;

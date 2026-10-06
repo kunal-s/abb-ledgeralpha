@@ -101,7 +101,8 @@ describe("sign-off readiness", () => {
 });
 
 describe("seeded sign-offs", () => {
-  const seeded = Object.values(seededSignOffs());
+  // reconciliation sign-offs are keyed by reconciliation id and tested with the reconciliations
+  const seeded = Object.values(seededSignOffs()).filter((s) => GL_BY_ID.has(s.gl));
   it("cover only balance-only accounts, with the owner preparing and the controller reviewing", () => {
     expect(seeded.length).toBeGreaterThan(15);
     for (const s of seeded) {

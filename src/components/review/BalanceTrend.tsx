@@ -18,7 +18,7 @@ function TrendTip({ active, payload }: { active?: boolean; payload?: { payload: 
   );
 }
 
-/** Month-end closing balance — single series; the title names it. */
+/** Month-end closing balance - single series; the title names it. */
 export function BalanceTrend({ data }: { data: TrendPoint[] }) {
   return (
     <div className="h-52 w-full">

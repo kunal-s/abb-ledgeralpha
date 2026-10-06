@@ -319,7 +319,7 @@ function draft(ctx: EvalContext, item: LineItem, hit: RuleHit, all: RuleHit[], o
       return {
         action: "Follow up",
         factors: [f("Older than the review threshold", 0.35, true), f("Business partner active", 0.2, partnerActive), f("No open follow-up", 0.15, !openFollowUp)],
-        rationale: `${amount} open ${ageDays} days on ${gl.description.toLowerCase()}${partner ? ` — ${partner.name}` : ""}.`,
+        rationale: `${amount} open ${ageDays} days on ${gl.description.toLowerCase()}${partner ? ` - ${partner.name}` : ""}.`,
         nextStep: steps[gl.category] ?? "Review and document",
       };
     }

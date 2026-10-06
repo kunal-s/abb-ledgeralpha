@@ -1,4 +1,4 @@
-// Domain contract — DRAFT, mirrors docs/FRD.md §5 (Data model).
+// Domain contract - DRAFT, mirrors docs/FRD.md §5 (Data model).
 // One ledger, many lenses: every module reads the same line items, balances and
 // reference data, so a document resolves identically wherever it appears.
 // Field comments name the SAP field each one maps to (ACDOCA / BSEG).
@@ -73,7 +73,7 @@ export interface GlAccount {
   nature: Nature;
   normalBalance: "Dr" | "Cr";
   openItemManaged: boolean; // SKB1-XOPVW
-  reconAccount: boolean; // SKB1-MITKZ — AR/AP control, reviewed via sub-ledger
+  reconAccount: boolean; // SKB1-MITKZ - AR/AP control, reviewed via sub-ledger
   ownerId: string;
   reviewerId: string;
   riskTier: RiskTier;
@@ -125,7 +125,7 @@ export interface LineItem {
   costCentre?: string; // RCNTR
   partner?: { type: PartnerType; id: string }; // LIFNR / KUNNR / RASSC
   po?: { number: string; item: number }; // EBELN / EBELP
-  clearing?: { docNo: string; date: IsoDate }; // AUGBL / AUGDT — absent while open
+  clearing?: { docNo: string; date: IsoDate }; // AUGBL / AUGDT - absent while open
   sourceSystem: string; // tenant source system
   /** derived: manually entered journal */
   manual: boolean;
@@ -151,7 +151,7 @@ export interface Party {
   /** legal-entity key: accounts with the same tax ID belong to one legal entity */
   taxIdMasked: string; // PAN in the India pack
   indirectTaxIdMasked?: string; // GSTIN in the India pack
-  /** withholding-tax deductor ID (TAN in the India pack) — customers only */
+  /** withholding-tax deductor ID (TAN in the India pack) - customers only */
   deductorIdMasked?: string;
   status: "Active" | "Blocked" | "Inactive";
   msme?: "Micro" | "Small" | "Medium";
@@ -185,7 +185,7 @@ export interface BankGuarantee {
   claimExpiry?: IsoDate;
   linkedPo?: string;
   linkedWbs?: string;
-  status: "Active" | "In claim period" | "Expired — original awaited" | "Released" | "Invoked";
+  status: "Active" | "In claim period" | "Expired - original awaited" | "Released" | "Invoked";
 }
 
 /** One withholding-tax credit line from the tax authority statement (Form 26AS / AIS). */
@@ -226,8 +226,17 @@ export type ActionKind =
   | "Write off"
   | "Write back"
   | "Provide"
+  | "Adjust books" // a reconciling item that needs an entry in the books
   | "Follow up"
   | "Retain";
+
+/** Journal lines carried by a decision that has no ledger line behind it (reconciling items). */
+export interface JournalSpec {
+  header: string;
+  lines: { gl: string; side: "Dr" | "Cr"; amount: number; text: string; profitCentre?: string }[];
+  /** true when a target account still has to be chosen by the preparer */
+  needsTarget?: boolean;
+}
 
 export interface RuleParam {
   key: string;
@@ -331,6 +340,8 @@ export interface Decision {
   rejection?: { personId: string; at: string; reason: string };
   status: DecisionStatus;
   exportBatchId?: string;
+  /** set for decisions on reconciling items, which have no ledger line to derive entries from */
+  journal?: JournalSpec;
   /** the recommendation and facts at the time of proposal (decision reconstruction) */
   snapshot: { recommendation?: Recommendation; hits: RuleHit[]; rulesVersion: string };
 }
@@ -395,12 +406,12 @@ export interface Person {
   name: string;
   roleId: RoleId;
   title: string;
-  /** ERP user ID (USNAM) — how this person appears on documents they enter */
+  /** ERP user ID (USNAM) - how this person appears on documents they enter */
   userId: string;
 }
 
 // ---------------------------------------------------------------------------
-// The loaded world (docs/FRD.md §4.1) — one dataset every module reads
+// The loaded world (docs/FRD.md §4.1) - one dataset every module reads
 // ---------------------------------------------------------------------------
 export interface BusinessUnit {
   id: string;
@@ -429,6 +440,77 @@ export interface DataQualityCheck {
   samples: string[];
 }
 
+// ---------------------------------------------------------------------------
+// Reconciliations (docs/FRD.md §6.7)
+// ---------------------------------------------------------------------------
+export type ReconType = "Bank" | "Sub-ledger" | "Schedule-supported" | "Tax account" | "Intercompany" | "Customer statement" | "Vendor statement";
+
+/** What has to happen to a reconciling item. */
+export type ReconTreatment = "timing" | "classification" | "adjust-books" | "adjust-source" | "dispute" | "investigate";
+
+export interface ReconClass {
+  id: string;
+  label: string;
+  treatment: ReconTreatment;
+  /** one line shown when choosing the class */
+  hint: string;
+}
+
+/**
+ * A difference between the books and the source. `amount` is the amount as it
+ * appears (books side) or would appear (source side) in the books, signed
+ * debit +. Its effect on (books - source) is +amount for a books-side item
+ * and -amount for a source-side item.
+ */
+export interface ReconItem {
+  id: string;
+  side: "books" | "source";
+  amount: Amount;
+  date: IsoDate;
+  reference?: string;
+  narration: string;
+  /** ledger line behind a books-side item */
+  lineKey?: string;
+  /** the reconciler agent's classification */
+  suggestedClass?: string;
+  confidence?: number;
+  /** how the item came to be: seeded data, the agent's diagnosis, or a person */
+  origin?: "data" | "agent" | "person";
+}
+
+export type ConfirmationStatus = "not-sent" | "sent" | "reply-received" | "confirmed" | "counter-statement" | "disputed";
+
+export interface Reconciliation {
+  id: string;
+  type: ReconType;
+  name: string;
+  /** GL account the books balance comes from (absent for counterparty reconciliations) */
+  gl?: string;
+  partyId?: string;
+  booksLabel: string;
+  sourceLabel: string;
+  /** what the source is, e.g. "Bank statement 30-Sep-2026" */
+  sourceDetail: string;
+  booksBalance: Amount;
+  /** null until the counterparty replies (customer and vendor statements) */
+  sourceBalance: Amount | null;
+  items: ReconItem[];
+  frequency: "Monthly" | "Quarterly";
+  riskTier: RiskTier;
+  dueDate: IsoDate;
+  preparerId: string;
+  reviewerId: string;
+  tolerance: Amount;
+  /** prepared by the reconciler agent as at the start of the session */
+  seedPrepared: boolean;
+  /** statements matched automatically before the differences (bank) */
+  matched?: { count: number; value: number };
+  /** customer and vendor statements */
+  confirmation?: { status: ConfirmationStatus; sentAt?: string; repliedAt?: string; contact: string };
+  /** a reply received but not yet applied */
+  reply?: { balance: Amount; receivedAt: string; via: string };
+}
+
 export interface World {
   asOf: IsoDate;
   extractedAt: string;
@@ -443,6 +525,7 @@ export interface World {
   bankGuarantees: BankGuarantee[];
   taxCredits: TaxCreditStatementLine[];
   fxRates: FxRate[];
+  reconciliations: Reconciliation[];
   /**
    * Internal test hook: planted demo scenarios → the line keys that carry them.
    * Never rendered; used by scenario tests and later by rule tests.

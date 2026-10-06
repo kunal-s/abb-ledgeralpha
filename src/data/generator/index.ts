@@ -1,4 +1,4 @@
-// generateWorld — builds the demo workspace's data foundation in one pass,
+// generateWorld - builds the demo workspace's data foundation in one pass,
 // deterministically from the workspace spec. Order matters: masters, reserved
 // scenario masters, opening balances, open-item population, planted
 // scenarios, monthly activity (sized around what is already posted),
@@ -17,6 +17,7 @@ import { generatePopulation } from "@/data/generator/population";
 import { generateSettled } from "@/data/generator/settled";
 import { postMigration, postMonthlyActivity, postSettlements } from "@/data/generator/activity";
 import { buildBankGuarantees, buildFxRates, buildPurchaseOrders, buildTaxCredits } from "@/data/generator/reference";
+import { generateReconciliations } from "@/data/generator/recs";
 
 export function generateWorld(): World {
   const rng = makeRng(S.seed);
@@ -41,6 +42,9 @@ export function generateWorld(): World {
     a.postingDate === b.postingDate ? a.key.localeCompare(b.key) : a.postingDate.localeCompare(b.postingDate)
   );
 
+  const glAccounts = buildChartOfAccounts();
+  const fxRates = buildFxRates();
+
   return {
     asOf: S.asOf,
     extractedAt: S.extractedAt,
@@ -49,12 +53,16 @@ export function generateWorld(): World {
     projects: masters.projects,
     people: masters.people,
     parties: masters.parties,
-    glAccounts: buildChartOfAccounts(),
+    glAccounts,
     lines,
     purchaseOrders: buildPurchaseOrders(ctx),
     bankGuarantees: buildBankGuarantees(ctx),
     taxCredits: buildTaxCredits(ctx),
-    fxRates: buildFxRates(),
+    fxRates,
+    reconciliations: generateReconciliations({
+      lines, gls: glAccounts, parties: masters.parties, fxRates, anchors: ctx.anchors,
+      asOf: S.asOf, seed: S.seed + 11, fyStartMonth: TENANT.fiscalYear.startMonth,
+    }),
     anchors: ctx.anchors,
   };
 }

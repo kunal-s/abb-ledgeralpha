@@ -1,4 +1,4 @@
-// LedgerBuilder — posts balanced documents into the line-item store, the way
+// LedgerBuilder - posts balanced documents into the line-item store, the way
 // an ERP would: every document's lines sum to zero, document numbers come from
 // per-type, per-fiscal-year ranges, and clearing marks offsetting open items.
 // Because every document balances, the trial balance ties by construction.
@@ -67,7 +67,7 @@ export class LedgerBuilder {
     return `${prefix}${String(n).padStart(8, "0")}`;
   }
 
-  /** Post a document. Throws if the legs do not balance — a bug, never data. */
+  /** Post a document. Throws if the legs do not balance - a bug, never data. */
   post(h: DocHeader, legs: Leg[]): LineItem[] {
     const sum = legs.reduce((s, l) => s + l.amount, 0);
     if (sum !== 0) {

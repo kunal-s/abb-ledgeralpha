@@ -12,16 +12,25 @@ export const STATUS_GROUPS: { key: string; label: string; statuses: AccountRevie
   { key: "signed", label: "Signed off", statuses: ["reviewer-signed"], cls: "bg-ok" },
 ];
 
-interface StatusBarsProps {
-  data: Record<RiskTier, Record<string, number>>;
-  onSelect?: (risk: RiskTier, groupKey: string) => void;
+export const statusGroupOf = (status: string) => STATUS_GROUPS.find((g) => g.statuses.includes(status as AccountReviewStatus))?.key ?? "not-started";
+
+interface StatusBarsProps<K extends string> {
+  data: Record<K, Record<string, number>>;
+  /** the rows to draw; risk tiers by default */
+  rows?: { key: K; label: string }[];
+  /** what the bars count, for the hover text */
+  unit?: string;
+  labelWidth?: string;
+  onSelect?: (row: K, groupKey: string) => void;
 }
 
-const RISKS: RiskTier[] = ["High", "Medium", "Low"];
+const RISK_ROWS: { key: RiskTier; label: string }[] = (["High", "Medium", "Low"] as const).map((r) => ({ key: r, label: `${r} risk` }));
 
-/** Accounts by risk tier, stacked by review status. */
-export function StatusBars({ data, onSelect }: StatusBarsProps) {
-  const max = Math.max(1, ...RISKS.map((r) => STATUS_GROUPS.reduce((s, g) => s + (data[r][g.key] ?? 0), 0)));
+/** Items per row, stacked by review status. */
+export function StatusBars<K extends string = RiskTier>({ data, rows, unit = "accounts", labelWidth = "6rem", onSelect }: StatusBarsProps<K>) {
+  const lines = (rows ?? (RISK_ROWS as unknown as { key: K; label: string }[]));
+  const totalOf = (r: K) => STATUS_GROUPS.reduce((s, g) => s + (data[r]?.[g.key] ?? 0), 0);
+  const max = Math.max(1, ...lines.map((r) => totalOf(r.key)));
   return (
     <div>
       <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1">
@@ -33,28 +42,28 @@ export function StatusBars({ data, onSelect }: StatusBarsProps) {
         ))}
       </div>
       <div className="space-y-2.5">
-        {RISKS.map((r) => {
-          const total = STATUS_GROUPS.reduce((s, g) => s + (data[r][g.key] ?? 0), 0);
+        {lines.map((r) => {
+          const total = totalOf(r.key);
           return (
-            <div key={r} className="grid grid-cols-[4.5rem_1fr_2rem] items-center gap-3">
-              <span className="text-xs text-muted-foreground">{r} risk</span>
+            <div key={r.key} className="grid items-center gap-3" style={{ gridTemplateColumns: `${labelWidth} 1fr 2rem` }}>
+              <span className="whitespace-nowrap text-xs text-muted-foreground">{r.label}</span>
               <div className="flex h-5 gap-0.5" style={{ width: `${(total / max) * 100}%`, minWidth: total ? "1rem" : 0 }}>
                 {STATUS_GROUPS.map((g) => {
-                  const n = data[r][g.key] ?? 0;
+                  const n = data[r.key]?.[g.key] ?? 0;
                   if (!n) return null;
                   return (
                     <Tooltip key={g.key}>
                       <TooltipTrigger asChild>
                         <button
                           type="button"
-                          onClick={() => onSelect?.(r, g.key)}
+                          onClick={() => onSelect?.(r.key, g.key)}
                           className={cn("h-full rounded-[3px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", g.cls)}
                           style={{ flexGrow: n, flexBasis: 0 }}
-                          aria-label={`${r} risk, ${g.label}: ${n}`}
+                          aria-label={`${r.label}, ${g.label}: ${n}`}
                         />
                       </TooltipTrigger>
                       <TooltipContent>
-                        {r} risk · {g.label}: {fmtInt(n)} accounts
+                        {r.label} · {g.label}: {fmtInt(n)} {unit}
                       </TooltipContent>
                     </Tooltip>
                   );

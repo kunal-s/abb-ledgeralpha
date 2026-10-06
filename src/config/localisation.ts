@@ -1,4 +1,4 @@
-// Localisation pack — India (docs/FRD.md §7). Country-specific behaviour lives
+// Localisation pack - India (docs/FRD.md §7). Country-specific behaviour lives
 // here so modules stay country-neutral: currency and number format, the
 // statutory tax year, tax regimes, statutory statement format and the
 // disclosure ageing bands.
@@ -8,7 +8,7 @@ export const LOCALISATION_IN = {
   currency: "INR",
   currencySymbol: "₹",
   numberLocale: "en-IN",
-  /** income-tax year (TDS, Form 26AS) — April to March, regardless of the company's fiscal year */
+  /** income-tax year (TDS, Form 26AS) - April to March, regardless of the company's fiscal year */
   statutoryTaxYearStartMonth: 4,
   gaap: "Ind AS",
   financialStatementsFormat: "Schedule III, Division II",

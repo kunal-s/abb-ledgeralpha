@@ -3,7 +3,7 @@
 // instructions; write-back, write-off, provide and reclassify as journal lines.
 
 import type { Decision, GlAccount, IsoDate, LineItem } from "@/types";
-import { LINE_BY_KEY, GL_BY_ID, PERSON_BY_ID } from "@/data";
+import { LINE_BY_KEY, GL_BY_ID, PERSON_BY_ID, WORLD } from "@/data";
 import { ROLES } from "@/config/roles";
 import { fmtDate } from "@/lib/dates";
 
@@ -25,13 +25,17 @@ export interface ProposalLine {
   text: string;
 }
 
+/** Profit centre for entries that belong to no project or business unit (bank, tax, group). */
+const CORPORATE_PC = "PC-CORP";
+
 export interface Proposal {
   decision: Decision;
-  item: LineItem;
+  /** the ledger line behind the decision; absent for reconciling items, which carry their own journal */
+  item?: LineItem;
   kind: "JV" | "CLEARING";
   header: string;
   lines: ProposalLine[];
-  /** set when no target account could be determined — the preparer completes it */
+  /** set when no target account could be determined - the preparer completes it */
   needsTarget: boolean;
 }
 
@@ -55,7 +59,27 @@ function reclassTarget(item: LineItem, gl: GlAccount): string {
   return "";
 }
 
+function specProposal(d: Decision): Proposal | undefined {
+  const j = d.journal;
+  if (!j) return undefined;
+  return {
+    decision: d,
+    kind: "JV",
+    header: j.header,
+    needsTarget: !!j.needsTarget || j.lines.some((l) => !l.gl),
+    lines: j.lines.map((l) => ({
+      gl: l.gl,
+      glDescription: l.gl ? GL_BY_ID.get(l.gl)?.description ?? "" : "Target account to be confirmed",
+      side: l.side,
+      amount: l.amount,
+      profitCentre: l.profitCentre ?? CORPORATE_PC,
+      text: l.text,
+    })),
+  };
+}
+
 export function buildProposal(d: Decision): Proposal | undefined {
+  if (d.journal) return d.action === "Adjust books" ? specProposal(d) : undefined;
   const item = LINE_BY_KEY.get(d.itemKey);
   if (!item) return undefined;
   const gl = GL_BY_ID.get(item.gl)!;
@@ -118,8 +142,8 @@ export function exportRows(decisions: Decision[], batchId: string, postingDate: 
     const p = buildProposal(d);
     if (!p) return;
     const proposalId = `${batchId}-${String(i + 1).padStart(3, "0")}`;
-    const base = { proposalId, companyCode: p.item.companyCode, postingDate, header: p.header, source: `${d.module} · ${d.itemKey}`, approvals: approvalRefs(d) };
-    if (p.kind === "CLEARING") {
+    const base = { proposalId, companyCode: p.item?.companyCode ?? WORLD.lines[0].companyCode, postingDate, header: p.header, source: `${d.module} · ${d.itemKey}`, approvals: approvalRefs(d) };
+    if (p.kind === "CLEARING" && p.item) {
       rows.push({ ...base, docType: "Clearing", lineNo: 1, gl: p.item.gl, account: GL_BY_ID.get(p.item.gl)?.description ?? "", side: "", amount: "", profitCentre: p.item.profitCentre, wbs: p.item.wbs ?? "", text: "Clear against counter-item (see source)" });
       return;
     }

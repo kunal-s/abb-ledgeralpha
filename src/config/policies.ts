@@ -1,4 +1,4 @@
-// Policy defaults — ageing, materiality and delegation of authority.
+// Policy defaults - ageing, materiality and delegation of authority.
 // Product defaults; a workspace overrides them in Settings (docs/FRD.md §4.4).
 
 import type { RoleId } from "@/types";
@@ -13,6 +13,24 @@ export const AGEING_POLICY = {
     { id: "365+", label: "Over 365 days", min: 366, max: null },
   ],
   reviewThresholdDays: 180,
+} as const;
+
+/**
+ * Reconciliation policy. A reconciliation cannot be signed off while its
+ * unexplained difference is outside the tolerance for its type. Reconciling
+ * items older than `agedItemDays` are flagged as aged.
+ */
+export const RECON_POLICY = {
+  tolerance: {
+    Bank: 100,
+    "Sub-ledger": 0,
+    "Schedule-supported": 1_000,
+    "Tax account": 100,
+    Intercompany: 1_000,
+    "Customer statement": 1_000,
+    "Vendor statement": 1_000,
+  },
+  agedItemDays: 30,
 } as const;
 
 /** Items at or above this need a written justification before a decision is proposed. */

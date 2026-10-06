@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/Toaster";
 import { ItemDrawer } from "@/components/review/ItemDrawer";
 import { ReviewProvider } from "@/state/ReviewContext";
+import { TruncationTooltip } from "@/components/shell/TruncationTooltip";
 
 export function AppShell() {
   return (
@@ -23,6 +24,7 @@ export function AppShell() {
           </div>
           <ItemDrawer />
           <Toaster />
+          <TruncationTooltip />
         </div>
       </ReviewProvider>
     </TooltipProvider>

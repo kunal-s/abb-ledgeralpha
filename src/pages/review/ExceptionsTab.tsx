@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ItemsTable } from "@/components/review/ItemsTable";
-import { followUpRows, proposeRows } from "@/components/review/bulk";
+import { BulkButtons } from "@/components/review/BulkButtons";
 import { GL_BY_ID, PARTY_BY_ID, PERSON_BY_ID } from "@/data";
 import { useReview } from "@/state/ReviewContext";
 import type { ItemRow } from "@/state/hooks";
@@ -35,6 +35,7 @@ export function ExceptionsTab() {
   const rule = params.get("rule") ?? "all";
   const status = params.get("status") ?? "all";
   const owner = params.get("eowner") ?? "all";
+  const suggested = params.get("action") ?? "all";
   const q = params.get("q") ?? "";
 
   const base = useMemo(() => review.rows.filter((r) => (show === "all" ? true : r.flagged)), [review.rows, show]);
@@ -47,13 +48,14 @@ export function ExceptionsTab() {
           (rule === "all" || r.hits.some((h) => h.ruleId === rule)) &&
           (status === "all" || (status === "exported" ? ["exported", "closed-in-erp"].includes(r.status) : r.status === status)) &&
           (owner === "all" || GL_BY_ID.get(r.item.gl)?.ownerId === owner) &&
+          (suggested === "all" || r.rec?.action === suggested) &&
           (!q ||
             r.item.docNo.includes(q) ||
             (r.item.text ?? "").toLowerCase().includes(q.toLowerCase()) ||
             (r.item.partner ? (PARTY_BY_ID.get(r.item.partner.id)?.name ?? "").toLowerCase().includes(q.toLowerCase()) : false) ||
             (r.item.po?.number ?? "").includes(q))
       ),
-    [base, category, bucket, rule, status, owner, q]
+    [base, category, bucket, rule, status, owner, suggested, q]
   );
 
   const flagged = review.rows.filter((r) => r.flagged);
@@ -71,7 +73,7 @@ export function ExceptionsTab() {
 
   const owners = useMemo(() => [...new Set(review.accounts.map((a) => a.summary.gl.ownerId))].map((id) => PERSON_BY_ID.get(id)!), [review.accounts]);
   const categories = REVIEW_CATEGORIES.filter((c) => review.rows.some((r) => r.category === c));
-  const filtered = category !== "all" || bucket !== "all" || rule !== "all" || status !== "all" || owner !== "all" || q || show === "all";
+  const filtered = category !== "all" || bucket !== "all" || rule !== "all" || status !== "all" || owner !== "all" || suggested !== "all" || q || show === "all";
 
   const exportRows = () =>
     downloadCsv(
@@ -175,6 +177,19 @@ export function ExceptionsTab() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={suggested} onValueChange={(v) => setParams({ action: v })}>
+            <SelectTrigger className="h-8 w-44">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All suggested actions</SelectItem>
+              {["Write back", "Write off", "Provide", "Clear", "Reclassify", "Follow up"].map((a) => (
+                <SelectItem key={a} value={a}>
+                  {a}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={owner} onValueChange={(v) => setParams({ eowner: v })}>
             <SelectTrigger className="h-8 w-44">
               <SelectValue />
@@ -190,7 +205,7 @@ export function ExceptionsTab() {
           </Select>
           <Input value={q} onChange={(e) => setParams({ q: e.target.value })} placeholder="Document, party, PO, text" className="h-8 w-52" />
           {filtered && (
-            <Button variant="ghost" size="sm" className="h-8" onClick={() => setParams({ category: null, bucket: null, rule: null, status: null, eowner: null, q: null, show: null })}>
+            <Button variant="ghost" size="sm" className="h-8" onClick={() => setParams({ category: null, bucket: null, rule: null, status: null, eowner: null, action: null, q: null, show: null })}>
               Clear filters
             </Button>
           )}
@@ -202,16 +217,7 @@ export function ExceptionsTab() {
         <ItemsTable
           rows={rows}
           showAccount
-          bulk={(selected: ItemRow[], clear) => (
-            <>
-              <Button size="sm" variant="outline" className="h-8" onClick={() => followUpRows(selected, review.asOf) && clear()}>
-                Request follow-up
-              </Button>
-              <Button size="sm" className="h-8" onClick={() => proposeRows(selected, review.run.version) && clear()}>
-                Propose recommended actions
-              </Button>
-            </>
-          )}
+          bulk={(selected: ItemRow[], clear) => <BulkButtons selected={selected} clear={clear} asOf={review.asOf} rulesVersion={review.run.version} />}
           empty={show === "flagged" ? "No flagged items match" : "No open items match"}
         />
       </Panel>

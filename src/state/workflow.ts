@@ -6,13 +6,18 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
-import type { AccountSignOff, ActionKind, ActivityEvent, Decision, FollowUp, IsoDate, Person, Recommendation, RoleId, RuleHit } from "@/types";
-import { GL_BY_ID, LINE_BY_KEY, WORLD } from "@/data";
+import type {
+  AccountSignOff, ActionKind, ActivityEvent, ConfirmationStatus, Decision, FollowUp, IsoDate, JournalSpec, Person, ReconItem, Recommendation, RoleId, RuleHit,
+} from "@/types";
+import { GL_BY_ID, LINE_BY_KEY, REC_BY_ID, WORLD, customerStatementLines } from "@/data";
 import { useRoleStore, usePeriodStore } from "@/lib/stores";
 import { ROLES, can, type Permission } from "@/config/roles";
 import { MATERIALITY_POLICY, bandFor } from "@/config/policies";
 import { fmtINR } from "@/lib/format";
 import { effectiveRules, runRules, type RuleOverride, type RuleOverrides } from "@/engine/run";
+import { diagnoseCustomer } from "@/engine/diagnose";
+import { RECON_CLASSES, reconClass } from "@/engine/recClasses";
+import { documentedItems, effectiveRec, isRecItemKey, parseRecItemKey, recItemKey, signOffBlockers, type RecWork } from "@/engine/recs";
 import { SEEDED_RULE_OVERRIDES, seededSignOffs } from "@/data/workspace/activity";
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
@@ -32,6 +37,18 @@ export interface ProposeInput {
   recommendation?: Recommendation;
   hits: RuleHit[];
   rulesVersion: string;
+  /** reconciling items carry their own journal, since no ledger line sits behind them */
+  journal?: JournalSpec;
+  taxReviewRequired?: boolean;
+}
+
+export interface RecItemInput {
+  side: "books" | "source";
+  amount: number;
+  date: IsoDate;
+  narration: string;
+  reference?: string;
+  classId?: string;
 }
 
 export interface FollowUpInput {
@@ -46,7 +63,10 @@ interface WorkflowData {
   ruleOverrides: RuleOverrides;
   decisions: Record<string, Decision>;
   followUps: Record<string, FollowUp>;
+  /** sign-offs of accounts and reconciliations, keyed `${gl or reconciliation id}|${periodEnd}` */
   signOffs: Record<string, AccountSignOff>;
+  /** the session's work on reconciliations, by reconciliation id */
+  recs: Record<string, RecWork>;
   events: ActivityEvent[];
   seq: number;
 }
@@ -68,9 +88,20 @@ interface WorkflowActions {
   requestFollowUps: (inputs: FollowUpInput[]) => Result<{ created: number }>;
   respondFollowUp: (id: string, text: string) => Result;
   closeFollowUp: (id: string) => Result;
-  setCommentary: (gl: string, periodEnd: IsoDate, text: string, edited: boolean) => Result;
-  signOff: (gl: string, periodEnd: IsoDate, as: "preparer" | "reviewer") => Result;
-  reopen: (gl: string, periodEnd: IsoDate, reason: string) => Result;
+  /** `ref` is a GL account (Balance Sheet Review) or a reconciliation id */
+  setCommentary: (ref: string, periodEnd: IsoDate, text: string, edited: boolean) => Result;
+  signOff: (ref: string, periodEnd: IsoDate, as: "preparer" | "reviewer") => Result;
+  reopen: (ref: string, periodEnd: IsoDate, reason: string) => Result;
+
+  // reconciliations
+  prepareRec: (recId: string) => Result;
+  classifyRecItem: (recId: string, itemId: string, classId: string) => Result;
+  /** Accept the reconciler's suggested class for every unclassified item that has one (one activity event). */
+  acceptSuggestions: (recId: string) => Result<{ count: number }>;
+  addRecItem: (recId: string, input: RecItemInput) => Result<{ id: string }>;
+  markConfirmationSent: (recId: string) => Result;
+  /** Apply the counterparty's reply: sets the source balance and, for customers, lets the agent explain the difference. */
+  applyReply: (recId: string) => Result<{ found: number; exact: boolean }>;
   resetDemo: () => void;
 }
 
@@ -81,6 +112,7 @@ const INITIAL: WorkflowData = {
   decisions: {},
   followUps: {},
   signOffs: seededSignOffs(),
+  recs: {},
   events: [],
   seq: 0,
 };
@@ -88,7 +120,7 @@ const INITIAL: WorkflowData = {
 // ---------------------------------------------------------------------------
 // helpers
 // ---------------------------------------------------------------------------
-/** Local date-time "2026-10-06T14:07" — the session clock. */
+/** Local date-time "2026-10-06T14:07" - the session clock. */
 export function nowLocal(): string {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
@@ -111,10 +143,28 @@ function actor(preferPersonId?: string): { role: RoleId; person: Person } {
 }
 
 const ownerOfItem = (itemKey: string) => {
+  const rec = parseRecItemKey(itemKey);
+  if (rec) return REC_BY_ID.get(rec.recId)?.preparerId;
   const line = LINE_BY_KEY.get(itemKey);
   return line ? GL_BY_ID.get(line.gl)?.ownerId : undefined;
 };
-const ownerOfAccount = (gl: string) => GL_BY_ID.get(gl)?.ownerId;
+
+/** The thing an activity event is about: a ledger line, or a reconciling item. */
+function objectOfItem(itemKey: string): ActivityEvent["object"] {
+  const p = parseRecItemKey(itemKey);
+  if (!p) return { type: "item", id: itemKey };
+  return { type: "reconciling-item", id: itemKey, label: REC_BY_ID.get(p.recId)?.name };
+}
+
+/** What a sign-off is on: a reconciliation, or a GL account in the Balance Sheet Review. */
+function signTarget(ref: string) {
+  const rec = REC_BY_ID.get(ref);
+  if (rec) {
+    return { module: "reconciliations", ownerId: rec.preparerId, reviewerId: rec.reviewerId, object: { type: "reconciliation", id: ref, label: rec.name }, noun: "Reconciliation" };
+  }
+  const gl = GL_BY_ID.get(ref);
+  return { module: "balance-sheet-review", ownerId: gl?.ownerId, reviewerId: gl?.reviewerId, object: { type: "account", id: ref, label: gl?.description }, noun: "Account" };
+}
 
 const fail = (error: string) => ({ ok: false as const, error });
 
@@ -155,9 +205,10 @@ const safeStorage: StateStorage = {
   },
 };
 
-const signKey = (gl: string, periodEnd: IsoDate) => `${gl}|${periodEnd}`;
-const accountLabel = (gl: string) => GL_BY_ID.get(gl)?.description;
+const signKey = (ref: string, periodEnd: IsoDate) => `${ref}|${periodEnd}`;
 const ACTIVE: Decision["status"][] = ["proposed", "approved", "exported"];
+
+const emptyWork = (): RecWork => ({ items: [], classes: {} });
 
 /** Approve one decision as `role`/`person`, or say why not. Pure: returns the updated decision. */
 function approveOne(d: Decision, role: RoleId, person: Person, note?: string): { ok: true; decision: Decision } | { ok: false; error: string } {
@@ -196,7 +247,7 @@ export const useWorkflow = create<WorkflowState>()(
 
       /** Object reference for an event over one or many items. */
       const itemObject = (keys: string[], label: string) =>
-        keys.length === 1 ? { type: "item", id: keys[0] } : { type: "items", id: label, label: `${keys.length} items` };
+        keys.length === 1 ? objectOfItem(keys[0]) : { type: "items", id: label, label: `${keys.length} items` };
 
       /** Validate and build decisions; nothing is written here. */
       const buildDecisions = (inputs: ProposeInput[], person: Person) => {
@@ -230,8 +281,9 @@ export const useWorkflow = create<WorkflowState>()(
             approvalBandId: band.id,
             chain: [...band.chain],
             approvals: [],
-            taxReviewRequired: input.recommendation?.requiresTaxReview ?? input.action === "Write back",
+            taxReviewRequired: input.taxReviewRequired ?? input.recommendation?.requiresTaxReview ?? input.action === "Write back",
             status: "proposed",
+            ...(input.journal ? { journal: input.journal } : {}),
             snapshot: { recommendation: input.recommendation, hits: input.hits, rulesVersion: input.rulesVersion },
           });
         }
@@ -341,7 +393,7 @@ export const useWorkflow = create<WorkflowState>()(
           const status = r.decision.status;
           personEvent(person, {
             module: d.module,
-            object: { type: "item", id: d.itemKey },
+            object: objectOfItem(d.itemKey),
             itemKeys: [d.itemKey],
             action: status === "approved" ? `${d.action} approved` : `${d.action} approved by ${ROLES[role].label}`,
             before: "Proposed",
@@ -395,7 +447,7 @@ export const useWorkflow = create<WorkflowState>()(
           if (!isApprover && !isTax) return fail(`${ROLES[role].label} is not an approver for this decision`);
           if (!reason.trim()) return fail("A reason is required to reject");
           set((s) => ({ decisions: { ...s.decisions, [id]: { ...d, status: "rejected", rejection: { personId: person.id, at: nowLocal(), reason: reason.trim() } } } }));
-          personEvent(person, { module: d.module, object: { type: "item", id: d.itemKey }, itemKeys: [d.itemKey], action: `${d.action} rejected`, before: "Proposed", after: "Rejected", reason: reason.trim(), details: { decision: id } });
+          personEvent(person, { module: d.module, object: objectOfItem(d.itemKey), itemKeys: [d.itemKey], action: `${d.action} rejected`, before: "Proposed", after: "Rejected", reason: reason.trim(), details: { decision: id } });
           return { ok: true };
         },
 
@@ -418,7 +470,7 @@ export const useWorkflow = create<WorkflowState>()(
               [id]: { ...d, taxReview, status, rejection: outcome === "objected" ? { personId: person.id, at: taxReview.at, reason: note!.trim() } : d.rejection },
             },
           }));
-          personEvent(person, { module: d.module, object: { type: "item", id: d.itemKey }, itemKeys: [d.itemKey], action: outcome === "cleared" ? "Tax review cleared" : "Tax review objected", reason: note, after: status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Waiting for approvals", details: { decision: id } });
+          personEvent(person, { module: d.module, object: objectOfItem(d.itemKey), itemKeys: [d.itemKey], action: outcome === "cleared" ? "Tax review cleared" : "Tax review objected", reason: note, after: status === "approved" ? "Approved" : status === "rejected" ? "Rejected" : "Waiting for approvals", details: { decision: id } });
           return { ok: true };
         },
 
@@ -430,7 +482,7 @@ export const useWorkflow = create<WorkflowState>()(
           const person = personForRole(role, d.proposedBy) ?? roleDefault;
           if (d.proposedBy !== person.id) return fail("Only the proposer can withdraw");
           set((s) => ({ decisions: { ...s.decisions, [id]: { ...d, status: "withdrawn" } } }));
-          personEvent(person, { module: d.module, object: { type: "item", id: d.itemKey }, itemKeys: [d.itemKey], action: `${d.action} withdrawn`, before: "Proposed", after: "Withdrawn", details: { decision: id } });
+          personEvent(person, { module: d.module, object: objectOfItem(d.itemKey), itemKeys: [d.itemKey], action: `${d.action} withdrawn`, before: "Proposed", after: "Withdrawn", details: { decision: id } });
           return { ok: true };
         },
 
@@ -469,7 +521,7 @@ export const useWorkflow = create<WorkflowState>()(
           const id = nextId("FUP");
           const fu: FollowUp = { id, ...input, message: input.message.trim(), createdBy: person.id, createdAt: nowLocal(), status: "open" };
           set((s) => ({ followUps: { ...s.followUps, [id]: fu } }));
-          personEvent(person, { module: input.module, object: { type: "item", id: input.itemKey }, itemKeys: [input.itemKey], action: "Follow-up requested", after: `${input.owner} · due ${input.dueDate}`, details: { followUp: id } });
+          personEvent(person, { module: input.module, object: objectOfItem(input.itemKey), itemKeys: [input.itemKey], action: "Follow-up requested", after: `${input.owner} · due ${input.dueDate}`, details: { followUp: id } });
           return { ok: true, id };
         },
 
@@ -509,7 +561,7 @@ export const useWorkflow = create<WorkflowState>()(
           if (fu.status !== "open") return fail(`Follow-up is ${fu.status}`);
           if (!text.trim()) return fail("A response is required");
           set((s) => ({ followUps: { ...s.followUps, [id]: { ...fu, status: "responded", response: { text: text.trim(), at: nowLocal(), by: person.id } } } }));
-          personEvent(person, { module: fu.module, object: { type: "item", id: fu.itemKey }, itemKeys: [fu.itemKey], action: "Follow-up response recorded", before: "Open", after: "Responded", reason: text.trim(), details: { followUp: id } });
+          personEvent(person, { module: fu.module, object: objectOfItem(fu.itemKey), itemKeys: [fu.itemKey], action: "Follow-up response recorded", before: "Open", after: "Responded", reason: text.trim(), details: { followUp: id } });
           return { ok: true };
         },
 
@@ -518,33 +570,43 @@ export const useWorkflow = create<WorkflowState>()(
           const fu = get().followUps[id];
           if (!fu) return fail("Follow-up not found");
           set((s) => ({ followUps: { ...s.followUps, [id]: { ...fu, status: "closed" } } }));
-          personEvent(person, { module: fu.module, object: { type: "item", id: fu.itemKey }, itemKeys: [fu.itemKey], action: "Follow-up closed", before: fu.status === "open" ? "Open" : "Responded", after: "Closed", details: { followUp: id } });
+          personEvent(person, { module: fu.module, object: objectOfItem(fu.itemKey), itemKeys: [fu.itemKey], action: "Follow-up closed", before: fu.status === "open" ? "Open" : "Responded", after: "Closed", details: { followUp: id } });
           return { ok: true };
         },
 
-        setCommentary: (gl, periodEnd, text, edited) => {
-          const { role, person } = actor(ownerOfAccount(gl));
+        setCommentary: (ref, periodEnd, text, edited) => {
+          const t = signTarget(ref);
+          const { role, person } = actor(t.ownerId);
           if (!can(role, "sign-preparer")) return fail(denied("sign-preparer", role));
-          const k = signKey(gl, periodEnd);
-          const cur = get().signOffs[k] ?? { gl, periodEnd };
-          if (cur.preparer) return fail("The account is signed off; reopen it to change the commentary");
+          const k = signKey(ref, periodEnd);
+          const cur = get().signOffs[k] ?? { gl: ref, periodEnd };
+          if (cur.preparer) return fail(`The ${t.noun.toLowerCase()} is signed off; reopen it to change the commentary`);
           if (!text.trim()) return fail("Commentary cannot be empty");
           set((s) => ({ signOffs: { ...s.signOffs, [k]: { ...cur, commentary: text.trim(), commentaryEdited: edited || cur.commentaryEdited } } }));
-          personEvent(person, { module: "balance-sheet-review", object: { type: "account", id: gl, label: accountLabel(gl) }, action: edited ? "Commentary edited" : "Commentary drafted", details: { period: periodEnd } });
+          personEvent(person, { module: t.module, object: t.object, action: edited ? "Commentary edited" : "Commentary drafted", details: { period: periodEnd } });
           return { ok: true };
         },
 
-        signOff: (gl, periodEnd, as) => {
-          const { role, person } = actor(ownerOfAccount(gl));
-          const k = signKey(gl, periodEnd);
-          const cur = get().signOffs[k] ?? { gl, periodEnd };
+        signOff: (ref, periodEnd, as) => {
+          const t = signTarget(ref);
+          const { role, person } = actor(as === "preparer" ? t.ownerId : t.reviewerId);
+          const k = signKey(ref, periodEnd);
+          const cur = get().signOffs[k] ?? { gl: ref, periodEnd };
           if (as === "preparer") {
             if (!can(role, "sign-preparer")) return fail(denied("sign-preparer", role));
             if (cur.preparer) return fail("Already signed by the preparer");
-            if (!cur.commentary?.trim()) return fail("Save the commentary before signing");
-            const next: AccountSignOff = { gl, periodEnd, preparer: { personId: person.id, at: nowLocal() }, commentary: cur.commentary, commentaryEdited: cur.commentaryEdited };
+            const rec = REC_BY_ID.get(ref);
+            if (rec) {
+              // a reconciliation is signed only when it is prepared, explained within tolerance and every item that needs action is documented
+              const s = get();
+              const view = effectiveRec(rec, s.recs[ref], periodEnd);
+              const documented = documentedItems(ref, Object.values(s.decisions), Object.values(s.followUps));
+              const blockers = signOffBlockers(view, !!cur.commentary?.trim(), documented);
+              if (blockers.length) return fail(blockers[0]);
+            } else if (!cur.commentary?.trim()) return fail("Save the commentary before signing");
+            const next: AccountSignOff = { gl: ref, periodEnd, preparer: { personId: person.id, at: nowLocal() }, commentary: cur.commentary, commentaryEdited: cur.commentaryEdited };
             set((s) => ({ signOffs: { ...s.signOffs, [k]: next } }));
-            personEvent(person, { module: "balance-sheet-review", object: { type: "account", id: gl, label: accountLabel(gl) }, action: "Signed off as preparer", after: "Preparer signed", details: { period: periodEnd } });
+            personEvent(person, { module: t.module, object: t.object, action: "Signed off as preparer", after: "Preparer signed", details: { period: periodEnd } });
             return { ok: true };
           }
           if (!can(role, "sign-reviewer")) return fail(denied("sign-reviewer", role));
@@ -552,20 +614,135 @@ export const useWorkflow = create<WorkflowState>()(
           if (cur.preparer.personId === person.id) return fail("The reviewer must be a different person from the preparer");
           if (cur.reviewer) return fail("Already signed off");
           set((s) => ({ signOffs: { ...s.signOffs, [k]: { ...cur, reviewer: { personId: person.id, at: nowLocal() } } } }));
-          personEvent(person, { module: "balance-sheet-review", object: { type: "account", id: gl, label: accountLabel(gl) }, action: "Signed off as reviewer", before: "Preparer signed", after: "Signed off", details: { period: periodEnd } });
+          personEvent(person, { module: t.module, object: t.object, action: "Signed off as reviewer", before: "Preparer signed", after: "Signed off", details: { period: periodEnd } });
           return { ok: true };
         },
 
-        reopen: (gl, periodEnd, reason) => {
+        reopen: (ref, periodEnd, reason) => {
           const { role, person } = actor();
           if (!can(role, "sign-reviewer")) return fail(denied("sign-reviewer", role));
           if (!reason.trim()) return fail("A reason is required to reopen");
-          const k = signKey(gl, periodEnd);
+          const t = signTarget(ref);
+          const k = signKey(ref, periodEnd);
           const cur = get().signOffs[k];
           if (!cur?.preparer) return fail("Nothing to reopen");
-          set((s) => ({ signOffs: { ...s.signOffs, [k]: { gl, periodEnd, commentary: cur.commentary, commentaryEdited: cur.commentaryEdited, reopened: { personId: person.id, at: nowLocal(), reason: reason.trim() } } } }));
-          personEvent(person, { module: "balance-sheet-review", object: { type: "account", id: gl, label: accountLabel(gl) }, action: "Account reopened", before: cur.reviewer ? "Signed off" : "Preparer signed", after: "Reopened", reason: reason.trim() });
+          set((s) => ({ signOffs: { ...s.signOffs, [k]: { gl: ref, periodEnd, commentary: cur.commentary, commentaryEdited: cur.commentaryEdited, reopened: { personId: person.id, at: nowLocal(), reason: reason.trim() } } } }));
+          personEvent(person, { module: t.module, object: t.object, action: `${t.noun} reopened`, before: cur.reviewer ? "Signed off" : "Preparer signed", after: "Reopened", reason: reason.trim() });
           return { ok: true };
+        },
+
+        // -------------------------------------------------------------------
+        // reconciliations
+        // -------------------------------------------------------------------
+        prepareRec: (recId) => {
+          const rec = REC_BY_ID.get(recId);
+          if (!rec) return fail("Reconciliation not found");
+          const { role, person } = actor(rec.preparerId);
+          if (!can(role, "propose")) return fail(denied("propose", role));
+          const cur = get().recs[recId] ?? emptyWork();
+          if (cur.prepared ?? rec.seedPrepared) return fail("Already prepared");
+          set((s) => ({ recs: { ...s.recs, [recId]: { ...cur, prepared: true } } }));
+          log({
+            actorId: "agent:reconciler", actorKind: "Agent", module: "reconciliations", object: { type: "reconciliation", id: recId, label: rec.name },
+            action: "Reconciliation prepared", after: `${rec.items.length} reconciling item${rec.items.length === 1 ? "" : "s"} classified`, details: { requestedBy: person.id },
+          });
+          return { ok: true };
+        },
+
+        classifyRecItem: (recId, itemId, classId) => {
+          const rec = REC_BY_ID.get(recId);
+          if (!rec) return fail("Reconciliation not found");
+          const { role, person } = actor(rec.preparerId);
+          if (!can(role, "propose")) return fail(denied("propose", role));
+          if (get().signOffs[signKey(recId, WORLD.asOf)]?.preparer) return fail("The reconciliation is signed off; reopen it to change items");
+          if (!RECON_CLASSES[rec.type].some((c) => c.id === classId)) return fail("That class does not apply to this type of reconciliation");
+          const cur = get().recs[recId] ?? emptyWork();
+          const before = reconClass(cur.classes[itemId] ?? [...rec.items, ...cur.items].find((i) => i.id === itemId)?.suggestedClass)?.label;
+          set((s) => ({ recs: { ...s.recs, [recId]: { ...cur, classes: { ...cur.classes, [itemId]: classId } } } }));
+          personEvent(person, { module: "reconciliations", object: objectOfItem(recItemKey(recId, itemId)), itemKeys: [recItemKey(recId, itemId)], action: "Reconciling item classified", before, after: reconClass(classId)?.label });
+          return { ok: true };
+        },
+
+        acceptSuggestions: (recId) => {
+          const rec = REC_BY_ID.get(recId);
+          if (!rec) return fail("Reconciliation not found");
+          const { role, person } = actor(rec.preparerId);
+          if (!can(role, "propose")) return fail(denied("propose", role));
+          if (get().signOffs[signKey(recId, WORLD.asOf)]?.preparer) return fail("The reconciliation is signed off; reopen it to change items");
+          const cur = get().recs[recId] ?? emptyWork();
+          const view = effectiveRec(rec, cur, WORLD.asOf);
+          const todo = view.items.filter((i) => !i.cls && i.suggestedClass);
+          if (!todo.length) return fail("No suggestions to accept");
+          const classes = { ...cur.classes };
+          for (const i of todo) classes[i.id] = i.suggestedClass!;
+          set((s) => ({ recs: { ...s.recs, [recId]: { ...cur, classes } } }));
+          const keys = todo.map((i) => recItemKey(recId, i.id));
+          personEvent(person, {
+            module: "reconciliations", object: keys.length === 1 ? objectOfItem(keys[0]) : { type: "items", id: `CLASSIFY-${recId}`, label: `${keys.length} items` }, itemKeys: keys,
+            action: keys.length === 1 ? "Reconciling item classified" : `Suggested classes accepted (${keys.length})`, after: "Accepted the reconciler's suggestions",
+          });
+          return { ok: true, count: todo.length };
+        },
+
+        addRecItem: (recId, input) => {
+          const rec = REC_BY_ID.get(recId);
+          if (!rec) return fail("Reconciliation not found");
+          const { role, person } = actor(rec.preparerId);
+          if (!can(role, "propose")) return fail(denied("propose", role));
+          if (get().signOffs[signKey(recId, WORLD.asOf)]?.preparer) return fail("The reconciliation is signed off; reopen it to add items");
+          if (!input.narration.trim()) return fail("Describe the item");
+          if (!input.amount || !Number.isFinite(input.amount)) return fail("Enter an amount");
+          if (input.classId && !RECON_CLASSES[rec.type].some((c) => c.id === input.classId)) return fail("That class does not apply to this type of reconciliation");
+          const cur = get().recs[recId] ?? emptyWork();
+          const id = `M${String(cur.items.length + 1).padStart(2, "0")}`;
+          const item: ReconItem = { id, side: input.side, amount: input.amount, date: input.date, reference: input.reference?.trim() || undefined, narration: input.narration.trim(), origin: "person" };
+          set((s) => ({ recs: { ...s.recs, [recId]: { ...cur, items: [...cur.items, item], classes: input.classId ? { ...cur.classes, [id]: input.classId } : cur.classes } } }));
+          personEvent(person, {
+            module: "reconciliations", object: objectOfItem(recItemKey(recId, id)), itemKeys: [recItemKey(recId, id)], action: "Reconciling item added",
+            after: `${fmtINR(Math.abs(input.amount))} · ${input.side === "books" ? "books" : "source"} side`, reason: item.narration,
+          });
+          return { ok: true, id };
+        },
+
+        markConfirmationSent: (recId) => {
+          const rec = REC_BY_ID.get(recId);
+          if (!rec?.confirmation) return fail("This reconciliation has no counterparty confirmation");
+          const { role, person } = actor(rec.preparerId);
+          if (!can(role, "follow-up")) return fail(denied("follow-up", role));
+          const cur = get().recs[recId] ?? emptyWork();
+          const status = cur.confirmation?.status ?? rec.confirmation.status;
+          if (status !== "not-sent") return fail("The confirmation request has already been sent");
+          const sentAt = nowLocal();
+          set((s) => ({ recs: { ...s.recs, [recId]: { ...cur, confirmation: { status: "sent" as ConfirmationStatus, sentAt } } } }));
+          personEvent(person, { module: "reconciliations", object: { type: "reconciliation", id: recId, label: rec.name }, action: "Confirmation requested", before: "Not sent", after: rec.confirmation.contact, details: { note: "Recorded only; nothing is sent from the prototype" } });
+          return { ok: true };
+        },
+
+        applyReply: (recId) => {
+          const rec = REC_BY_ID.get(recId);
+          if (!rec?.reply) return fail("There is no reply to apply");
+          const { role, person } = actor(rec.preparerId);
+          if (!can(role, "propose")) return fail(denied("propose", role));
+          const cur = get().recs[recId] ?? emptyWork();
+          if (cur.source) return fail("The reply has already been applied");
+          const at = nowLocal();
+          const base = { ...cur, prepared: true, source: { balance: rec.reply.balance, at, by: person.id } };
+          const object = { type: "reconciliation", id: recId, label: rec.name };
+          if (rec.type === "Customer statement" && rec.partyId) {
+            const diag = diagnoseCustomer({ lines: customerStatementLines(rec.partyId), booksBalance: rec.booksBalance, replyBalance: rec.reply.balance, asOf: WORLD.asOf });
+            const status: ConfirmationStatus = rec.reply.balance === rec.booksBalance ? "confirmed" : "counter-statement";
+            set((s) => ({ recs: { ...s.recs, [recId]: { ...base, items: [...cur.items, ...diag.items], confirmation: { status, sentAt: rec.confirmation?.sentAt, repliedAt: rec.reply!.receivedAt } } } }));
+            personEvent(person, { module: "reconciliations", object, action: "Customer reply applied", before: "Reply received", after: `Difference ${fmtINR(Math.abs(diag.difference))}`, details: { replyBalance: rec.reply.balance } });
+            log({
+              actorId: "agent:reconciler", actorKind: "Agent", module: "reconciliations", object, action: "Difference diagnosed",
+              after: diag.exact ? `${diag.items.length} item${diag.items.length === 1 ? "" : "s"} explain the difference exactly` : "No combination of ledger items explains the difference",
+              details: { items: diag.items.length, exact: diag.exact },
+            });
+            return { ok: true, found: diag.items.length, exact: diag.exact };
+          }
+          set((s) => ({ recs: { ...s.recs, [recId]: { ...base, confirmation: { status: "counter-statement" as ConfirmationStatus, sentAt: rec.confirmation?.sentAt, repliedAt: rec.reply!.receivedAt } } } }));
+          personEvent(person, { module: "reconciliations", object, action: "Reply applied", after: `Source balance ${fmtINR(Math.abs(rec.reply.balance))}` });
+          return { ok: true, found: 0, exact: false };
         },
 
         resetDemo: () => {
@@ -576,13 +753,14 @@ export const useWorkflow = create<WorkflowState>()(
     },
     {
       name: "ledgeralpha-workflow",
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => safeStorage),
       partialize: (s) => ({
         ruleOverrides: s.ruleOverrides,
         decisions: s.decisions,
         followUps: s.followUps,
         signOffs: s.signOffs,
+        recs: s.recs,
         events: s.events,
         seq: s.seq,
       }),

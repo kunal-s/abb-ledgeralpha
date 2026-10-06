@@ -1,4 +1,4 @@
-// Balance Sheet Review rule library — product defaults (docs/FRD.md §6.6).
+// Balance Sheet Review rule library - product defaults (docs/FRD.md §6.6).
 // Each rule is a definition (data) plus a deterministic evaluator. Reasons are
 // built from the item's own facts so the queue reads in plain language.
 
@@ -294,7 +294,7 @@ export const BSR_EVALUATORS: Record<string, Evaluator> = {
       );
       const vendor = l.partner ? ctx.party.get(l.partner.id) : undefined;
       hits.push(make("BSR-05", l,
-        `Advance paid ${a} days ago; no deliveries against PO ${l.po?.number ?? "—"} for ${idle} days; ${bg ? `covered by BG ${bg.bgNo} valid to ${fmtDate(bg.validTo)}` : "no bank guarantee held"}`,
+        `Advance paid ${a} days ago; no deliveries against PO ${l.po?.number ?? "-"} for ${idle} days; ${bg ? `covered by BG ${bg.bgNo} valid to ${fmtDate(bg.validTo)}` : "no bank guarantee held"}`,
         {
           ageDays: a, po: l.po?.number ?? "", poStatus: ps?.status ?? "Open", poIdleDays: idle, vendorStatus: vendor?.status ?? "",
           bgNo: bg?.bgNo ?? "", bgValidTo: bg?.validTo ?? "", bgAmount: bg?.amount ?? 0,
@@ -401,7 +401,7 @@ export const BSR_EVALUATORS: Record<string, Evaluator> = {
     ctx.open
       .filter((l) => ONE_SIDED.has(cat(ctx, l)) && Math.abs(l.amount) >= p.minAmount)
       .filter((l) => (ctx.gl.get(l.gl)!.normalBalance === "Dr" ? l.amount < 0 : l.amount > 0))
-      .map((l) => make("BSR-11", l, `${l.amount < 0 ? "Credit" : "Debit"} of ${fmtINR(Math.abs(l.amount))} on a ${ctx.gl.get(l.gl)!.normalBalance === "Dr" ? "debit" : "credit"}-balance account${partyName(ctx, l) ? ` — ${partyName(ctx, l)}` : ""}`, {
+      .map((l) => make("BSR-11", l, `${l.amount < 0 ? "Credit" : "Debit"} of ${fmtINR(Math.abs(l.amount))} on a ${ctx.gl.get(l.gl)!.normalBalance === "Dr" ? "debit" : "credit"}-balance account${partyName(ctx, l) ? ` - ${partyName(ctx, l)}` : ""}`, {
         docType: l.docType, ageDays: age(ctx, l),
       })),
 
@@ -466,12 +466,12 @@ export const BSR_EVALUATORS: Record<string, Evaluator> = {
   "BSR-16": (ctx, p) =>
     ctx.open
       .filter((l) => cat(ctx, l) === "statutory-dues" && l.amount < 0 && age(ctx, l) > p.ageDays)
-      .map((l) => make("BSR-16", l, `${ctx.gl.get(l.gl)!.description} of ${fmtINR(-l.amount)} open ${age(ctx, l)} days — not deposited`, { ageDays: age(ctx, l) })),
+      .map((l) => make("BSR-16", l, `${ctx.gl.get(l.gl)!.description} of ${fmtINR(-l.amount)} open ${age(ctx, l)} days - not deposited`, { ageDays: age(ctx, l) })),
 
   "BSR-17": (ctx, p) =>
     ctx.open
       .filter((l) => l.gl === "210100" && l.amount < 0 && l.partner && ctx.party.get(l.partner.id)?.indirectTaxIdMasked && daysBetween(l.documentDate, ctx.asOf) > p.ageDays)
-      .map((l) => make("BSR-17", l, `Supplier invoice unpaid ${daysBetween(l.documentDate, ctx.asOf)} days — input tax credit at risk`, { ageDays: daysBetween(l.documentDate, ctx.asOf) })),
+      .map((l) => make("BSR-17", l, `Supplier invoice unpaid ${daysBetween(l.documentDate, ctx.asOf)} days - input tax credit at risk`, { ageDays: daysBetween(l.documentDate, ctx.asOf) })),
 
   "BSR-18": (ctx, p) =>
     ctx.open

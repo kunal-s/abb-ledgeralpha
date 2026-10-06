@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import type { AccountCategory } from "@/types";
 
 function Delta({ value, goodWhen }: { value: number; goodWhen: "down" | "up" }) {
-  if (Math.abs(value) < 1) return <span className="text-muted-foreground">—</span>;
+  if (Math.abs(value) < 1) return <span className="text-muted-foreground">-</span>;
   const up = value > 0;
   const good = (up && goodWhen === "up") || (!up && goodWhen === "down");
   const Icon = up ? ArrowUpRight : ArrowDownRight;
@@ -196,8 +196,8 @@ export function OverviewTab() {
                 <TableRow key={m.category} className="cursor-pointer" onClick={() => drill(m.category, null)}>
                   <TableCell>{CATEGORY_LABELS[m.category]}</TableCell>
                   <TableCell className="text-right tnum">{fmtDrCr(m.closing, true)}</TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground tnum">{m.closing - m.prior === 0 ? "—" : `${m.closing - m.prior > 0 ? "+" : "−"}${fmtINRCompact(Math.abs(m.closing - m.prior))}`}</TableCell>
-                  <TableCell className="text-right tnum">{m.over ? fmtINRCompact(m.over) : "—"}</TableCell>
+                  <TableCell className="text-right text-xs text-muted-foreground tnum">{m.closing - m.prior === 0 ? "-" : `${m.closing - m.prior > 0 ? "+" : "−"}${fmtINRCompact(Math.abs(m.closing - m.prior))}`}</TableCell>
+                  <TableCell className="text-right tnum">{m.over ? fmtINRCompact(m.over) : "-"}</TableCell>
                   <TableCell className="text-right text-xs">
                     <Delta value={m.over - m.priorOver} goodWhen="down" />
                   </TableCell>

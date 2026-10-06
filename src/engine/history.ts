@@ -1,10 +1,10 @@
 // Workspace history before the session: monthly data loads, the scrutiny
 // agent's run after each load, and configuration changes the workspace made.
-// Counts are real — each run is evaluated as at its own month end with the
+// Counts are real - each run is evaluated as at its own month end with the
 // rules as configured at that time.
 
 import type { ActivityEvent } from "@/types";
-import { WORLD, DATASETS, QUALITY, GL_BY_ID } from "@/data";
+import { WORLD, DATASETS, QUALITY, GL_BY_ID, REC_BY_ID } from "@/data";
 import { addDays, fmtDate, monthEnd } from "@/lib/dates";
 import { previousQuarterEnd } from "@/engine/context";
 import { effectiveRules, runRules, type RuleOverrides } from "@/engine/run";
@@ -57,12 +57,31 @@ export function seededHistory(): ActivityEvent[] {
     });
   }
 
+  // reconciliations: prepared by the reconciler agent, confirmations sent and answered
+  for (const r of WORLD.reconciliations) {
+    const object = { type: "reconciliation", id: r.id, label: r.name };
+    const base = { module: "reconciliations", object } as const;
+    if (r.confirmation?.sentAt) {
+      events.push({ id: id(), at: r.confirmation.sentAt, actorId: r.preparerId, actorKind: "Person", ...base, action: "Confirmation requested", after: r.confirmation.contact, details: { period: WORLD.asOf } });
+    }
+    if (r.seedPrepared) {
+      events.push({
+        id: id(), at: `${addDays(WORLD.asOf, 1)}T07:05`, actorId: "agent:reconciler", actorKind: "Agent", ...base, action: "Reconciliation prepared",
+        after: `${r.items.length} reconciling item${r.items.length === 1 ? "" : "s"}`, details: { period: WORLD.asOf },
+      });
+    }
+    if (r.confirmation?.repliedAt) {
+      events.push({ id: id(), at: r.confirmation.repliedAt, actorId: "system", actorKind: "System", ...base, action: "Reply received", after: r.confirmation.contact, details: { period: WORLD.asOf } });
+    }
+  }
+
   // sign-offs completed before the session (balance-only accounts)
   for (const so of Object.values(seededSignOffs())) {
-    const label = GL_BY_ID.get(so.gl)?.description;
-    const object = { type: "account", id: so.gl, label };
-    if (so.preparer) events.push({ id: id(), at: so.preparer.at, actorId: so.preparer.personId, actorKind: "Person", module: "balance-sheet-review", object, action: "Signed off as preparer", after: "Preparer signed", details: { period: so.periodEnd } });
-    if (so.reviewer) events.push({ id: id(), at: so.reviewer.at, actorId: so.reviewer.personId, actorKind: "Person", module: "balance-sheet-review", object, action: "Signed off as reviewer", before: "Preparer signed", after: "Signed off", details: { period: so.periodEnd } });
+    const rec = REC_BY_ID.get(so.gl);
+    const module = rec ? "reconciliations" : "balance-sheet-review";
+    const object = rec ? { type: "reconciliation", id: rec.id, label: rec.name } : { type: "account", id: so.gl, label: GL_BY_ID.get(so.gl)?.description };
+    if (so.preparer) events.push({ id: id(), at: so.preparer.at, actorId: so.preparer.personId, actorKind: "Person", module, object, action: "Signed off as preparer", after: "Preparer signed", details: { period: so.periodEnd } });
+    if (so.reviewer) events.push({ id: id(), at: so.reviewer.at, actorId: so.reviewer.personId, actorKind: "Person", module, object, action: "Signed off as reviewer", before: "Preparer signed", after: "Signed off", details: { period: so.periodEnd } });
   }
 
   for (const c of SEEDED_RULE_CHANGES) {

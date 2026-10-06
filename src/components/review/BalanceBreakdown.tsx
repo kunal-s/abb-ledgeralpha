@@ -1,5 +1,5 @@
 // Pattern from LedgerAlpha's SubstantiationPanel: what a balance is made of, with
-// each segment a filter on the items below. Two views of the same open items —
+// each segment a filter on the items below. Two views of the same open items -
 // by ageing bucket and by recommended action.
 
 import type { ActionKind } from "@/types";

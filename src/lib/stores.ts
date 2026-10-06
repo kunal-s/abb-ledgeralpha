@@ -3,7 +3,7 @@ import type { RoleId } from "@/types";
 import { TENANT } from "@/config/tenant";
 
 // ----------------------------------------------------------------------------
-// Role store — the acting role (docs/FRD.md §2). Stands in for authentication;
+// Role store - the acting role (docs/FRD.md §2). Stands in for authentication;
 // drives role-aware views and which actions are enabled.
 // ----------------------------------------------------------------------------
 interface RoleState {
@@ -17,7 +17,7 @@ export const useRoleStore = create<RoleState>((set) => ({
 }));
 
 // ----------------------------------------------------------------------------
-// Scope store — business unit filter applied across modules ("all" = company).
+// Scope store - business unit filter applied across modules ("all" = company).
 // ----------------------------------------------------------------------------
 interface ScopeState {
   businessUnitId: string | "all";
@@ -30,7 +30,7 @@ export const useScopeStore = create<ScopeState>((set) => ({
 }));
 
 // ----------------------------------------------------------------------------
-// Period store — the period end every module reads as "as at".
+// Period store - the period end every module reads as "as at".
 // ----------------------------------------------------------------------------
 interface PeriodState {
   periodEnd: string;
@@ -43,4 +43,4 @@ export const usePeriodStore = create<PeriodState>((set) => ({
 }));
 
 // Domain stores (ledger, rule results, decisions, sign-offs, activity) arrive
-// with the platform-core increment — see docs/FRD.md §4.
+// with the platform-core increment - see docs/FRD.md §4.

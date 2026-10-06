@@ -50,7 +50,7 @@ function HitsByRule({ rules, selected, onSelect }: { rules: { rule: EffectiveRul
               </span>
               <span className="w-12 text-right tnum text-xs">{rule.enabled ? fmtInt(count) : "Off"}</span>
             </span>
-            <span className="text-right tnum text-xs text-muted-foreground">{rule.enabled ? fmtINRCompact(value) : "—"}</span>
+            <span className="text-right tnum text-xs text-muted-foreground">{rule.enabled ? fmtINRCompact(value) : "-"}</span>
           </button>
         </li>
       ))}
@@ -255,9 +255,9 @@ function ChangeLog() {
                 )}
               </TableCell>
               <TableCell className="whitespace-nowrap text-right tnum text-xs">
-                {e.details?.itemsBefore !== undefined ? `${fmtInt(Number(e.details.itemsBefore))} → ${fmtInt(Number(e.details.itemsAfter))}` : "—"}
+                {e.details?.itemsBefore !== undefined ? `${fmtInt(Number(e.details.itemsBefore))} → ${fmtInt(Number(e.details.itemsAfter))}` : "-"}
               </TableCell>
-              <TableCell className="text-xs text-muted-foreground">{e.reason ?? "—"}</TableCell>
+              <TableCell className="text-xs text-muted-foreground">{e.reason ?? "-"}</TableCell>
             </TableRow>
           ))}
         </TableBody>

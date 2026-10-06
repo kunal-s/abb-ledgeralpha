@@ -10,6 +10,8 @@ import { RulesPolicies } from "@/pages/RulesPolicies";
 import { ActivityLog } from "@/pages/ActivityLog";
 import { BalanceSheetReview } from "@/pages/BalanceSheetReview";
 import { AccountScrutiny } from "@/pages/AccountScrutiny";
+import { Reconciliations } from "@/pages/Reconciliations";
+import { ReconciliationDetail } from "@/pages/ReconciliationDetail";
 
 // Routes come from the module registry (src/lib/modules.ts), filtered by the
 // workspace's enabled modules. As a module is built, map its path to the real
@@ -21,6 +23,8 @@ const BUILT: Record<string, ReactNode> = {
   "/activity": <ActivityLog />,
   "/balance-sheet-review": <BalanceSheetReview />,
   "/balance-sheet-review/:gl": <AccountScrutiny />,
+  "/reconciliations": <Reconciliations />,
+  "/reconciliations/:id": <ReconciliationDetail />,
 };
 
 const router = createBrowserRouter([

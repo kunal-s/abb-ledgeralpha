@@ -66,7 +66,7 @@ export function HeatmapGrid({ heatmap, mode, onSelect }: HeatmapGridProps) {
                       className="flex min-h-[2.25rem] items-center justify-center rounded-md px-1 text-xs font-medium tnum transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:opacity-100"
                       role="cell"
                     >
-                      {cell.count === 0 ? <span className="text-muted-foreground/60">—</span> : fmt(cell, mode)}
+                      {cell.count === 0 ? <span className="text-muted-foreground/60">-</span> : fmt(cell, mode)}
                     </button>
                   </TooltipTrigger>
                   {cell.count > 0 && (

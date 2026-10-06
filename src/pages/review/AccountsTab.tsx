@@ -146,8 +146,8 @@ export function AccountsTab() {
                   <SeverityBadge severity={SEVERITY[a.summary.gl.riskTier]} />
                 </TableCell>
                 <TableCell className="whitespace-nowrap text-right tnum">{fmtDrCr(a.summary.closing, true)}</TableCell>
-                <TableCell className="whitespace-nowrap text-right tnum">{a.summary.overAmount ? `${fmtINRCompact(a.summary.overAmount)} · ${fmtInt(a.summary.overCount)}` : "—"}</TableCell>
-                <TableCell className="text-right tnum">{a.flaggedCount ? fmtInt(a.flaggedCount) : "—"}</TableCell>
+                <TableCell className="whitespace-nowrap text-right tnum">{a.summary.overAmount ? `${fmtINRCompact(a.summary.overAmount)} · ${fmtInt(a.summary.overCount)}` : "-"}</TableCell>
+                <TableCell className="text-right tnum">{a.flaggedCount ? fmtInt(a.flaggedCount) : "-"}</TableCell>
                 <TableCell>
                   <StatusChip status={a.status} />
                 </TableCell>

@@ -58,6 +58,6 @@ export function draftCommentary(f: CommentaryFacts): string {
     parts.push(`${s.join("; ")}.`);
   }
   if (f.openFollowUps) parts.push(`${plural(f.openFollowUps, "follow-up")} open.`);
-  if (f.largest) parts.push(`Largest flagged item: document ${f.largest.docNo}, ${fmtINRCompact(Math.abs(f.largest.amount))} — ${f.largest.reason.charAt(0).toLowerCase()}${f.largest.reason.slice(1)}.`);
+  if (f.largest) parts.push(`Largest flagged item: document ${f.largest.docNo}, ${fmtINRCompact(Math.abs(f.largest.amount))} - ${f.largest.reason.charAt(0).toLowerCase()}${f.largest.reason.slice(1)}.`);
   return parts.join(" ");
 }

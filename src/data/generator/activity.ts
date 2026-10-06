@@ -48,7 +48,7 @@ export function postMigration(ctx: Ctx): void {
   ).map(([gl, amount]) => ({ gl, amount, pc: CORP }));
   const plug = -legs.reduce((s, l) => s + l.amount, 0);
   legs.push({ gl: "320100", amount: plug, pc: CORP });
-  ctx.b.post({ docType: "SA", postingDate: S.migrationDate, enteredBy: U.migration, text: "Opening balances — migration", entryTime: "03:00" }, legs);
+  ctx.b.post({ docType: "SA", postingDate: S.migrationDate, enteredBy: U.migration, text: "Opening balances - migration", entryTime: "03:00" }, legs);
 }
 
 // ---------------------------------------------------------------------------
@@ -99,12 +99,12 @@ export function postMonthlyActivity(ctx: Ctx): void {
       const igstBase = Math.round(T * 0.6);
       const gst = [...gstLegs(igstBase, "output", true, pc.id), ...gstLegs(T - igstBase, "output", false, pc.id)];
       const G = T - gst.reduce((s, l) => s + l.amount, 0);
-      const [arBill] = b.post({ docType: "DR", postingDate: e, enteredBy: U.billing, text: `Billing summary — ${pc.name}`, entryTime: "23:15" }, [
+      const [arBill] = b.post({ docType: "DR", postingDate: e, enteredBy: U.billing, text: `Billing summary - ${pc.name}`, entryTime: "23:15" }, [
         { gl: "140100", amount: G, pc: pc.id, assignment: `SUMMARY-${monthKey(e)}` },
         ...domestic.map((r, i) => ({ gl: r.gl, amount: -revParts[i], pc: pc.id })),
         ...gst,
       ]);
-      const coll = b.post({ docType: "DZ", postingDate: e, enteredBy: U.bank, text: `Collections summary — ${pc.name}`, entryTime: "23:40" }, [
+      const coll = b.post({ docType: "DZ", postingDate: e, enteredBy: U.bank, text: `Collections summary - ${pc.name}`, entryTime: "23:40" }, [
         { gl: "181100", amount: G, pc: pc.id },
         { gl: "140100", amount: -G, pc: pc.id, assignment: `SUMMARY-${monthKey(e)}` },
       ]);
@@ -113,11 +113,11 @@ export function postMonthlyActivity(ctx: Ctx): void {
       if (exportShare > 0) {
         const expTarget = R * exportShare;
         const E = Math.round(Math.max(expTarget - (popExport.get(k) ?? 0), 0.25 * expTarget));
-        const [exBill] = b.post({ docType: "DR", postingDate: e, enteredBy: U.billing, text: `Export billing summary — ${pc.name}`, entryTime: "23:16" }, [
+        const [exBill] = b.post({ docType: "DR", postingDate: e, enteredBy: U.billing, text: `Export billing summary - ${pc.name}`, entryTime: "23:16" }, [
           { gl: "140200", amount: E, pc: pc.id, assignment: `SUMMARY-${monthKey(e)}`, docCurrency: "USD", amountDoc: Math.round((E / 83.3) * 100) / 100 },
           { gl: "410400", amount: -E, pc: pc.id },
         ]);
-        const exColl = b.post({ docType: "DZ", postingDate: e, enteredBy: U.bank, text: `Export collections summary — ${pc.name}`, entryTime: "23:41" }, [
+        const exColl = b.post({ docType: "DZ", postingDate: e, enteredBy: U.bank, text: `Export collections summary - ${pc.name}`, entryTime: "23:41" }, [
           { gl: "181400", amount: E, pc: pc.id },
           { gl: "140200", amount: -E, pc: pc.id, assignment: `SUMMARY-${monthKey(e)}` },
         ]);
@@ -127,12 +127,12 @@ export function postMonthlyActivity(ctx: Ctx): void {
       // Material purchases and payments
       const mTarget = R * pc.materialRatio * rng.range(0.97, 1.03);
       const M = Math.round(Math.max(mTarget - (popMaterial.get(k) ?? 0), 0.2 * mTarget));
-      payableCycle(ctx, e, pc.id, [["510100", M]], `Purchases summary — ${pc.name}`);
+      payableCycle(ctx, e, pc.id, [["510100", M]], `Purchases summary - ${pc.name}`);
 
       // Other expenses
       const O = Math.round(R * rng.range(0.11, 0.135));
       const oParts = split(O, OTHER_EXPENSES.map(([, w]) => w));
-      payableCycle(ctx, e, pc.id, OTHER_EXPENSES.map(([gl], i) => [gl, oParts[i]] as [string, number]), `Expenses summary — ${pc.name}`);
+      payableCycle(ctx, e, pc.id, OTHER_EXPENSES.map(([gl], i) => [gl, oParts[i]] as [string, number]), `Expenses summary - ${pc.name}`);
 
       // Payroll; statutory deductions deposited on the 7th of the next month
       const Sal = Math.round(R * rng.range(0.072, 0.088));
@@ -140,7 +140,7 @@ export function postMonthlyActivity(ctx: Ctx): void {
       const pfEr = Math.round(Sal * 0.048);
       const pfEe = Math.round(Sal * 0.048);
       const tds = Math.round(Sal * 0.105);
-      const payroll = b.post({ docType: "PR", postingDate: e, enteredBy: U.payroll, text: `Payroll — ${pc.name}`, entryTime: "22:30" }, [
+      const payroll = b.post({ docType: "PR", postingDate: e, enteredBy: U.payroll, text: `Payroll - ${pc.name}`, entryTime: "22:30" }, [
         { gl: "520100", amount: Sal, pc: pc.id },
         { gl: "520200", amount: pfEr, pc: pc.id },
         { gl: "241300", amount: -tds, pc: pc.id, assignment: `TDS-SAL-${monthKey(e)}` },
@@ -149,7 +149,7 @@ export function postMonthlyActivity(ctx: Ctx): void {
       ]);
       const depositDate = addDays(next, 6);
       if (depositDate <= ctx.asOf) {
-        const dep = b.post({ docType: "ZP", postingDate: depositDate, enteredBy: U.bank, text: `Statutory deposit — ${monthKey(e)}`, entryTime: "11:30" }, [
+        const dep = b.post({ docType: "ZP", postingDate: depositDate, enteredBy: U.bank, text: `Statutory deposit - ${monthKey(e)}`, entryTime: "11:30" }, [
           { gl: "241300", amount: tds, pc: pc.id, assignment: `TDS-SAL-${monthKey(e)}` },
           { gl: "241700", amount: pfEe + pfEr, pc: pc.id, assignment: `PF-${monthKey(e)}` },
           { gl: "181300", amount: -(tds + pfEe + pfEr), pc: pc.id },
@@ -169,7 +169,7 @@ export function postMonthlyActivity(ctx: Ctx): void {
 
       // Warranty provision (monthly) and utilisation (quarter-end)
       const W = Math.round(R * 0.007);
-      b.post({ docType: "SA", postingDate: e, enteredBy: accountants.provisions, manual: true, entryDate: e, entryTime: bizTime(ctx), text: `Warranty provision — ${monthKey(e)}` }, [
+      b.post({ docType: "SA", postingDate: e, enteredBy: accountants.provisions, manual: true, entryDate: e, entryTime: bizTime(ctx), text: `Warranty provision - ${monthKey(e)}` }, [
         { gl: "531200", amount: W, pc: pc.id },
         { gl: "231100", amount: -W, pc: pc.id },
       ]);
@@ -185,12 +185,12 @@ export function postMonthlyActivity(ctx: Ctx): void {
       let A = Math.round(R * rng.range(0.0035, 0.0055));
       if (rng.chance(0.35) && A > 1_00_000) A = Math.round(A / 1_00_000) * 1_00_000;
       const entryDate = addDays(e, 2) > "2026-10-01" ? "2026-10-01" : addDays(e, 2);
-      b.post({ docType: "SA", postingDate: e, enteredBy: accountants.procurement, manual: true, entryDate, entryTime: bizTime(ctx), text: `Accrual — services received not invoiced, ${monthKey(e)}` }, [
+      b.post({ docType: "SA", postingDate: e, enteredBy: accountants.procurement, manual: true, entryDate, entryTime: bizTime(ctx), text: `Accrual - services received not invoiced, ${monthKey(e)}` }, [
         { gl: "530300", amount: A, pc: pc.id },
         { gl: "232100", amount: -A, pc: pc.id, assignment: `ACR-${monthKey(e)}` },
       ]);
       if (next <= ctx.asOf) {
-        b.post({ docType: "SA", postingDate: next, enteredBy: accountants.procurement, manual: true, entryTime: bizTime(ctx), text: `Reversal — accrual ${monthKey(e)}` }, [
+        b.post({ docType: "SA", postingDate: next, enteredBy: accountants.procurement, manual: true, entryTime: bizTime(ctx), text: `Reversal - accrual ${monthKey(e)}` }, [
           { gl: "232100", amount: A, pc: pc.id, assignment: `ACR-${monthKey(e)}` },
           { gl: "530300", amount: -A, pc: pc.id },
         ]);
@@ -217,7 +217,7 @@ export function postMonthlyActivity(ctx: Ctx): void {
     ]);
     if (month % 3 === 0) {
       const ecl = Math.round(companyRevenue * 3 * 0.0015);
-      b.post({ docType: "SA", postingDate: e, enteredBy: accountants.provisions, manual: true, entryTime: bizTime(ctx), text: "Expected credit loss — provision matrix" }, [
+      b.post({ docType: "SA", postingDate: e, enteredBy: accountants.provisions, manual: true, entryTime: bizTime(ctx), text: "Expected credit loss - provision matrix" }, [
         { gl: "531400", amount: ecl, pc: CORP },
         { gl: "149100", amount: -ecl, pc: CORP },
       ]);
@@ -241,7 +241,7 @@ function payableCycle(ctx: Ctx, e: IsoDate, pc: string, expenses: [string, numbe
     ...expenses.map(([gl, amount]) => ({ gl, amount, pc })),
     ...gst,
   ]);
-  const pay = b.post({ docType: "KZ", postingDate: e, enteredBy: U.bank, text: `Payments — ${text}`, entryTime: "23:50" }, [
+  const pay = b.post({ docType: "KZ", postingDate: e, enteredBy: U.bank, text: `Payments - ${text}`, entryTime: "23:50" }, [
     { gl: "210100", amount: gross, pc, assignment: `SUMMARY-${monthKey(e)}` },
     { gl: "181200", amount: -gross, pc },
   ]);
@@ -271,11 +271,11 @@ export function postSettlements(ctx: Ctx): void {
     legs.push({ gl: "181300", amount: bank, pc: CORP });
     b.post({ docType: "SA", postingDate: date, enteredBy: "SKULKARNI", manual: true, entryTime: bizTime(ctx), text }, legs);
   };
-  settle("2024-12-31", gstNet(null, "2024-12-31"), "GST settlement — periods up to Dec 2024");
+  settle("2024-12-31", gstNet(null, "2024-12-31"), "GST settlement - periods up to Dec 2024");
   for (const e of monthEndsBetween(S.activityFrom, ctx.asOf)) {
     const pay = addDays(addDays(e, 1), 19);
     if (pay > ctx.asOf) continue;
-    settle(pay, gstNet(`${e.slice(0, 7)}-01`, e), `GST settlement — ${e.slice(0, 7)}`);
+    settle(pay, gstNet(`${e.slice(0, 7)}-01`, e), `GST settlement - ${e.slice(0, 7)}`);
   }
 
   // Current tax: monthly provision at the effective rate; advance tax on the statutory dates

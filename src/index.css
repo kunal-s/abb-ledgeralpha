@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    /* Neutral slate base — Linear/Stripe/Atlan calm light mode */
+    /* Neutral slate base - Linear/Stripe/Atlan calm light mode */
     --background: 210 20% 99%;
     --foreground: 222 24% 14%;
 
@@ -16,7 +16,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 24% 14%;
 
-    /* One restrained accent — deep indigo, used sparingly */
+    /* One restrained accent - deep indigo, used sparingly */
     --primary: 234 52% 46%;
     --primary-foreground: 210 40% 99%;
 
@@ -36,7 +36,7 @@
     --input: 216 16% 88%;
     --ring: 234 52% 46%;
 
-    /* STATE colors — color ONLY for state */
+    /* STATE colors - color ONLY for state */
     --ok: 152 56% 36%; /* green = ok / certified */
     --ok-foreground: 152 60% 24%;
     --ok-subtle: 152 48% 95%;
@@ -53,7 +53,7 @@
     --info-foreground: 214 70% 40%;
     --info-subtle: 214 90% 96%;
 
-    /* Categorical chart series — validated order (blue, orange, aqua, yellow):
+    /* Categorical chart series - validated order (blue, orange, aqua, yellow):
        adjacent CVD ΔE ≥ 9.1, normal-vision ΔE ≥ 22.9 on the light surface.
        Aqua and yellow sit below 3:1 contrast: charts using them carry a legend
        and a table view. */

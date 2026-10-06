@@ -26,7 +26,7 @@ export function rowFor(review: Review, item: LineItem): ItemRow {
   return { key: item.key, item, hits: [], status: "within-policy", age, bucket: bucketOf(age), category: GL_BY_ID.get(item.gl)!.category, flagged: false, isOpen: false };
 }
 
-/** Everything the item drawer needs, for any line — flagged or not. */
+/** Everything the item drawer needs, for any line - flagged or not. */
 export function useItemRow(key: string | undefined): ItemRow | undefined {
   const review = useReview();
   return useMemo(() => {

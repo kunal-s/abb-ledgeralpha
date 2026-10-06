@@ -202,7 +202,7 @@ describe("planted scenarios", () => {
     expect([l.docCurrency, l.amountDoc, l.amount]).toEqual(["EUR", -5_00_000, -4_80_00_000]);
   });
 
-  it("S-24 MSME invoices beyond 45 days total ₹38,90,000 — and are the only ones", () => {
+  it("S-24 MSME invoices beyond 45 days total ₹38,90,000 - and are the only ones", () => {
     const planted = anchored("S-24");
     expect(planted.reduce((s, l) => s - l.amount, 0)).toBe(38_90_000);
     const overdue = world.lines.filter((l) => {

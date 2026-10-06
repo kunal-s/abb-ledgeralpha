@@ -1,4 +1,4 @@
-// Load validation — the checks every dataset passes before modules use it
+// Load validation - the checks every dataset passes before modules use it
 // (docs/FRD.md §4.1). Each check reports what it examined and any exceptions,
 // with sample record keys for drill-down.
 

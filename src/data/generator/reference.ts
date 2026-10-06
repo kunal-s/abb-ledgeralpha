@@ -97,7 +97,7 @@ export function buildBankGuarantees(ctx: Ctx): BankGuarantee[] {
   for (const bg of all) {
     if (bg.validTo >= ctx.asOf) bg.status = "Active";
     else if (bg.claimExpiry && bg.claimExpiry >= ctx.asOf) bg.status = "In claim period";
-    else bg.status = rng.chance(0.3) ? "Expired — original awaited" : "Released";
+    else bg.status = rng.chance(0.3) ? "Expired - original awaited" : "Released";
   }
   return all.sort((a, b) => a.validTo.localeCompare(b.validTo));
 }
