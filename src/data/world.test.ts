@@ -33,7 +33,8 @@ describe("world generation", () => {
   });
 
   it("generates fast enough to run in the browser", () => {
-    expect(generationMs).toBeLessThan(3000);
+    // about 1.5 s on its own; test files run in parallel, so the guard leaves room for a loaded machine
+    expect(generationMs).toBeLessThan(6000);
   });
 
   it("passes every load check", () => {

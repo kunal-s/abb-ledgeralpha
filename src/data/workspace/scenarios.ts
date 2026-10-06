@@ -13,8 +13,8 @@ import { WORLD_SPEC as S } from "@/data/workspace/spec";
 
 export interface ScenarioRefs {
   vendors: Record<"S01" | "S02" | "S03" | "S04" | "S05" | "S13" | "S16" | "S24a" | "S24b" | "S24c" | "S19a" | "S19b" | "S19c" | "S19d", Party>;
-  customers: Record<"S06" | "S07" | "S18", Party>;
-  projects: Record<"S08" | "S09" | "S10" | "S18" | "S20", Project>;
+  customers: Record<"S06" | "S07" | "S17" | "S18", Party>;
+  projects: Record<"S08" | "S09" | "S10" | "S11" | "S17" | "S18" | "S20", Project>;
 }
 
 /**
@@ -54,7 +54,12 @@ export function reserveScenarioMasters(m: Masters, reserved: Set<string>): Scena
   reserved.add(s18.id);
   // the S-18 balance must be exactly the planted items: keep its other projects quiet
   for (const p of m.projects) if (p.customerId === s18.id) reserved.add(p.wbs);
-  const customers = { S06: domesticCustomers[5], S07: domesticCustomers[9], S18: s18 };
+  // S-17: a customer whose receipt carries no remittance advice; its history is planted, so keep it quiet
+  const s17 = domesticCustomers[17];
+  s17.governmentOrPsu = false;
+  reserved.add(s17.id);
+  for (const p of m.projects) if (p.customerId === s17.id) reserved.add(p.wbs);
+  const customers = { S06: domesticCustomers[5], S07: domesticCustomers[9], S17: s17, S18: s18 };
 
   const short = (c: Party) => c.name.split(" ")[0];
   const newProject = (p: Project): Project => {
@@ -66,6 +71,9 @@ export function reserveScenarioMasters(m: Masters, reserved: Set<string>): Scena
     S08: newProject({ wbs: "P-2024-1418", name: `Traction substations - ${short(metro)}`, customerId: metro.id, profitCentreId: "PC-MO-03", stage: "On hold", contractValue: 64_80_00_000, startDate: "2024-03-11" }),
     S09: newProject({ wbs: "P-2022-1093", name: `Pumping station motors - ${short(psu)}`, customerId: psu.id, profitCentreId: "PC-PA-02", stage: "DLP ended", contractValue: 22_40_00_000, startDate: "2022-02-14", dlpEnd: addDays(S.asOf, -240) }),
     S10: newProject({ wbs: "P-2023-1206", name: `Unit control system upgrade - ${short(domesticCustomers[21])}`, customerId: domesticCustomers[21].id, profitCentreId: "PC-PA-01", stage: "Closed", contractValue: 15_60_00_000, startDate: "2023-01-09", dlpEnd: "2025-08-30" }),
+    // S-11: a second project of the metro customer, billed in early 2026 (the on-hold project has not been billed for 274 days)
+    S11: newProject({ wbs: "P-2025-1522", name: `Signalling power supply - ${short(metro)}`, customerId: metro.id, profitCentreId: "PC-MO-03", stage: "Execution", contractValue: 18_40_00_000, startDate: "2025-08-18" }),
+    S17: newProject({ wbs: "P-2026-1604", name: `Compressor drive systems - ${short(s17)}`, customerId: s17.id, profitCentreId: "PC-PA-02", stage: "Execution", contractValue: 9_60_00_000, startDate: "2026-02-09" }),
     S18: newProject({ wbs: "P-2025-1377", name: `Campus power distribution - ${short(s18)}`, customerId: s18.id, profitCentreId: "PC-EL-02", stage: "Execution", contractValue: 28_50_00_000, startDate: "2025-06-02" }),
     S20: newProject({ wbs: "P-2023-1311", name: `Substation package - ${short(domesticCustomers[29])}`, customerId: domesticCustomers[29].id, profitCentreId: "PC-EL-02", stage: "Commissioned", contractValue: 35_00_00_000, startDate: "2023-04-03" }),
   };
@@ -193,14 +201,23 @@ export function plantScenarios(ctx: Ctx, r: ScenarioRefs): void {
   ]);
   anchor(ctx, "S-10", s10[1].key);
 
-  // S-11 Incoming RTGS parked in clearing for 211 days
+  // S-11 Incoming RTGS parked in clearing for 211 days. The customer paid two open invoices (₹14,16,000 and
+  // ₹9,85,890, taxable ₹20,35,500) less TDS at 2% (₹40,710) and a bank charge of ₹1,180: ₹23,60,000. A third
+  // open invoice of ₹11,80,000 is unrelated. The customer's earlier receipts show the same 2% deduction.
   const metro = partyById(ctx, P.S08.customerId);
+  for (const [date, taxable] of [["2025-10-14", 19_40_000], ["2025-12-09", 31_20_000], ["2026-01-22", 24_70_000]] as [IsoDate, number][]) {
+    postReceiptWithTds(ctx, metro, date, taxable, { rate: 0.02, nature: "Contract work" });
+  }
+  const s11a = invoiceGross(ctx, metro, P.S11, "2026-01-19", 14_16_000, `Milestone billing - ${P.S11.name}`);
+  const s11b = invoiceGross(ctx, metro, P.S11, "2026-02-09", 9_85_890, `Milestone billing - ${P.S11.name}`);
+  const s11c = invoiceGross(ctx, metro, P.S11, "2026-02-25", 11_80_000, `Milestone billing - ${P.S11.name}`);
   const narration = `RTGS CR ${metro.name.toUpperCase().slice(0, 24)}`;
   const s11 = b.post({ docType: "DZ", postingDate: addDays(ctx.asOf, -211), enteredBy: S.systemUsers.bank, entryTime: "13:37", text: narration }, [
     { gl: "181100", amount: 23_60_000, pc: S.corporateProfitCentre.id },
     { gl: "171200", amount: -23_60_000, pc: S.corporateProfitCentre.id, assignment: "UTR614208", text: narration },
   ]);
   anchor(ctx, "S-11", s11[1].key);
+  anchor(ctx, "S-11i", s11a.key, s11b.key, s11c.key);
 
   // S-12 Round-number manual provision posted at period end, entered at 11:42 PM
   const s12 = b.post({ docType: "SA", postingDate: ctx.asOf, entryDate: ctx.asOf, entryTime: "23:42", enteredBy: "AMALHOTRA", manual: true, text: `Provision for LD - ${P.S08.name}` }, [
@@ -346,6 +363,23 @@ export function plantScenarios(ctx: Ctx, r: ScenarioRefs): void {
     { gl: "210100", amount: -2_15_900, pc: "PC-RA-03" },
   ]);
   anchor(ctx, "S-25", arDirect[0].key, apDirect[1].key);
+
+  // S-17 Cash application: invoice ₹1,00,00,000 + GST ₹18,00,000 = ₹1,18,00,000, paid with no remittance advice.
+  // Received ₹1,16,85,850 = invoice less TDS 1% on the taxable value (₹1,00,000) less ₹14,150 of bank charges.
+  // The customer has deducted 1% before, and has two other open invoices.
+  const c17 = C.S17;
+  for (const [date, taxable] of [["2026-02-12", 41_00_000], ["2026-04-21", 27_50_000]] as [IsoDate, number][]) {
+    postReceiptWithTds(ctx, c17, date, taxable, { rate: 0.01, nature: "Contract work" });
+  }
+  const s17inv = invoiceGross(ctx, c17, P.S17, "2026-08-05", 1_18_00_000, `Milestone billing - ${P.S17.name}`);
+  const s17b = invoiceGross(ctx, c17, P.S17, "2026-08-20", 46_02_000, `Milestone billing - ${P.S17.name}`);
+  const s17c = invoiceGross(ctx, c17, P.S17, "2026-09-10", 31_45_000, `Milestone billing - ${P.S17.name}`);
+  const s17narration = `NEFT CR ${c17.name.toUpperCase()}`;
+  const s17 = b.post({ docType: "DZ", postingDate: "2026-09-24", enteredBy: S.systemUsers.bank, entryTime: "14:09", text: s17narration }, [
+    { gl: "181100", amount: 1_16_85_850, pc: corp },
+    { gl: "171200", amount: -1_16_85_850, pc: corp, assignment: "UTR731605", text: s17narration },
+  ]);
+  anchor(ctx, "S-17", s17[1].key, s17inv.key, s17b.key, s17c.key);
 }
 
 function partyById(ctx: Ctx, id: string): Party {

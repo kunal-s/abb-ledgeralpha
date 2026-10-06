@@ -24,6 +24,23 @@ const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   // Tax review
   cleared: { label: "Tax cleared", tone: "ok" },
   objected: { label: "Tax objection", tone: "danger" },
+  // Cash application: receipts waiting in clearing (docs/FRD.md §6.8)
+  ready: { label: "Ready to confirm", tone: "ok" },
+  suggested: { label: "Match to review", tone: "info" },
+  unmatched: { label: "No match", tone: "danger" },
+  parked: { label: "Parked", tone: "neutral" },
+  // Tax deposits (docs/FRD.md §6.12)
+  deposited: { label: "Deposited", tone: "ok" },
+  "deposited-late": { label: "Deposited late", tone: "warn" },
+  due: { label: "Due", tone: "info" },
+  overdue: { label: "Overdue", tone: "danger" },
+  // Tax credit statement check (docs/FRD.md §6.12)
+  matched: { label: "Matched", tone: "ok" },
+  "wrong-tan": { label: "Wrong tax ID", tone: "info" },
+  short: { label: "Short credit", tone: "warn" },
+  "wrong-quarter": { label: "Wrong quarter", tone: "warn" },
+  missing: { label: "Missing", tone: "danger" },
+  pending: { label: "Statement pending", tone: "neutral" },
   // Counterparty confirmation (docs/FRD.md §6.7)
   "not-sent": { label: "Not sent", tone: "neutral" },
   sent: { label: "Awaiting reply", tone: "info" },

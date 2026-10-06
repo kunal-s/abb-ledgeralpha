@@ -118,11 +118,11 @@ export function buildTaxCredits(ctx: Ctx): TaxCreditStatementLine[] {
   const out: TaxCreditStatementLine[] = [];
   const partyById = new Map(ctx.m.parties.map((p) => [p.id, p]));
   let n = 0;
-  const push = (customerId: string, date: IsoDate, nature: string, paid: number, credited: number) => {
+  const push = (customerId: string, date: IsoDate, nature: string, paid: number, credited: number, tan?: string) => {
     const c = partyById.get(customerId)!;
     out.push({
       id: `26AS-${String(++n).padStart(5, "0")}`,
-      deductorTaxIdMasked: c.deductorIdMasked ?? "",
+      deductorTaxIdMasked: tan ?? c.deductorIdMasked ?? "",
       customerId,
       taxYearQuarter: fiscalQuarterLabel(date, 4, "FY"),
       transactionDate: date,
@@ -136,14 +136,19 @@ export function buildTaxCredits(ctx: Ctx): TaxCreditStatementLine[] {
   for (const t of ctx.tds) {
     if (!available(t.date) || t.forced === "missing") continue;
     const outcome = rng.weighted([
-      { value: "matched", weight: 0.86 },
+      { value: "matched", weight: 0.83 },
       { value: "short", weight: 0.05 },
       { value: "missing", weight: 0.05 },
       { value: "wrong-quarter", weight: 0.04 },
+      { value: "wrong-tan", weight: 0.03 },
     ]);
     if (outcome === "missing") continue;
     if (outcome === "short") push(t.customerId, t.date, t.nature, t.taxable, Math.round(t.tds * rng.range(0.4, 0.9)));
-    else if (outcome === "wrong-quarter") {
+    else if (outcome === "wrong-tan") {
+      // credited under a different deductor ID (another branch of the customer)
+      const tan = partyById.get(t.customerId)?.deductorIdMasked ?? "";
+      push(t.customerId, t.date, t.nature, t.taxable, t.tds, tan ? `${tan.slice(0, -1)}${tan.endsWith("Q") ? "R" : "Q"}` : tan);
+    } else if (outcome === "wrong-quarter") {
       const shifted = addDays(taxQuarterEnd(t.date), rng.int(5, 40));
       push(t.customerId, available(shifted) ? shifted : t.date, t.nature, t.taxable, t.tds);
     } else push(t.customerId, t.date, t.nature, t.taxable, t.tds);

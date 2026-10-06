@@ -12,7 +12,9 @@ import { ConfidenceChip, DocLink, MethodBadge, StatusChip } from "@/components/v
 import { Fields } from "@/components/vocab/Fields";
 import { DecisionApproval, FollowUpBody, History, Section } from "@/components/review/drawerParts";
 import { GL_BY_ID, LINE_BY_KEY, PARTY_BY_ID, PERSON_BY_ID, WORLD } from "@/data";
-import { itemStatus } from "@/state/hooks";
+import { Link } from "react-router-dom";
+import { itemStatus, useDecisionsByItem } from "@/state/hooks";
+import { useItemDrawer } from "@/state/drawer";
 import { useRecRow, type RecRow } from "@/state/recHooks";
 import { useWorkflow } from "@/state/workflow";
 import { useRoleStore } from "@/lib/stores";
@@ -165,6 +167,23 @@ function ItemFollowUp({ row, item }: { row: RecRow; item: EffItem }) {
   );
 }
 
+/** A receipt the customer has paid that waits in clearing: the entry is the application proposed in Cash Application. */
+function ReceiptApplication({ item }: { item: EffItem }) {
+  const decisions = useDecisionsByItem();
+  const d = item.lineKey ? decisions.get(item.lineKey) : undefined;
+  return (
+    <Section title="Apply the receipt" aside={d ? <StatusChip status={itemStatus(false, d)} /> : undefined}>
+      <p className="text-sm text-muted-foreground">The invoices stay open in our books until the receipt is applied in Cash Application.</p>
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">{d ? `${d.action} ${d.status === "proposed" ? "in approval" : d.status}` : "No application proposed yet"}</span>
+        <Link to={`/cash-application/${item.lineKey}`} onClick={() => useItemDrawer.getState().close()} className="text-sm font-medium text-primary hover:underline">
+          Open the receipt
+        </Link>
+      </div>
+    </Section>
+  );
+}
+
 function Related({ row, item }: { row: RecRow; item: EffItem }) {
   const line = item.lineKey ? LINE_BY_KEY.get(item.lineKey) : undefined;
   const party = row.rec.partyId ? PARTY_BY_ID.get(row.rec.partyId) : line?.partner ? PARTY_BY_ID.get(line.partner.id) : undefined;
@@ -221,7 +240,8 @@ export function RecItemBody({ recId, itemId }: { recId: string; itemId: string }
       </header>
       <div className="flex-1 overflow-y-auto">
         <Classification row={row} item={item} locked={locked} />
-        {treatment === "adjust-books" && <AdjustBooks key={`a-${key}-${decision?.id ?? "none"}-${decision?.status ?? ""}-${item.classId}`} row={row} item={item} />}
+        {item.classId === "receipt-unapplied" && item.lineKey && <ReceiptApplication item={item} />}
+        {treatment === "adjust-books" && item.classId !== "receipt-unapplied" && <AdjustBooks key={`a-${key}-${decision?.id ?? "none"}-${decision?.status ?? ""}-${item.classId}`} row={row} item={item} />}
         {(treatment === "adjust-source" || treatment === "dispute" || treatment === "investigate") && <ItemFollowUp row={row} item={item} />}
         {(treatment === "timing" || treatment === "classification") && (
           <Section title="Next step">

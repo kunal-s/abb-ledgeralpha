@@ -3,17 +3,17 @@
 // built from the item's own facts so the queue reads in plain language.
 
 import type { LineItem, RuleDefinition, RuleHit, FactValue } from "@/types";
-import { daysBetween, fiscalQuarterLabel, fiscalYearOf, fmtDate, addDays, monthEnd } from "@/lib/dates";
+import { daysBetween, fmtDate, addDays } from "@/lib/dates";
 import { fmtINR } from "@/lib/format";
 import { LOCALISATION } from "@/config/localisation";
 import { latestUpTo, type EvalContext } from "@/engine/context";
+import { allocateTdsCredits, taxYearsElapsed } from "@/engine/tds";
 
 type Params = Record<string, number>;
 export type Evaluator = (ctx: EvalContext, p: Params) => RuleHit[];
 
 const TAX = LOCALISATION.taxes.withholding.label; // "TDS"
 const TAX_STATEMENT = "Form 26AS";
-const TAX_YEAR_START = LOCALISATION.statutoryTaxYearStartMonth;
 
 const age = (ctx: EvalContext, l: LineItem) => daysBetween(l.postingDate, ctx.asOf);
 const cat = (ctx: EvalContext, l: LineItem) => ctx.gl.get(l.gl)!.category;
@@ -211,11 +211,6 @@ export const BSR_RULES: RuleDefinition[] = [
 // ---------------------------------------------------------------------------
 const ONE_SIDED = new Set(BSR_RULES.find((r) => r.id === "BSR-11")!.categories as string[]);
 
-function taxQuarterEnd(d: string): string {
-  const m = Number(d.slice(5, 7));
-  return monthEnd(`${d.slice(0, 4)}-${String(Math.ceil(m / 3) * 3).padStart(2, "0")}-01`);
-}
-
 export const BSR_EVALUATORS: Record<string, Evaluator> = {
   "BSR-01": (ctx, p) =>
     ctx.open
@@ -323,40 +318,22 @@ export const BSR_EVALUATORS: Record<string, Evaluator> = {
 
   "BSR-07": (ctx, p) => {
     const hits: RuleHit[] = [];
-    const nowTaxYear = fiscalYearOf(ctx.asOf, TAX_YEAR_START);
-    // allocate statement lines to deductions one-to-one, per customer and quarter
-    const groups = new Map<string, LineItem[]>();
-    for (const l of ctx.open) {
-      if (cat(ctx, l) !== "tds-recv" || l.amount <= 0 || !l.partner) continue;
-      if (addDays(taxQuarterEnd(l.postingDate), p.statementLagDays) > ctx.asOf) continue; // statement not yet available
-      const k = `${l.partner.id}|${fiscalQuarterLabel(l.postingDate, TAX_YEAR_START, "FY")}`;
-      groups.set(k, [...(groups.get(k) ?? []), l]);
-    }
-    for (const [k, items] of groups) {
-      const [customerId, quarter] = k.split("|");
-      const all = ctx.creditsByCustomer.get(customerId) ?? [];
-      const pool = all.filter((c) => c.taxYearQuarter === quarter);
-      const unmatched: LineItem[] = [];
-      for (const l of items) {
-        const i = pool.findIndex((c) => Math.abs(c.taxCredited - l.amount) <= p.toleranceAmount);
-        if (i >= 0) pool.splice(i, 1);
-        else unmatched.push(l);
-      }
-      for (const l of unmatched) {
-        const si = pool.findIndex((c) => c.taxCredited > 0 && c.taxCredited < l.amount - p.toleranceAmount);
-        const short = si >= 0 ? pool.splice(si, 1)[0] : undefined;
-        const elsewhere = short ? undefined : all.find((c) => c.taxYearQuarter !== quarter && Math.abs(c.taxCredited - l.amount) <= p.toleranceAmount);
-        const status = short ? "short credit" : elsewhere ? "credited in another quarter" : "missing";
-        const reason =
-          status === "missing" ? `Deduction of ${fmtINR(l.amount)} for ${quarter} not in ${TAX_STATEMENT}`
-          : status === "short credit" ? `${TAX_STATEMENT} shows ${fmtINR(short!.taxCredited)} of ${fmtINR(l.amount)} for ${quarter}`
-          : `Credited in ${elsewhere!.taxYearQuarter} instead of ${quarter}`;
-        hits.push(make("BSR-07", l, reason, {
-          quarter, creditStatus: status, credited: short?.taxCredited ?? elsewhere?.taxCredited ?? 0,
-          taxYearsElapsed: nowTaxYear - fiscalYearOf(l.postingDate, TAX_YEAR_START), writeOffYears: p.writeOffYears, ageDays: age(ctx, l),
-          deductor: ctx.party.get(customerId)?.deductorIdMasked ?? "",
-        }));
-      }
+    // deductions already claimed use up their statement lines first, so the open ones are checked against what is left
+    const { byLine } = allocateTdsCredits(ctx.tdsLines, ctx.creditsByCustomer, ctx.party, ctx.asOf, { statementLagDays: p.statementLagDays, toleranceAmount: p.toleranceAmount });
+    const lines = ctx.open.filter((l) => cat(ctx, l) === "tds-recv" && l.amount > 0 && l.partner);
+    for (const l of lines) {
+      const a = byLine.get(l.key);
+      if (!a || (a.status !== "missing" && a.status !== "short" && a.status !== "wrong-quarter")) continue;
+      const status = a.status === "short" ? "short credit" : a.status === "wrong-quarter" ? "credited in another quarter" : "missing";
+      const reason =
+        a.status === "missing" ? `Deduction of ${fmtINR(l.amount)} for ${a.quarter} not in ${TAX_STATEMENT}`
+        : a.status === "short" ? `${TAX_STATEMENT} shows ${fmtINR(a.credited)} of ${fmtINR(l.amount)} for ${a.quarter}`
+        : `Credited in ${a.statementQuarter} instead of ${a.quarter}`;
+      hits.push(make("BSR-07", l, reason, {
+        quarter: a.quarter, creditStatus: status, credited: a.credited,
+        taxYearsElapsed: taxYearsElapsed(l.postingDate, ctx.asOf), writeOffYears: p.writeOffYears, ageDays: age(ctx, l),
+        deductor: ctx.party.get(l.partner!.id)?.deductorIdMasked ?? "",
+      }));
     }
     return hits;
   },

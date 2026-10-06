@@ -28,6 +28,8 @@ export interface EvalContext {
   manualByAssignment: Map<string, LineItem[]>;
   /** customers with at least one open receivable */
   customersWithOpenInvoices: Set<string>;
+  /** every customer deduction booked in TDS receivable up to as-at, open or claimed */
+  tdsLines: LineItem[];
 }
 
 const cache = new Map<IsoDate, EvalContext>();
@@ -55,10 +57,12 @@ export function buildContext(asOf: IsoDate): EvalContext {
   const lastBillingByCustomer = new Map<string, IsoDate>();
   const glPostingDates = new Map<string, IsoDate[]>();
   const manualByAssignment = new Map<string, LineItem[]>();
+  const tdsLines: LineItem[] = [];
 
   for (const l of WORLD.lines) {
     if (l.postingDate > asOf) break; // lines are sorted by posting date
     const g = GL_BY_ID.get(l.gl)!;
+    if (l.gl === "161100" && l.amount > 0 && l.partner?.type === "Customer") tdsLines.push(l);
     const dates = glPostingDates.get(l.gl);
     if (dates) dates.push(l.postingDate);
     else glPostingDates.set(l.gl, [l.postingDate]);
@@ -103,6 +107,7 @@ export function buildContext(asOf: IsoDate): EvalContext {
     glPostingDates,
     manualByAssignment,
     customersWithOpenInvoices: new Set(open.filter((l) => l.gl === "140100" && l.amount > 0 && l.partner).map((l) => l.partner!.id)),
+    tdsLines,
   };
   cache.set(asOf, ctx);
   return ctx;

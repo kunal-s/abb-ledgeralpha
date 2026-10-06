@@ -73,13 +73,14 @@ function specProposal(d: Decision): Proposal | undefined {
       side: l.side,
       amount: l.amount,
       profitCentre: l.profitCentre ?? CORPORATE_PC,
+      assignment: l.assignment,
       text: l.text,
     })),
   };
 }
 
 export function buildProposal(d: Decision): Proposal | undefined {
-  if (d.journal) return d.action === "Adjust books" ? specProposal(d) : undefined;
+  if (d.journal) return specProposal(d);
   const item = LINE_BY_KEY.get(d.itemKey);
   if (!item) return undefined;
   const gl = GL_BY_ID.get(item.gl)!;
@@ -150,6 +151,12 @@ export function exportRows(decisions: Decision[], batchId: string, postingDate: 
     p.lines.forEach((l, n) =>
       rows.push({ ...base, docType: "SA", lineNo: n + 1, gl: l.gl, account: l.glDescription, side: l.side, amount: l.amount.toFixed(2), profitCentre: l.profitCentre, wbs: l.wbs ?? "", text: l.assignment && !l.text.includes(l.assignment) ? `${l.text} · ${l.assignment}` : l.text })
     );
+    // open items that clear against each other once the journal is posted
+    const clears = d.journal?.clears;
+    if (clears?.length) {
+      const docs = clears.map((k) => LINE_BY_KEY.get(k)?.docNo ?? k);
+      rows.push({ ...base, docType: "Clearing", lineNo: p.lines.length + 1, gl: "", account: "", side: "", amount: "", profitCentre: "", wbs: "", text: `Clear ${docs.join(", ")} against each other after posting` });
+    }
   });
   return rows;
 }

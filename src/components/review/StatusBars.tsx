@@ -14,10 +14,18 @@ export const STATUS_GROUPS: { key: string; label: string; statuses: AccountRevie
 
 export const statusGroupOf = (status: string) => STATUS_GROUPS.find((g) => g.statuses.includes(status as AccountReviewStatus))?.key ?? "not-started";
 
+export interface BarGroup {
+  key: string;
+  label: string;
+  cls: string;
+}
+
 interface StatusBarsProps<K extends string> {
   data: Record<K, Record<string, number>>;
   /** the rows to draw; risk tiers by default */
   rows?: { key: K; label: string }[];
+  /** the segments of each bar; review statuses by default */
+  groups?: BarGroup[];
   /** what the bars count, for the hover text */
   unit?: string;
   labelWidth?: string;
@@ -27,14 +35,14 @@ interface StatusBarsProps<K extends string> {
 const RISK_ROWS: { key: RiskTier; label: string }[] = (["High", "Medium", "Low"] as const).map((r) => ({ key: r, label: `${r} risk` }));
 
 /** Items per row, stacked by review status. */
-export function StatusBars<K extends string = RiskTier>({ data, rows, unit = "accounts", labelWidth = "6rem", onSelect }: StatusBarsProps<K>) {
+export function StatusBars<K extends string = RiskTier>({ data, rows, groups = STATUS_GROUPS, unit = "accounts", labelWidth = "6rem", onSelect }: StatusBarsProps<K>) {
   const lines = (rows ?? (RISK_ROWS as unknown as { key: K; label: string }[]));
-  const totalOf = (r: K) => STATUS_GROUPS.reduce((s, g) => s + (data[r]?.[g.key] ?? 0), 0);
+  const totalOf = (r: K) => groups.reduce((s, g) => s + (data[r]?.[g.key] ?? 0), 0);
   const max = Math.max(1, ...lines.map((r) => totalOf(r.key)));
   return (
     <div>
       <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1">
-        {STATUS_GROUPS.map((g) => (
+        {groups.map((g) => (
           <span key={g.key} className="flex items-center gap-1.5 text-2xs text-muted-foreground">
             <span className={cn("h-2 w-2 rounded-sm", g.cls)} />
             {g.label}
@@ -48,7 +56,7 @@ export function StatusBars<K extends string = RiskTier>({ data, rows, unit = "ac
             <div key={r.key} className="grid items-center gap-3" style={{ gridTemplateColumns: `${labelWidth} 1fr 2rem` }}>
               <span className="whitespace-nowrap text-xs text-muted-foreground">{r.label}</span>
               <div className="flex h-5 gap-0.5" style={{ width: `${(total / max) * 100}%`, minWidth: total ? "1rem" : 0 }}>
-                {STATUS_GROUPS.map((g) => {
+                {groups.map((g) => {
                   const n = data[r.key]?.[g.key] ?? 0;
                   if (!n) return null;
                   return (

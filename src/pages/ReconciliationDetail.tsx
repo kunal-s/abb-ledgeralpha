@@ -17,7 +17,7 @@ import { useWorkflow } from "@/state/workflow";
 import { useRoleStore } from "@/lib/stores";
 import { ROLES, can } from "@/config/roles";
 import { RECON_POLICY } from "@/config/policies";
-import { adjustmentJournal, parseRecItemKey, recItemKey } from "@/engine/recs";
+import { adjustmentJournal, recItemKey } from "@/engine/recs";
 import { fmtDate } from "@/lib/dates";
 import { fmtDrCr, fmtINR, fmtINRCompact, fmtInt } from "@/lib/format";
 import { toast } from "@/lib/toast";
@@ -189,7 +189,7 @@ export function ReconciliationDetail() {
                 const next = d.chain[d.approvals.length];
                 const mine = d.status === "proposed" && role === next;
                 return (
-                  <TableRow key={d.id} className="cursor-pointer" onClick={() => open(recItemKey(rec.id, parseRecItemKey(d.itemKey)!.itemId))}>
+                  <TableRow key={d.id} className="cursor-pointer" onClick={() => open(recItemKey(rec.id, itemId))}>
                     <TableCell className="max-w-64 py-2">
                       <div className="truncate text-sm">{item?.reference ?? item?.narration ?? itemId}</div>
                       <div className="truncate text-2xs text-muted-foreground">{item?.cls?.label}</div>

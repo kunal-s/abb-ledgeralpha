@@ -104,11 +104,13 @@ export function createContext(rng: Rng, b: LedgerBuilder, m: Masters, reserved: 
       poSeq += rng.int(3, 61);
       return String(poSeq);
     },
+    // the reference carries the two-letter business unit code, so the sequence runs per code and year: references are unique
     nextInvoiceRef: (pcId, date) => {
-      const k = `${pcId}-${date.slice(0, 4)}`;
+      const code = pcId.slice(3, 5);
+      const k = `${code}-${date.slice(0, 4)}`;
       const n = (invSeq.get(k) ?? 0) + 1;
       invSeq.set(k, n);
-      return `${pcId.slice(3, 5)}/${date.slice(0, 4)}/${String(n).padStart(5, "0")}`;
+      return `${code}/${date.slice(0, 4)}/${String(n).padStart(5, "0")}`;
     },
     nextBgNo: (bank, date) => {
       const code = BANK_CODES[bank] ?? bank.split(" ")[0].toUpperCase().slice(0, 5);

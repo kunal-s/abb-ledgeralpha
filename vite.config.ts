@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
@@ -13,5 +13,10 @@ export default defineConfig({
   },
   server: {
     port: 5180,
+  },
+  test: {
+    // every test file generates the whole demo world: run the files one at a time so the timing guards measure the code, not machine load
+    fileParallelism: false,
+    testTimeout: 15_000,
   },
 });

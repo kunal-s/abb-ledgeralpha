@@ -39,6 +39,7 @@ export const RECON_CLASSES: Record<ReconType, ReconClass[]> = {
     c("invoice-not-booked", "Invoice not yet booked by the customer", "timing", "Our invoice is recent; the customer has not booked it"),
     c("payment-in-transit", "Payment sent, not yet received", "timing", "The customer paid; the receipt has not reached us"),
     c("retention-separate", "Retention carried separately", "classification", "The customer holds retention in a separate payable; not a dispute"),
+    c("receipt-unapplied", "Receipt received, not yet applied", "adjust-books", "The customer has paid; the receipt sits in incoming payments clearing until it is applied in Cash Application"),
     c("tds-not-recognised", "Tax deducted, not yet recognised", "adjust-books", "The customer deducted tax; the receipt left a residual on the invoice"),
     c("customer-error", "Customer error", "adjust-source", "The customer has to correct its record"),
     c("disputed-deduction", "Deduction disputed", "dispute", "A deduction (for example liquidated damages) we do not accept"),

@@ -189,10 +189,15 @@ export function generateReconciliations(inp: Input): Reconciliation[] {
   }
   const customerBooks = (id: string) => sum((customerLines.get(id) ?? []).filter((l) => isOpenAt(l, asOf)).map((l) => l.amount));
   const s18Customer = lineByKey.get(inp.anchors["S-18"][0])!.partner!.id;
-  type Plan = "agree" | "timing" | "retention" | "both" | "transit" | "sent" | "not-sent" | "s18";
+  // T1: the customer paid two invoices; the receipt waits in clearing and the invoices are still open in our books
+  const t1Lines = inp.anchors["S-11i"].slice(0, 2).map((k) => lineByKey.get(k)!);
+  const t1Customer = t1Lines[0].partner!.id;
+  const t1Settled = sum(t1Lines.map((l) => l.amount));
+
+  type Plan = "agree" | "timing" | "retention" | "both" | "transit" | "sent" | "not-sent" | "s18" | "unapplied";
   interface Facts { id: string; timing?: ReconItem; retention: ReconItem[] }
   const pool: Facts[] = [...customerLines.keys()]
-    .filter((id) => id !== s18Customer && (customerLines.get(id) ?? []).filter((l) => isOpenAt(l, asOf)).length >= 3)
+    .filter((id) => id !== s18Customer && id !== t1Customer && (customerLines.get(id) ?? []).filter((l) => isOpenAt(l, asOf)).length >= 3)
     .sort((a, b) => customerBooks(b) - customerBooks(a))
     .slice(0, 60)
     .map((id) => {
@@ -218,6 +223,7 @@ export function generateReconciliations(inp: Input): Reconciliation[] {
     else if (plan === "both") reply = books - facts!.timing!.amount - sum(facts!.retention.map((r) => r.amount));
     else if (plan === "transit") reply = books - Math.round((Math.abs(books) * rng.range(0.03, 0.12)) / 1000) * 1000;
     else if (plan === "s18") reply = 1_96_50_000;
+    else if (plan === "unapplied") reply = books - t1Settled;
     else if (plan === "sent" || plan === "not-sent") reply = null;
 
     const diag = reply !== null && applied ? diagnoseCustomer({ ...base, replyBalance: reply }) : undefined;
@@ -262,6 +268,7 @@ export function generateReconciliations(inp: Input): Reconciliation[] {
     customerRec(facts.id, slot.plan, slot.applied, facts);
   }
   customerRec(s18Customer, "s18", false);
+  customerRec(t1Customer, "unapplied", false);
 
   // ---- Vendor statements ----------------------------------------------------------------------------
   const vendorBooks = new Map<string, number>();

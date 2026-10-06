@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Check, X } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -205,6 +206,15 @@ function Related({ row }: { row: ItemRow }) {
   if (project) rows.push(["Project", `${project.wbs} · ${project.name} · ${project.stage}${project.dlpEnd ? ` · DLP ends ${fmtDate(project.dlpEnd)}` : ""}`]);
   if (po) rows.push(["Purchase order", `${po.po} / ${po.item} · ${po.status} · last GR ${po.lastGrDate ? fmtDate(po.lastGrDate) : "none"} · last invoice ${po.lastInvoiceDate ? fmtDate(po.lastInvoiceDate) : "none"}`]);
   if (counter) rows.push(["Counter-item", <DocLink key="c" itemKey={counter}>{counter.split("-")[2]}</DocLink>]);
+  // a receipt waiting in incoming-payments clearing is applied in Cash Application
+  if (item.gl === "171200" && item.amount < 0 && row.isOpen) {
+    rows.push([
+      "Cash Application",
+      <Link key="cash" to={`/cash-application/${item.key}`} onClick={() => useItemDrawer.getState().close()} className="font-medium text-primary hover:underline">
+        Open the match for this receipt
+      </Link>,
+    ]);
+  }
   if (bg) rows.push(["Bank guarantee", `${bg.bgNo} · ${bg.type} · ${fmtINRCompact(bg.amount)} · valid to ${fmtDate(bg.validTo)}${bg.claimExpiry ? `, claim period to ${fmtDate(bg.claimExpiry)}` : ""} · ${bg.status}`]);
   if (facts.quarter) rows.push(["Tax credit statement", `${facts.quarter} · ${facts.creditStatus}${Number(facts.credited) ? ` · credited ${fmtINR(Number(facts.credited))}` : ""}`]);
 

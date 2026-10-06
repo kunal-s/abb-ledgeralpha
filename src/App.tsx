@@ -12,6 +12,9 @@ import { BalanceSheetReview } from "@/pages/BalanceSheetReview";
 import { AccountScrutiny } from "@/pages/AccountScrutiny";
 import { Reconciliations } from "@/pages/Reconciliations";
 import { ReconciliationDetail } from "@/pages/ReconciliationDetail";
+import { CashApplication } from "@/pages/CashApplication";
+import { ReceiptDetail } from "@/pages/ReceiptDetail";
+import { Tds } from "@/pages/Tds";
 
 // Routes come from the module registry (src/lib/modules.ts), filtered by the
 // workspace's enabled modules. As a module is built, map its path to the real
@@ -25,6 +28,9 @@ const BUILT: Record<string, ReactNode> = {
   "/balance-sheet-review/:gl": <AccountScrutiny />,
   "/reconciliations": <Reconciliations />,
   "/reconciliations/:id": <ReconciliationDetail />,
+  "/cash-application": <CashApplication />,
+  "/cash-application/:id": <ReceiptDetail />,
+  "/tax/withholding": <Tds />,
 };
 
 const router = createBrowserRouter([

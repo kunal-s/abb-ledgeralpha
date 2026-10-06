@@ -227,15 +227,18 @@ export type ActionKind =
   | "Write back"
   | "Provide"
   | "Adjust books" // a reconciling item that needs an entry in the books
+  | "Apply receipt" // a receipt in clearing applied to open invoices (Cash Application)
   | "Follow up"
   | "Retain";
 
-/** Journal lines carried by a decision that has no ledger line behind it (reconciling items). */
+/** Journal lines carried by a decision whose entry is not derived from one ledger line (reconciling items, receipt applications). */
 export interface JournalSpec {
   header: string;
-  lines: { gl: string; side: "Dr" | "Cr"; amount: number; text: string; profitCentre?: string }[];
+  lines: { gl: string; side: "Dr" | "Cr"; amount: number; text: string; profitCentre?: string; partnerId?: string; assignment?: string }[];
   /** true when a target account still has to be chosen by the preparer */
   needsTarget?: boolean;
+  /** open items to clear against each other once the journal is posted (receipt, invoices) */
+  clears?: string[];
 }
 
 export interface RuleParam {

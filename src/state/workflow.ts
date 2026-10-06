@@ -12,10 +12,13 @@ import type {
 import { GL_BY_ID, LINE_BY_KEY, REC_BY_ID, WORLD, customerStatementLines } from "@/data";
 import { useRoleStore, usePeriodStore } from "@/lib/stores";
 import { ROLES, can, type Permission } from "@/config/roles";
-import { MATERIALITY_POLICY, bandFor } from "@/config/policies";
+import { CASH_APP_POLICY, MATERIALITY_POLICY, bandFor } from "@/config/policies";
 import { fmtINR } from "@/lib/format";
 import { effectiveRules, runRules, type RuleOverride, type RuleOverrides } from "@/engine/run";
 import { diagnoseCustomer } from "@/engine/diagnose";
+import { receiptByKey, unappliedFor } from "@/engine/cashappData";
+import { applicationJournal } from "@/engine/cashapp";
+import { computeMatches, type CashAppWork } from "@/state/cashAppModel";
 import { RECON_CLASSES, reconClass } from "@/engine/recClasses";
 import { documentedItems, effectiveRec, isRecItemKey, parseRecItemKey, recItemKey, signOffBlockers, type RecWork } from "@/engine/recs";
 import { SEEDED_RULE_OVERRIDES, seededSignOffs } from "@/data/workspace/activity";
@@ -67,6 +70,8 @@ interface WorkflowData {
   signOffs: Record<string, AccountSignOff>;
   /** the session's work on reconciliations, by reconciliation id */
   recs: Record<string, RecWork>;
+  /** receipts parked or with a rejected match, by receipt line key */
+  cashApp: Record<string, CashAppWork>;
   events: ActivityEvent[];
   seq: number;
 }
@@ -76,7 +81,7 @@ interface WorkflowActions {
   resetRules: () => Result;
   proposeDecision: (input: ProposeInput) => Result<{ id: string }>;
   /** Bulk: each input is validated on its own; one activity event covers the batch. */
-  proposeDecisions: (inputs: ProposeInput[]) => Result<{ created: number; skipped: { itemKey: string; error: string }[] }>;
+  proposeDecisions: (inputs: ProposeInput[], reason?: string) => Result<{ created: number; skipped: { itemKey: string; error: string }[] }>;
   approveDecision: (id: string, note?: string) => Result;
   approveDecisions: (ids: string[], note?: string) => Result<{ approved: number; skipped: number }>;
   rejectDecision: (id: string, reason: string) => Result;
@@ -92,6 +97,15 @@ interface WorkflowActions {
   setCommentary: (ref: string, periodEnd: IsoDate, text: string, edited: boolean) => Result;
   signOff: (ref: string, periodEnd: IsoDate, as: "preparer" | "reviewer") => Result;
   reopen: (ref: string, periodEnd: IsoDate, reason: string) => Result;
+
+  // cash application
+  /** Propose applying a receipt to the invoices the matcher found (or another proposal, by invoice-set signature). */
+  confirmMatch: (receiptKey: string, signature?: string) => Result<{ id: string }>;
+  /** Confirm the best proposal of each receipt; receipts without a proposal at the confidence floor are skipped. */
+  confirmMatches: (receiptKeys: string[]) => Result<{ created: number; skipped: number }>;
+  rejectMatch: (receiptKey: string, reason: string, signature?: string) => Result;
+  parkReceipt: (receiptKey: string, reason: string) => Result;
+  unparkReceipt: (receiptKey: string) => Result;
 
   // reconciliations
   prepareRec: (recId: string) => Result;
@@ -113,6 +127,7 @@ const INITIAL: WorkflowData = {
   followUps: {},
   signOffs: seededSignOffs(),
   recs: {},
+  cashApp: {},
   events: [],
   seq: 0,
 };
@@ -372,14 +387,14 @@ export const useWorkflow = create<WorkflowState>()(
           return { ok: true, id: decisions[0].id };
         },
 
-        proposeDecisions: (inputs) => {
+        proposeDecisions: (inputs, reason) => {
           const { role } = actor();
           if (!can(role, "propose")) return fail(denied("propose", role));
           if (!inputs.length) return fail("Nothing selected");
           const { person } = actor(ownerOfItem(inputs[0].itemKey));
           const { decisions, skipped } = buildDecisions(inputs, person);
           if (!decisions.length) return fail(skipped[0].error);
-          commitDecisions(decisions, person, inputs[0].module, "Proposed in bulk from the recommended actions");
+          commitDecisions(decisions, person, inputs[0].module, reason ?? "Proposed in bulk from the recommended actions");
           return { ok: true, created: decisions.length, skipped };
         },
 
@@ -600,7 +615,7 @@ export const useWorkflow = create<WorkflowState>()(
               // a reconciliation is signed only when it is prepared, explained within tolerance and every item that needs action is documented
               const s = get();
               const view = effectiveRec(rec, s.recs[ref], periodEnd);
-              const documented = documentedItems(ref, Object.values(s.decisions), Object.values(s.followUps));
+              const documented = documentedItems(ref, Object.values(s.decisions), Object.values(s.followUps), view.items);
               const blockers = signOffBlockers(view, !!cur.commentary?.trim(), documented);
               if (blockers.length) return fail(blockers[0]);
             } else if (!cur.commentary?.trim()) return fail("Save the commentary before signing");
@@ -628,6 +643,87 @@ export const useWorkflow = create<WorkflowState>()(
           if (!cur?.preparer) return fail("Nothing to reopen");
           set((s) => ({ signOffs: { ...s.signOffs, [k]: { gl: ref, periodEnd, commentary: cur.commentary, commentaryEdited: cur.commentaryEdited, reopened: { personId: person.id, at: nowLocal(), reason: reason.trim() } } } }));
           personEvent(person, { module: t.module, object: t.object, action: `${t.noun} reopened`, before: cur.reviewer ? "Signed off" : "Preparer signed", after: "Reopened", reason: reason.trim() });
+          return { ok: true };
+        },
+
+        // -------------------------------------------------------------------
+        // cash application
+        // -------------------------------------------------------------------
+        confirmMatch: (receiptKey, signature) => {
+          const { role } = actor();
+          if (!can(role, "propose")) return fail(denied("propose", role));
+          const receipt = receiptByKey(receiptKey);
+          if (!receipt) return fail("Receipt not found");
+          const s = get();
+          if (s.cashApp[receiptKey]?.parked) return fail("The receipt is parked; return it to the queue first");
+          const m = computeMatches(s.decisions, s.cashApp).get(receiptKey);
+          const p = signature ? m?.proposals.find((x) => x.signature === signature) : m?.proposals[0];
+          if (!p) return fail("There is no match to confirm");
+          if (!signature && p.confidence < CASH_APP_POLICY.proposeFrom) return fail("No match reaches the confidence needed; request the remittance advice or choose a proposal");
+          return get().proposeDecision({
+            itemKey: receiptKey, module: "cash-application", action: "Apply receipt", amount: -receipt.amount,
+            justification: p.rationale, hits: [], rulesVersion: "cash-application-1", journal: applicationJournal(p, receipt),
+          });
+        },
+
+        confirmMatches: (receiptKeys) => {
+          const { role } = actor();
+          if (!can(role, "propose")) return fail(denied("propose", role));
+          const s = get();
+          const matches = computeMatches(s.decisions, s.cashApp);
+          const inputs: ProposeInput[] = [];
+          for (const key of receiptKeys) {
+            const receipt = receiptByKey(key);
+            const p = matches.get(key)?.proposals[0];
+            if (!receipt || !p || p.confidence < CASH_APP_POLICY.proposeFrom || s.cashApp[key]?.parked) continue;
+            inputs.push({ itemKey: key, module: "cash-application", action: "Apply receipt", amount: -receipt.amount, justification: p.rationale, hits: [], rulesVersion: "cash-application-1", journal: applicationJournal(p, receipt) });
+          }
+          if (!inputs.length) return fail("No selected receipt has a match at the confidence needed");
+          const r = get().proposeDecisions(inputs, "Confirmed in bulk from the matcher's proposals");
+          if (!r.ok) return r;
+          return { ok: true, created: r.created, skipped: receiptKeys.length - r.created };
+        },
+
+        rejectMatch: (receiptKey, reason, signature) => {
+          const { role, person } = actor();
+          if (!can(role, "propose")) return fail(denied("propose", role));
+          if (!reason.trim()) return fail("A reason is required to reject a match");
+          const receipt = receiptByKey(receiptKey);
+          if (!receipt) return fail("Receipt not found");
+          const s = get();
+          const m = computeMatches(s.decisions, s.cashApp).get(receiptKey);
+          const p = signature ? m?.proposals.find((x) => x.signature === signature) : m?.proposals[0];
+          if (!p) return fail("There is no match to reject");
+          const cur = s.cashApp[receiptKey] ?? {};
+          set((st) => ({ cashApp: { ...st.cashApp, [receiptKey]: { ...cur, rejected: [...(cur.rejected ?? []), p.signature] } } }));
+          personEvent(person, {
+            module: "cash-application", object: objectOfItem(receiptKey), itemKeys: [receiptKey], action: "Match rejected",
+            before: p.invoices.map((i) => i.reference).join(", "), reason: reason.trim(),
+          });
+          return { ok: true };
+        },
+
+        parkReceipt: (receiptKey, reason) => {
+          const { role, person } = actor();
+          if (!can(role, "propose")) return fail(denied("propose", role));
+          if (!reason.trim()) return fail("A reason is required to park a receipt");
+          if (!receiptByKey(receiptKey)) return fail("Receipt not found");
+          const s = get();
+          const live = Object.values(s.decisions).find((d) => d.itemKey === receiptKey && ["proposed", "approved", "exported"].includes(d.status));
+          if (live) return fail("An application is already in progress for this receipt");
+          const cur = s.cashApp[receiptKey] ?? {};
+          set((st) => ({ cashApp: { ...st.cashApp, [receiptKey]: { ...cur, parked: { reason: reason.trim(), by: person.id, at: nowLocal() } } } }));
+          personEvent(person, { module: "cash-application", object: objectOfItem(receiptKey), itemKeys: [receiptKey], action: "Receipt parked as unapplied", reason: reason.trim() });
+          return { ok: true };
+        },
+
+        unparkReceipt: (receiptKey) => {
+          const { role, person } = actor();
+          if (!can(role, "propose")) return fail(denied("propose", role));
+          const cur = get().cashApp[receiptKey];
+          if (!cur?.parked) return fail("The receipt is not parked");
+          set((st) => ({ cashApp: { ...st.cashApp, [receiptKey]: { ...cur, parked: undefined } } }));
+          personEvent(person, { module: "cash-application", object: objectOfItem(receiptKey), itemKeys: [receiptKey], action: "Receipt returned to the queue", before: "Parked" });
           return { ok: true };
         },
 
@@ -729,7 +825,9 @@ export const useWorkflow = create<WorkflowState>()(
           const base = { ...cur, prepared: true, source: { balance: rec.reply.balance, at, by: person.id } };
           const object = { type: "reconciliation", id: recId, label: rec.name };
           if (rec.type === "Customer statement" && rec.partyId) {
-            const diag = diagnoseCustomer({ lines: customerStatementLines(rec.partyId), booksBalance: rec.booksBalance, replyBalance: rec.reply.balance, asOf: WORLD.asOf });
+            const diag = diagnoseCustomer({
+              lines: customerStatementLines(rec.partyId), booksBalance: rec.booksBalance, replyBalance: rec.reply.balance, asOf: WORLD.asOf, unappliedReceipts: unappliedFor(rec.partyId),
+            });
             const status: ConfirmationStatus = rec.reply.balance === rec.booksBalance ? "confirmed" : "counter-statement";
             set((s) => ({ recs: { ...s.recs, [recId]: { ...base, items: [...cur.items, ...diag.items], confirmation: { status, sentAt: rec.confirmation?.sentAt, repliedAt: rec.reply!.receivedAt } } } }));
             personEvent(person, { module: "reconciliations", object, action: "Customer reply applied", before: "Reply received", after: `Difference ${fmtINR(Math.abs(diag.difference))}`, details: { replyBalance: rec.reply.balance } });
@@ -753,7 +851,7 @@ export const useWorkflow = create<WorkflowState>()(
     },
     {
       name: "ledgeralpha-workflow",
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => safeStorage),
       partialize: (s) => ({
         ruleOverrides: s.ruleOverrides,
@@ -761,6 +859,7 @@ export const useWorkflow = create<WorkflowState>()(
         followUps: s.followUps,
         signOffs: s.signOffs,
         recs: s.recs,
+        cashApp: s.cashApp,
         events: s.events,
         seq: s.seq,
       }),

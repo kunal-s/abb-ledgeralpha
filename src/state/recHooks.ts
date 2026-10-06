@@ -31,6 +31,8 @@ export function useRecRows(): RecRow[] {
 
   return useMemo(() => {
     const decisionsByRec = new Map<string, Decision[]>();
+    // decisions taken in Cash Application document the reconciling items that wait for the receipt to be applied
+    const receiptDecisions = Object.values(decisions).filter((d) => d.module === "cash-application");
     for (const d of Object.values(decisions)) {
       const p = parseRecItemKey(d.itemKey);
       if (!p) continue;
@@ -53,7 +55,7 @@ export function useRecRows(): RecRow[] {
       const hasCommentary = !!signOff?.commentary?.trim();
       const ds = decisionsByRec.get(rec.id) ?? [];
       const fs = followUpsByRec.get(rec.id) ?? [];
-      const documented = documentedItems(rec.id, ds, fs);
+      const documented = documentedItems(rec.id, [...ds, ...receiptDecisions], fs, view.items);
 
       const decisionByItem = new Map<string, Decision>();
       for (const d of ds) {
@@ -61,6 +63,12 @@ export function useRecRows(): RecRow[] {
         const id = parseRecItemKey(d.itemKey)!.itemId;
         const cur = decisionByItem.get(id);
         if (!cur || d.proposedAt >= cur.proposedAt) decisionByItem.set(id, d);
+      }
+      // an item that waits for a receipt to be applied shows the application proposed in Cash Application
+      for (const i of view.items) {
+        if (!i.lineKey || decisionByItem.has(i.id)) continue;
+        const d = receiptDecisions.filter((x) => x.itemKey === i.lineKey && x.status !== "withdrawn").sort((a, b) => b.proposedAt.localeCompare(a.proposedAt))[0];
+        if (d) decisionByItem.set(i.id, d);
       }
       const followUpByItem = new Map<string, FollowUp>();
       for (const f of fs) {

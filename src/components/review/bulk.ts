@@ -18,7 +18,7 @@ export const followable = (rows: ItemRow[]) => rows.filter((r) => !(r.followUp &
 export const proposable = (rows: ItemRow[]) =>
   rows.filter((r) => r.rec && r.rec.action !== "Follow up" && !(r.decision && LIVE.includes(r.decision.status)));
 
-export function followUpRows(rows: ItemRow[], asOf: string): boolean {
+export function followUpRows(rows: ItemRow[], asOf: string, module = MODULE): boolean {
   const targets = followable(rows);
   if (!targets.length) {
     toast("Nothing to follow up", { description: "Every selected item already has an open follow-up.", tone: "info" });
@@ -28,7 +28,7 @@ export function followUpRows(rows: ItemRow[], asOf: string): boolean {
   const res = useWorkflow.getState().requestFollowUps(
     targets.map((r) => {
       const d = draftFollowUp(r.item, r.rec, r.hits);
-      return { itemKey: r.key, module: MODULE, owner: d.owner, dueDate: due, message: d.message };
+      return { itemKey: r.key, module, owner: d.owner, dueDate: due, message: d.message };
     })
   );
   if (!res.ok) {
@@ -39,13 +39,13 @@ export function followUpRows(rows: ItemRow[], asOf: string): boolean {
   return true;
 }
 
-export function proposeRows(rows: ItemRow[], rulesVersion: string): boolean {
+export function proposeRows(rows: ItemRow[], rulesVersion: string, module = MODULE): boolean {
   const targets = proposable(rows);
   if (!targets.length) return false;
   const res = useWorkflow.getState().proposeDecisions(
     targets.map((r) => ({
       itemKey: r.key,
-      module: MODULE,
+      module,
       action: r.rec!.action,
       amount: r.item.amount,
       justification: `Accepted the recommendation (confidence ${r.rec!.confidence.toFixed(2)}). ${r.rec!.rationale}`,

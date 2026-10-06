@@ -33,6 +33,31 @@ export const RECON_POLICY = {
   agedItemDays: 30,
 } as const;
 
+/**
+ * Cash application policy. The matcher explains the gap between open invoices
+ * and a receipt only with these deductions; anything else is left as a residual.
+ */
+export const CASH_APP_POLICY = {
+  /** a difference up to this (and up to the percentage of the invoices) is written to bank charges */
+  smallDifferenceMax: 15_000,
+  smallDifferencePct: 0.005,
+  /** agreement to the rupee */
+  exactTolerance: 10,
+  /** withholding rates tested on the taxable value (excluding GST) */
+  tdsRates: [0.001, 0.01, 0.02, 0.05, 0.1],
+  /** GST TDS on government and PSU customers, on the taxable value */
+  gstTdsRate: 0.02,
+  /** bank charges including GST that banks levy as fixed amounts */
+  standardBankCharges: [590, 1_180, 2_360, 4_720],
+  /** most invoices combined in one application, and how many of a customer's open invoices (nearest the receipt date) are searched */
+  maxInvoices: 4,
+  poolSize: 60,
+  /** matches at or above this confidence can be confirmed in bulk */
+  bulkConfirmFrom: 0.9,
+  /** below this the matcher proposes nothing and the receipt needs a remittance advice */
+  proposeFrom: 0.6,
+} as const;
+
 /** Items at or above this need a written justification before a decision is proposed. */
 export const MATERIALITY_POLICY = {
   documentedActionAmount: 1_00_000,

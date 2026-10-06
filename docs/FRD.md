@@ -516,6 +516,12 @@ Each module states its purpose, what it shows, what users can do, the agents and
   - Inferred withholding goes to TDS as an expected credit.
   - Unapplied receipts reflect in BSR (suspense / clearing) and Reconciliations (customer statement).
 - **FR-CAP-01 (M):** every proposed match shows the arithmetic of the residual, line by line.
+- **FR-CAP-02 (M):** the receipts are the open credit items in incoming payments clearing. The matcher reads them from the ledger and never changes it: a confirmed match is a decision "Apply receipt" that carries its own journal and a clearing instruction, follows the delegation bands and four-eyes, and exports in the proposal file.
+- **FR-CAP-03 (M):** the deductions the matcher may infer are set in policy (`CASH_APP_POLICY`): withholding at 0.1, 1, 2, 5 and 10% of the taxable value excluding GST; GST TDS at 2% for government and PSU customers only; standard bank charges with GST (₹590, ₹1,180, ₹2,360, ₹4,720); a small difference up to ₹15,000 and 0.5% of the invoices, written to bank charges. Anything else is left as a short payment on the invoice and needs a follow-up.
+- **FR-CAP-04 (M):** confidence is the sum of seven evidence factors (customer identified 0.20, invoice cited 0.20, explained by invoices and standard deductions 0.20, explained to the rupee 0.10, withholding at the customer's usual rate 0.10, no competing explanation 0.10, invoices open and free 0.10). Below 0.60 nothing is proposed; from 0.90 a match can be confirmed in bulk.
+- **FR-CAP-05 (M):** a customer is identified from an invoice reference the narration cites, or from its name, including a name the bank has cut off. An ambiguous name identifies nobody. Invoices of every account with the same tax ID can be paid by one receipt. Two receipts never claim the same invoice, and an invoice held by a live application is not proposed again.
+- **FR-CAP-06 (M):** actions: confirm (one, selected, or all ready), choose another explanation, reject with a reason (the explanation is not proposed again), park as unapplied with a reason, request the remittance advice (a drafted follow-up to the customer, or to the bank when the remitter is unknown).
+- **Built in I5:** Overview (KPIs, receipts by match level and status, unapplied credits by age and by customer, deductions inferred), Receipts, Decisions, and the receipt page (how it is explained, other explanations, the entry proposed, the customer's open invoices, confidence factors, decision, remittance request). A receipt waiting in clearing opens in the match from the item drawer, and the customer statement reconciliation shows the receipt as the reason its invoices are still open.
 
 ### 6.9 Bank Guarantees · `/bank-guarantees` · Working
 - **Purpose:** register and lifecycle of guarantees issued to customers and received from vendors, with limits and commission.
@@ -548,6 +554,10 @@ Each module states its purpose, what it shows, what users can do, the agents and
   - **Payable:** deducted vs deposited vs return filed, by month and nature of payment (Overview).
 - **Actions:** follow-up to the customer (drafted message requesting a return revision); propose write-off of time-barred credits (tax review).
 - **FR-TDS-01 (M):** tax-year quarters use the statutory tax year (§7.1), independent of the company's fiscal year.
+- **FR-TDS-02 (M):** one allocator checks every deduction against the statement: one statement line explains one deduction; deductions already claimed use their lines first; a deduction is matched, matched under a tax ID that differs from the customer master, short-credited, credited in another quarter, missing, or not yet checkable because the quarter's statement is not out. The rule that flags missing credits (BSR-07) and these screens use the same allocator and the same parameters, so they cannot disagree.
+- **FR-TDS-03 (M):** statement lines that no deduction explains are listed separately. The withholding Cash Application infers from receipts is listed as an expected credit and checked against those lines.
+- **FR-TDS-04 (S):** the payable side shows tax deducted, deposited by the 7th of the following month, outstanding and late, by month and nature of payment, from the ledger postings. The workspace's ledger carries salary deductions and one professional-fee deduction; a fuller view needs the deduction postings on vendor payments.
+- **Built in I5:** Overview (KPIs, deductions by tax-year quarter and statement check, credits at risk by age, deductors with the most at risk), Receivable (register with bulk follow-up and propose, raised in this module), Expected, Statement and Payable.
 
 ### 6.13 Financial Statements · `/reporting/financial-statements` · Overview
 - **Purpose:** statutory statements from the same ledger.
@@ -751,7 +761,7 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | S-08 | BSR / Mgmt | Metro project on hold; no billing 274 days | ₹2.86 cr Dr | BSR-08 → follow up / provide |
 | S-09 | BSR | PSU customer; DLP ended 240 days ago | ₹1.12 cr Dr | BSR-09 → follow up |
 | S-10 | BSR | Project closed; advance unadjusted 540 days | ₹58,40,000 Cr | BSR-06 → write back, tax review |
-| S-11 | BSR / Cash App | Incoming RTGS in clearing 211 days | ₹23,60,000 Cr | BSR-10 → Cash Application (T1) |
+| S-11 | BSR / Cash App | Incoming RTGS in clearing 211 days. The customer paid two open invoices (₹14,16,000 and ₹9,85,890, taxable ₹20,35,500) less TDS 2% (₹40,710) and a bank charge of ₹1,180; a third invoice of ₹11,80,000 is unrelated; earlier receipts show the same 2% deduction | ₹23,60,000 Cr | BSR-10 → Cash Application: L4 match to the two invoices, nothing unexplained (T1) |
 | S-12 | BSR / Journals | Manual JV exactly ₹25,00,000, posted 30-Sep, entered 11:42 PM | ₹25,00,000 Cr | BSR-12, BSR-13; Journal reviewer flag |
 | S-13 | BSR | Credit line in a vendor advance GL | ₹3,46,000 Cr | BSR-11 → reclassify |
 | S-14 | BSR | Posting to a suspense GL dormant for 14 months | ₹9,80,000 Dr | BSR-14 |
@@ -769,7 +779,8 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 
 **Planting:**
 - **In the I1 dataset, each asserted by a scenario test** (`src/data/world.test.ts`): S-01 to S-16, the ledger side of S-18, S-20, S-21 and S-24.
-- **Added with their modules:** S-17 (I5), S-22 (I8) and S-23 (I9).
+- **Added with their modules:** S-22 (I8) and S-23 (I9).
+- **Added in I5 (Cash Application and TDS), asserted in `src/engine/cashapp.test.ts`:** the two invoices of S-11 and the customer's history, and S-17 (the customer's history of 1% deductions, two other open invoices, and the receipt with no remittance advice; L3 match, confidence 0.70).
 - **Added in I4 (Reconciliations), asserted in `src/engine/recs.test.ts`:** S-19 and S-25 in the ledger, and the customer's reply for S-18 (received, not yet applied: applying it makes the reconciler find the four items).
 
 ### 9.5 Workshop mapping
@@ -918,6 +929,11 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | D-25 | The reconciler never guesses: it proposes only a set of ledger items that sums exactly to the difference, the smallest such set; the preparer owns every other item. Its classes carry a confidence and are applied only when the reconciliation is prepared or the preparer accepts them | Agreed (I4) |
 | D-26 | A reconciling item is addressed as `REC-id::item-id` so decisions, follow-ups and the activity log treat it like a ledger line. An entry for an item is a decision with its own journal (action "Adjust books"), through the same bands, four-eyes and export as ledger decisions | Agreed (I4) |
 | D-27 | Reconciliations are generated for the loaded period; choosing another period shows a prompt to switch back instead of empty or invented data | Agreed (I4) |
+| D-28 | Invoice references are unique: the sequence runs per business-unit code and year. (Before I5 two business units shared a code and repeated numbers, which made a reference cite the wrong customer) | Agreed (I5) |
+| D-29 | Cash Application proposes and never posts: a receipt in clearing stays an open item until an approved application is posted in the ERP. The invoices of a live application are held, so no other receipt is matched to them | Agreed (I5) |
+| D-30 | The matcher infers only the deductions in policy (FR-CAP-03) and always shows the arithmetic. What it cannot explain stays open as a short payment; it does not guess, and below 0.60 it proposes nothing | Agreed (I5) |
+| D-31 | A reconciling item can be explained by a receipt waiting in clearing; the application decision in Cash Application is the documentation sign-off needs, so the two modules never ask for the same thing twice | Agreed (I5) |
+| D-32 | Tests run one file at a time: each file generates the whole demo world, so parallel files measure machine load rather than the code | Agreed (I5) |
 
 ## 13. Build plan
 
@@ -930,7 +946,7 @@ One increment per prompt, each ending with §10.6.
 | **I2** | Platform core: rules engine (BSR-01 to BSR-18), recommendation framework with derived confidence, workflow and approvals (bands, four-eyes, tax review, export), follow-ups, sign-off, activity log with seeded history; Rules & Policies, Activity Log, Reset demo | ✔ Working |
 | **I3** | Balance Sheet Review: Overview, Accounts, Account detail, Exceptions, Decisions; the item drawer; bulk follow-up, propose and approve; journal proposal export; commentary and sign-off | ✔ **Deep** |
 | **I4** | Reconciliations: all types; bank statement view; customer statement + confirmation | ✔ **Deep** |
-| **I5** | Cash Application (matcher with deduction inference) and TDS | Working |
+| **I5** | Cash Application (matcher with deduction inference) and TDS | ✔ Working |
 | **I6** | Journals (proposals outbox, review, accruals) and Audit Readiness (schedules, PBC, evidence) | Working |
 | **I7** | Home, My Work, Close Cockpit | Working |
 | **I8** | Working Capital, Variance Analysis; Management Reporting and Financial Statements | Working / Overview |

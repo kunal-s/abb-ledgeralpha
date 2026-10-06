@@ -106,6 +106,24 @@ workspace (currently set up for an ABB India workshop, week of 12-Oct-2026).
 - Wide tables must scroll inside their panel: the shell's scroll viewport is `display: block`
   (`components/ui/scroll-area.tsx`); keep table columns within about 1050px at 1366 wide.
 
+## Cash Application and TDS (I5)
+- The matcher is pure (`src/engine/cashapp.ts`): receipts are the open credits on 171200; `cashappData.ts`
+  reads invoices (with the value excluding GST), usual withholding rates and legal entities from the world.
+  Policy is `CASH_APP_POLICY`; every proposal satisfies receipt + deductions + unexplained = invoices, and
+  its confidence is the sum of met factor weights. Do not add a deduction the policy does not list.
+- Read receipts through `useCashApp()` (`src/state/cashAppHooks.ts`), which applies decisions, parking and
+  rejections via `computeMatches`; never run the matcher in a page. Actions are `confirmMatch(es)`,
+  `rejectMatch`, `parkReceipt` in the workflow store: a confirmed match is a decision "Apply receipt" on the
+  receipt line key, carrying its journal (`applicationJournal`) and `clears`; its invoices are then held.
+- Reconciliations link in: the customer-statement diagnosis takes `unappliedFor(customerId)`; an item with
+  class `receipt-unapplied` is documented by the cash-application decision on its `lineKey`.
+- TDS: one allocator (`src/engine/tds.ts`) serves BSR-07 and the screens, over `ctx.tdsLines` (open and
+  claimed deductions); `tdsAnalysis.ts` caches it per parameter set, `useTds()` reads the BSR-07 parameters
+  so Rules & Policies changes show here. Expected credits come from the matcher's proposals.
+- Invoice references must stay unique (`nextInvoiceRef` runs per business-unit code and year): the matcher
+  and the customer statements resolve an invoice by its reference.
+- Tests run one file at a time (`vite.config.ts`): every file generates the whole world.
+
 ## Harvesting
 Design system and components come from LedgerAlpha (`/app/app-ledger-alpha`); matching-engine ideas may
 come from Recon-Alpha (`/app/app-recon-alpha`). **Copy, never import across repos, never modify either

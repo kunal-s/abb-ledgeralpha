@@ -96,8 +96,11 @@ export function parseRecItemKey(key: string): { recId: string; itemId: string } 
 const ACTION_TREATMENTS = new Set<ReconClass["treatment"]>(["adjust-books", "adjust-source", "dispute", "investigate"]);
 export const needsAction = (i: EffItem) => !!i.cls && ACTION_TREATMENTS.has(i.cls.treatment);
 
-/** Item ids of a reconciliation that have a live decision or an open follow-up. */
-export function documentedItems(recId: string, decisions: Decision[], followUps: FollowUp[]): Set<string> {
+/**
+ * Item ids of a reconciliation that have a live decision or an open follow-up.
+ * A receipt waiting in clearing is documented by the application proposed for it in Cash Application.
+ */
+export function documentedItems(recId: string, decisions: Decision[], followUps: FollowUp[], items: ReconItem[] = []): Set<string> {
   const out = new Set<string>();
   const live = new Set(["proposed", "approved", "exported", "closed-in-erp"]);
   for (const d of decisions) {
@@ -107,6 +110,9 @@ export function documentedItems(recId: string, decisions: Decision[], followUps:
   for (const f of followUps) {
     const p = parseRecItemKey(f.itemKey);
     if (p?.recId === recId && f.status !== "closed") out.add(p.itemId);
+  }
+  for (const i of items) {
+    if (i.lineKey && decisions.some((d) => d.itemKey === i.lineKey && d.module === "cash-application" && live.has(d.status))) out.add(i.id);
   }
   return out;
 }

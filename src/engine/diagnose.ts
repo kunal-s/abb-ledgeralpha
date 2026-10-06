@@ -9,6 +9,18 @@ import type { IsoDate, LineItem, ReconItem } from "@/types";
 import { daysBetween, fmtDate } from "@/lib/dates";
 import { fmtINR } from "@/lib/format";
 
+/** A receipt in clearing that Cash Application has matched to this customer's open invoices. */
+export interface UnappliedReceipt {
+  key: string;
+  date: IsoDate;
+  utr?: string;
+  amount: number;
+  invoiceRefs: string[];
+  /** the invoices the receipt settles, which our books still show open */
+  invoiceTotal: number;
+  confidence: number;
+}
+
 export interface DiagnoseInput {
   /** every ledger line of the customer on receivables and retention, cleared or open */
   lines: LineItem[];
@@ -17,6 +29,7 @@ export interface DiagnoseInput {
   asOf: IsoDate;
   /** "recent" window for invoices the customer may not have booked yet */
   recentDays?: number;
+  unappliedReceipts?: UnappliedReceipt[];
 }
 
 export interface Diagnosis {
@@ -46,6 +59,16 @@ function candidates(i: DiagnoseInput): Candidate[] {
   for (const l of i.lines) if (l.docType === "DR" && l.gl === "140100" && l.amount > 0 && l.assignment) invoiceByRef.set(l.assignment, l);
 
   const out: Candidate[] = [];
+  // receipts the customer has already paid that we have not yet applied: the invoices still show open in our books
+  for (const r of i.unappliedReceipts ?? []) {
+    out.push({
+      item: {
+        id: "", side: "books", amount: r.invoiceTotal, date: r.date, reference: r.utr, lineKey: r.key,
+        narration: `Receipt of ${fmtINR(r.amount)} dated ${fmtDate(r.date)} sits in incoming payments clearing; the customer has settled ${r.invoiceRefs.join(", ")}`,
+        suggestedClass: "receipt-unapplied", confidence: r.confidence, origin: "agent",
+      },
+    });
+  }
   for (const l of open) {
     if (l.amount <= 0) continue;
     if (l.gl === "140100" && l.docType === "DR" && daysBetween(l.postingDate, i.asOf) <= recent) {

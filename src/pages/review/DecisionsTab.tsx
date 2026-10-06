@@ -208,7 +208,7 @@ export function DecisionsTab() {
             </Button>
           )}
           <Button size="sm" variant="outline" className="h-8 gap-1.5" disabled={!can(role, "export") || exportTargets.length === 0} title={can(role, "export") ? "Proposal file; nothing is posted" : `${ROLES[role].label} cannot export journal proposals`} onClick={doExport}>
-            <Download className="h-3.5 w-3.5" /> Export {exportTargets.length || ""} journal proposal{exportTargets.length === 1 ? "" : "s"}
+            <Download className="h-3.5 w-3.5" /> Export{exportTargets.length ? ` ${exportTargets.length}` : ""} journal proposal{exportTargets.length === 1 ? "" : "s"}
           </Button>
         </div>
         <Table>

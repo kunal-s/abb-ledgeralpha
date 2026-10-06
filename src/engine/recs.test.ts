@@ -19,7 +19,7 @@ const wf = () => useWorkflow.getState();
 const view = (id: string) => effectiveRec(REC_BY_ID.get(id)!, wf().recs[id], AS_OF);
 const blockers = (id: string) => {
   const s = wf();
-  return signOffBlockers(view(id), !!s.signOffs[`${id}|${AS_OF}`]?.commentary?.trim(), documentedItems(id, Object.values(s.decisions), Object.values(s.followUps)));
+  return signOffBlockers(view(id), !!s.signOffs[`${id}|${AS_OF}`]?.commentary?.trim(), documentedItems(id, Object.values(s.decisions), Object.values(s.followUps), view(id).items));
 };
 const anchor = (id: string, i = 0) => WORLD.anchors[id][i];
 const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
@@ -32,7 +32,7 @@ describe("reconciliations in the world", () => {
     expect(by("Schedule-supported")).toBeGreaterThanOrEqual(8);
     expect(by("Tax account")).toBeGreaterThanOrEqual(2);
     expect(by("Intercompany")).toBe(6);
-    expect(by("Customer statement")).toBe(14);
+    expect(by("Customer statement")).toBe(15);
     expect(by("Vendor statement")).toBe(6);
     expect(new Set(recs.map((r) => r.id)).size).toBe(recs.length);
     expect(RECON_TYPES).toHaveLength(7);
