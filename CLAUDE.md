@@ -59,6 +59,18 @@ workspace (currently set up for an ABB India workshop, week of 12-Oct-2026).
   closing-balance recomputation equal to the trial balance, and every planted scenario exact.
   Adding data shifts the random stream; that is fine as long as these tests pass.
 
+## Platform core (I2)
+- Rules live in `src/engine/rules/` as a definition (data) plus a deterministic evaluator; register new
+  rule sets in `src/engine/run.ts`. Every rule needs a positive and a negative test in
+  `src/engine/engine.test.ts`; planted scenarios must keep their expected recommendation.
+- Read rule results through `useRuleRun()` / `useRecommendations()` (`src/state/hooks.ts`) — one cached
+  evaluation per (period, rule configuration). Never re-run rules inside a component.
+- All state changes go through `useWorkflow` actions (`src/state/workflow.ts`): they check `can()`
+  (`src/config/roles.ts`), enforce four-eyes and approval bands, and write the activity event. Never mutate
+  decisions, follow-ups or sign-offs directly, and never log activity from a page.
+- Recommendation confidence is the sum of met factor weights; below 0.60 the action falls back to Follow up.
+- Settings → Reset demo restores the seeded workspace state (`src/data/workspace/activity.ts`).
+
 ## Harvesting
 Design system and components come from LedgerAlpha (`/app/app-ledger-alpha`); matching-engine ideas may
 come from Recon-Alpha (`/app/app-recon-alpha`). **Copy, never import across repos, never modify either

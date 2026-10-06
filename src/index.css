@@ -53,10 +53,24 @@
     --info-foreground: 214 70% 40%;
     --info-subtle: 214 90% 96%;
 
+    /* Categorical chart series — validated order (blue, orange, aqua, yellow):
+       adjacent CVD ΔE ≥ 9.1, normal-vision ΔE ≥ 22.9 on the light surface.
+       Aqua and yellow sit below 3:1 contrast: charts using them carry a legend
+       and a table view. */
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+
     --radius: 0.5rem;
   }
 
   .dark {
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+
     --background: 222 28% 9%;
     --foreground: 213 24% 90%;
 

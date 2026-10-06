@@ -38,6 +38,11 @@ export function fmtTime(hhmm: string): string {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
 }
 
+/** "2026-10-06T14:07" → "06-Oct-2026 2:07 PM" */
+export function fmtDateTime(at: string): string {
+  return `${fmtDate(at.slice(0, 10))} ${fmtTime(at.slice(11, 16))}`;
+}
+
 /** "Sep 2026" */
 export function fmtMonth(iso: IsoDate): string {
   const d = parseIsoDate(iso);

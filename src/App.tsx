@@ -6,6 +6,8 @@ import { ModulePage } from "@/pages/ModulePage";
 import { NotFound } from "@/pages/NotFound";
 import { DataSources } from "@/pages/DataSources";
 import { Settings } from "@/pages/Settings";
+import { RulesPolicies } from "@/pages/RulesPolicies";
+import { ActivityLog } from "@/pages/ActivityLog";
 
 // Routes come from the module registry (src/lib/modules.ts), filtered by the
 // workspace's enabled modules. As a module is built, map its path to the real
@@ -13,6 +15,8 @@ import { Settings } from "@/pages/Settings";
 const BUILT: Record<string, ReactNode> = {
   "/data": <DataSources />,
   "/settings": <Settings />,
+  "/rules": <RulesPolicies />,
+  "/activity": <ActivityLog />,
 };
 
 const router = createBrowserRouter([

@@ -338,7 +338,7 @@ function fundBankAccounts(ctx: Ctx): void {
       const bal = closing.get(g)!;
       if (bal < floor) {
         const top = Math.round((floor - bal + cr(150) + ctx.rng.int(0, 4_000) * 1_00_000) / 1_00_000) * 1_00_000;
-        b.post({ docType: "SA", postingDate: first, enteredBy: "FQURESHI", manual: true, entryTime: "10:15", text: "Funding transfer from collections account" }, [
+        b.post({ docType: "ZP", postingDate: first, enteredBy: U.bank, entryTime: "10:15", text: "Funding transfer from collections account" }, [
           { gl: g, amount: top, pc: CORP },
           { gl: "181100", amount: -top, pc: CORP },
         ]);
@@ -349,7 +349,7 @@ function fundBankAccounts(ctx: Ctx): void {
     const eefc = closing.get("181400")!;
     if (eefc > cr(90)) {
       const conv = Math.round((eefc - cr(40) - ctx.rng.int(0, 2_500) * 1_00_000) / 1_00_000) * 1_00_000;
-      b.post({ docType: "SA", postingDate: e, enteredBy: "FQURESHI", manual: true, entryTime: "15:30", text: "Conversion of EEFC balance" }, [
+      b.post({ docType: "ZP", postingDate: e, enteredBy: U.bank, entryTime: "15:30", text: "Conversion of EEFC balance" }, [
         { gl: "181100", amount: conv, pc: CORP },
         { gl: "181400", amount: -conv, pc: CORP },
       ]);

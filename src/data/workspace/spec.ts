@@ -48,6 +48,8 @@ export const WORLD_SPEC = {
     { id: "P10", name: "Nikhil Agarwal", roleId: "reporting-analyst", title: "Business Finance Analyst", userId: "NAGARWAL" },
     { id: "P11", name: "Divya Sharma", roleId: "controls-lead", title: "Internal Controls Lead", userId: "DSHARMA" },
     { id: "P12", name: "Rahul Kapoor", roleId: "external-auditor", title: "Audit Manager, statutory auditor", userId: "EXT-RKAPOOR" },
+    { id: "P13", name: "Sanjay Raghavan", roleId: "head-of-finance", title: "Head of Finance", userId: "SRAGHAVAN" },
+    { id: "P14", name: "Radhika Joshi", roleId: "cfo", title: "Chief Financial Officer", userId: "RJOSHI" },
   ] satisfies Person[],
 
   /** system users that post interface documents (not manual) */

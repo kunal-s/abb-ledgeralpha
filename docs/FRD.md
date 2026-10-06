@@ -88,7 +88,9 @@ The role switcher stands in for authentication in the prototype. People in demo 
 
 | Role | Typical title | Primary modules | Key permissions |
 |---|---|---|---|
-| Financial Controller | Head of finance / controllership | Home, Balance Sheet Review, Reconciliations, Close Cockpit, Reporting | Approve within band, reviewer sign-off, edit rules and policies |
+| Chief Financial Officer | CFO | Home, Reporting | Final approver for the highest band (B3) |
+| Head of Finance | Head of finance | Home, Balance Sheet Review, Reporting | Approver for bands B2–B3, reviewer sign-off, edit rules |
+| Financial Controller | Controllership lead | Home, Balance Sheet Review, Reconciliations, Close Cockpit, Reporting | First approver in every band, reviewer sign-off, edit rules and policies |
 | GL Accountant | Account owner | Balance Sheet Review, Reconciliations, Journals, My Work | Prepare reviews and recs, propose actions and journals, preparer sign-off |
 | Receivables Specialist | AR / cash management | Cash Application, Reconciliations (customer), TDS, Working Capital | Confirm matches, propose clearing, customer statements |
 | Treasury Analyst | Treasury / banking | Bank Guarantees, FX Exposure, Reconciliations (bank) | Maintain BG register, propose extensions and releases |
@@ -217,7 +219,7 @@ flagged ──► in-follow-up ──► decision-proposed ──► approved �
 | Review ageing buckets | 0–90, 91–180, 181–365, over 365 days |
 | Review threshold | 180 days |
 | Materiality for documented action | ₹1,00,000 |
-| Approval bands (delegation of authority, DoA) | B1 ≤ ₹5 lakh: Controller · B2 ≤ ₹50 lakh: Controller → Escalation 1 · B3 above: Controller → Escalation 1 → Escalation 2 |
+| Approval bands (delegation of authority, DoA) | B1 ≤ ₹5 lakh: Financial Controller · B2 ≤ ₹50 lakh: Financial Controller → Head of Finance · B3 above: Financial Controller → Head of Finance → CFO (approvals in order) |
 | Tax review | Required for write-backs and tax write-offs at any band |
 | Write-back mode | Proposal file (governed posting disabled) |
 
@@ -408,7 +410,7 @@ Each module states its purpose, what it shows, what users can do, the agents and
 
 | ID | Rule | Categories | Logic (defaults) | Candidate action | Basis |
 |---|---|---|---|---|---|
-| BSR-01 | Aged beyond review threshold | Open-item accounts | Age > 180 days | Follow up (unless a specific rule hits) | Review policy |
+| BSR-01 | Aged beyond review threshold | Open-item accounts | Age > 180 days; amount ≥ minimum (default ₹0) | Follow up (unless a specific rule hits) | Review policy |
 | BSR-02 | Received, not invoiced | GR/IR | Credit; age > 365 days; no invoice on the PO line since GR; PO closed or inactive for 180 days | Write back (tax review) | Liability no longer expected; write-back is taxable income |
 | BSR-03 | Counter-item available | GR/IR, suspense | Offsetting lines on the same PO line / assignment net within ₹100 or 0.5% | Clear | Mechanical clearing gap |
 | BSR-04 | Invoiced, not received | GR/IR | Debit; age > 90 days | Follow up | GR or price variance pending |
@@ -417,10 +419,10 @@ Each module states its purpose, what it shows, what users can do, the agents and
 | BSR-07 | Withholding credit missing | Withholding-tax receivable | No tax-credit-statement line for deductor × tax-year quarter within ₹10, after the return due date + 60 days. Older than 3 tax years | Follow up; older than 3 tax years: write off (tax review) | Credit follows the tax credit statement (§7.4) |
 | BSR-08 | Stale unbilled revenue | Unbilled revenue | No billing on the WBS for > 180 days, or project on hold | Follow up; provide (ECL) if not billable | Ind AS 115 contract asset; Ind AS 109 ECL |
 | BSR-09 | Retention overdue | Retention | DLP end + 90 days passed. Over 365 days past DLP | Follow up (release); over 365 days past DLP: provide (ECL) | Release after DLP / acceptance |
-| BSR-10 | Suspense / clearing aged | Suspense and clearing | Age > 30 days | Clear / reclassify. Incoming-payment clearing goes to Cash Application | Suspense should be transient |
+| BSR-10 | Suspense / clearing aged | Suspense and clearing | Age > 45 days (product default; the demo workspace changed it to 30 days on 14-Aug-2026) | Reclassify when the remitter is named or for bank charges; otherwise follow up. Incoming-payment clearing goes to Cash Application | Suspense should be transient |
 | BSR-11 | Wrong sign | All | Item or balance opposite to normal balance, > ₹10,000 | Reclassify | |
-| BSR-12 | Round-number manual entry | All | Manual; ≥ ₹1,00,000 and an exact multiple of ₹1,00,000 | Review | Estimate / plug indicator |
-| BSR-13 | Period-end / after-hours manual entry | All | Posted in the last 2 days of the quarter; entered after period end with a posting date inside it; or entered 10 PM–6 AM | Review | Cut-off / override risk |
+| BSR-12 | Round-number manual entry | Balance-sheet lines in the review period | Manual; ≥ ₹1,00,000 and an exact multiple of ₹1,00,000 | Follow up (obtain the working) | Estimate / plug indicator |
+| BSR-13 | After-hours or late manual entry | Balance-sheet lines in the review period | Entered at or after 10 PM or before 6 AM, or entered after the period end with a posting date inside it | Follow up (confirm cut-off) | Cut-off / override risk |
 | BSR-14 | Posting to a dormant account | All | No other postings in the prior 180 days | Review | |
 | BSR-15 | Account-to-account churn | All | Same assignment moved across ≥ 3 GLs within 180 days | Review | Items moved, not resolved |
 | BSR-16 | Statutory dues overdue | Statutory dues payable | Credit open > 180 days | Follow up | Reportable under CARO 2020 cl. 3(vii)(a) (§7.4) |
@@ -892,6 +894,9 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | D-12 | **No narrative under page titles;** production page-header pattern (§3.3) | Agreed (v0.2) |
 | D-13 | Depth tiers; modules not built to at least Overview are disabled in the workspace, never shown as placeholders in the demo | Agreed (v0.2) |
 | D-14 | Module names are generic; country-specific labels come from the localisation pack (GST, TDS) | Agreed (v0.2) |
+| D-15 | The review period runs from the day after the previous fiscal quarter end to the selected period end. Outlier rules (BSR-12 to BSR-15) look at balance-sheet lines in that period; ageing rules look at items open at the period end | Agreed (I2) |
+| D-16 | Escalation approvers are product roles (Head of Finance, CFO), so every band can be demonstrated end to end; the workspace maps them to its DoA | Agreed (I2) |
+| D-17 | Workflow state (decisions, follow-ups, sign-offs, rule changes, session activity) persists in the browser for rehearsal continuity; Settings → Reset demo returns to the seeded workspace state | Agreed (I2) |
 
 ## 13. Build plan
 
@@ -901,7 +906,7 @@ One increment per prompt, each ending with §10.6.
 |---|---|---|
 | **I0** | Product scaffold: module registry and navigation, workspace / localisation / policy config, shell (scope, period, role, data mode), page anatomy, formats with tests, draft data contract, this FRD | ✔ |
 | **I1** | Data foundation: seeded world generator (§9.2), balances and load checks, Data Sources, Settings (read) | ✔ Working |
-| **I2** | Platform core: rules engine, recommendation framework, workflow and approvals, follow-ups, activity log; Rules & Policies, Activity Log | Working |
+| **I2** | Platform core: rules engine (BSR-01 to BSR-18), recommendation framework with derived confidence, workflow and approvals (bands, four-eyes, tax review, export), follow-ups, sign-off, activity log with seeded history; Rules & Policies, Activity Log, Reset demo | ✔ Working |
 | **I3** | Balance Sheet Review: all views, rules BSR-01 to BSR-18, decisions, sign-off | **Deep** |
 | **I4** | Reconciliations: all types; bank statement view; customer statement + confirmation | **Deep** |
 | **I5** | Cash Application (matcher with deduction inference) and TDS | Working |

@@ -1,6 +1,8 @@
 // Policy defaults — ageing, materiality and delegation of authority.
 // Product defaults; a workspace overrides them in Settings (docs/FRD.md §4.4).
 
+import type { RoleId } from "@/types";
+
 /** Review ageing (operational), distinct from Schedule III disclosure ageing. */
 export const AGEING_POLICY = {
   basis: "postingDate" as "postingDate" | "documentDate" | "dueDate",
@@ -13,7 +15,7 @@ export const AGEING_POLICY = {
   reviewThresholdDays: 180,
 } as const;
 
-/** Items at or above this in the over-threshold buckets need a documented action. */
+/** Items at or above this need a written justification before a decision is proposed. */
 export const MATERIALITY_POLICY = {
   documentedActionAmount: 1_00_000,
 } as const;
@@ -24,15 +26,16 @@ export const MATERIALITY_POLICY = {
  */
 export const APPROVAL_BANDS = [
   { id: "B1", upTo: 5_00_000, chain: ["controller"] },
-  { id: "B2", upTo: 50_00_000, chain: ["controller", "escalation-1"] },
-  { id: "B3", upTo: null, chain: ["controller", "escalation-1", "escalation-2"] },
-] as const satisfies readonly { id: string; upTo: number | null; chain: readonly string[] }[];
+  { id: "B2", upTo: 50_00_000, chain: ["controller", "head-of-finance"] },
+  { id: "B3", upTo: null, chain: ["controller", "head-of-finance", "cfo"] },
+] as const satisfies readonly { id: string; upTo: number | null; chain: readonly RoleId[] }[];
 
-export const APPROVER_LABELS: Record<string, string> = {
-  controller: "Financial Controller",
-  "escalation-1": "Escalation 1",
-  "escalation-2": "Escalation 2",
-};
+export type ApprovalBandId = (typeof APPROVAL_BANDS)[number]["id"];
+
+export function bandFor(amount: number): (typeof APPROVAL_BANDS)[number] {
+  const abs = Math.abs(amount);
+  return APPROVAL_BANDS.find((b) => b.upTo === null || abs <= b.upTo)!;
+}
 
 /** Actions that always need tax review, whatever the band. */
 export const TAX_REVIEW_POLICY = ["Write back", "Write off of tax receivables"] as const;

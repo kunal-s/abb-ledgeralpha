@@ -232,30 +232,44 @@ export type ActionKind =
 export interface RuleParam {
   key: string;
   label: string;
-  value: number | string | boolean;
-  unit?: "days" | "amount" | "%" | "count";
+  value: number;
+  unit: "days" | "amount" | "%" | "count" | "years";
 }
+
+export type RuleModule = "balance-sheet-review" | "reconciliations" | "cash-application" | "journals" | "withholding-tax" | "indirect-tax";
 
 export interface RuleDefinition {
   id: string; // "BSR-01"
-  module: "balance-sheet-review" | "reconciliations" | "cash-application" | "journals" | "withholding-tax" | "indirect-tax";
+  module: RuleModule;
   name: string;
-  description: string;
+  /** the population the rule looks at, in plain words */
+  scope: string;
+  /** the condition, in plain words */
+  logic: string;
   categories: AccountCategory[] | "all";
   severity: Severity;
-  candidateAction?: ActionKind;
+  candidateAction: ActionKind;
   params: RuleParam[];
   basis?: string;
-  /** shipped with the product, or configured for this workspace */
-  origin: "Product" | "Workspace";
-  enabled: boolean;
+  /** product defaults; a workspace may change parameters or enablement */
+  enabledByDefault: boolean;
 }
+
+/** A rule with the workspace's overrides applied. */
+export interface EffectiveRule extends RuleDefinition {
+  enabled: boolean;
+  /** true when parameters or enablement differ from the product default */
+  changed: boolean;
+}
+
+export type FactValue = string | number | boolean;
 
 export interface RuleHit {
   ruleId: string;
   itemKey: string;
+  /** plain-language reason built from the item's own facts */
   reason: string;
-  facts: Record<string, string | number | boolean>;
+  facts: Record<string, FactValue>;
 }
 
 export interface ConfidenceFactor {
@@ -267,10 +281,14 @@ export interface ConfidenceFactor {
 export interface Recommendation {
   itemKey: string;
   action: ActionKind;
+  /** the rule whose finding drives the recommendation */
+  primaryRuleId: string;
   /** 0..1, always derived from `factors` */
   confidence: number;
   factors: ConfidenceFactor[];
   rationale: string;
+  /** what the owner should do next, e.g. "Recover against BG HDFC/BG/2025/00731" */
+  nextStep: string;
   requiresTaxReview: boolean;
   approvalBandId: string;
 }
@@ -293,35 +311,72 @@ export type AccountReviewStatus =
   | "reviewer-signed"
   | "reopened";
 
+export type DecisionStatus = "proposed" | "approved" | "rejected" | "withdrawn" | "exported" | "closed-in-erp";
+
 export interface Decision {
+  id: string;
   itemKey: string;
+  module: string;
   action: ActionKind;
   amount: Amount;
-  proposedBy: string;
-  proposedAt: string;
+  proposedBy: string; // person id
+  proposedAt: string; // local ISO date-time
   justification: string;
   approvalBandId: string;
-  approvals: { personId: string; outcome: "approved" | "rejected"; at: string; note?: string }[];
+  /** roles that must approve, in order */
+  chain: RoleId[];
+  approvals: { roleId: RoleId; personId: string; at: string; note?: string }[];
+  taxReviewRequired: boolean;
   taxReview?: { personId: string; outcome: "cleared" | "objected"; at: string; note?: string };
+  rejection?: { personId: string; at: string; reason: string };
+  status: DecisionStatus;
+  exportBatchId?: string;
+  /** the recommendation and facts at the time of proposal (decision reconstruction) */
+  snapshot: { recommendation?: Recommendation; hits: RuleHit[]; rulesVersion: string };
+}
+
+export interface FollowUp {
+  id: string;
+  itemKey: string;
+  module: string;
+  owner: string; // who is asked: a role, a counterparty or a named person
+  dueDate: IsoDate;
+  message: string;
+  createdBy: string; // person id
+  createdAt: string;
+  status: "open" | "responded" | "closed";
+  response?: { text: string; at: string; by: string };
+}
+
+export interface AccountSignOff {
+  gl: string;
+  periodEnd: IsoDate;
+  preparer?: { personId: string; at: string };
+  reviewer?: { personId: string; at: string };
+  commentary?: string;
+  reopened?: { personId: string; at: string; reason: string };
 }
 
 export interface ActivityEvent {
   id: string;
-  at: string;
-  actorId: string;
-  actorKind: "Person" | "Agent";
-  module: string;
-  object: { type: string; id: string };
+  at: string; // local ISO date-time
+  actorId: string; // person id, agent id or "system"
+  actorKind: "Person" | "Agent" | "System";
+  module: string; // module id
+  object: { type: string; id: string; label?: string };
   action: string;
   before?: string;
   after?: string;
   reason?: string;
+  details?: Record<string, FactValue>;
 }
 
 // ---------------------------------------------------------------------------
 // People and roles
 // ---------------------------------------------------------------------------
 export type RoleId =
+  | "cfo"
+  | "head-of-finance"
   | "controller"
   | "gl-accountant"
   | "ar-specialist"

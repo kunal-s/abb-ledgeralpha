@@ -1,41 +1,22 @@
-import type { ReactNode } from "react";
+import { useState } from "react";
+import { RotateCcw } from "lucide-react";
 import { PageHeader, Panel, StatusChip } from "@/components/vocab";
+import { Chips, Fields } from "@/components/vocab/Fields";
+import { PolicyPanels } from "@/components/settings/PolicyPanels";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TENANT } from "@/config/tenant";
 import { LOCALISATION } from "@/config/localisation";
-import { AGEING_POLICY, APPROVAL_BANDS, APPROVER_LABELS, MATERIALITY_POLICY, TAX_REVIEW_POLICY, WRITE_BACK_POLICY } from "@/config/policies";
 import { ROLES } from "@/config/roles";
 import { MODULES, NAV_GROUPS, isModuleEnabled } from "@/lib/modules";
 import { WORLD } from "@/data";
 import { MONTH_NAMES } from "@/lib/labels";
 import { fiscalQuarterLabel, fmtDate, fmtMonth } from "@/lib/dates";
 import { fmtINR, fmtINRCompact } from "@/lib/format";
-
-function Fields({ rows }: { rows: [string, ReactNode][] }) {
-  return (
-    <dl className="divide-y divide-border/70">
-      {rows.map(([label, value]) => (
-        <div key={label} className="grid grid-cols-1 gap-1 px-4 py-2.5 text-sm sm:grid-cols-[14rem_1fr] sm:gap-4">
-          <dt className="text-muted-foreground">{label}</dt>
-          <dd className="min-w-0">{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function Chips({ items }: { items: readonly string[] }) {
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {items.map((i) => (
-        <span key={i} className="rounded-md bg-secondary px-2 py-0.5 text-xs">
-          {i}
-        </span>
-      ))}
-    </div>
-  );
-}
+import { useWorkflow } from "@/state/workflow";
+import { toast } from "@/lib/toast";
 
 function Workspace() {
   const { startMonth, prefix } = TENANT.fiscalYear;
@@ -168,48 +149,41 @@ function People() {
   );
 }
 
-function Policies() {
-  const basis = { postingDate: "Posting date", documentDate: "Document date", dueDate: "Due date" }[AGEING_POLICY.basis];
+function ResetDemo() {
+  const [open, setOpen] = useState(false);
+  const resetDemo = useWorkflow((s) => s.resetDemo);
+  const sessionEvents = useWorkflow((s) => s.events.length);
   return (
-    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-      <Panel title="Review" bodyClassName="p-0">
-        <Fields
-          rows={[
-            ["Ageing basis", basis],
-            ["Ageing buckets", <Chips items={AGEING_POLICY.buckets.map((b) => b.label)} />],
-            ["Review threshold", `${AGEING_POLICY.reviewThresholdDays} days`],
-            ["Documented action required from", fmtINR(MATERIALITY_POLICY.documentedActionAmount)],
-            ["Tax review required for", <Chips items={TAX_REVIEW_POLICY} />],
-            ["Approved journals", WRITE_BACK_POLICY.label],
-          ]}
-        />
-      </Panel>
-      <Panel title="Approval bands" bodyClassName="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Band</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Approval chain</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {APPROVAL_BANDS.map((b, i) => {
-              const from = i === 0 ? null : APPROVAL_BANDS[i - 1].upTo;
-              return (
-                <TableRow key={b.id}>
-                  <TableCell className="font-mono text-xs">{b.id}</TableCell>
-                  <TableCell className="tnum">
-                    {b.upTo === null ? `Above ${fmtINRCompact(from ?? 0)}` : from === null ? `Up to ${fmtINRCompact(b.upTo)}` : `${fmtINRCompact(from)} – ${fmtINRCompact(b.upTo)}`}
-                  </TableCell>
-                  <TableCell>{b.chain.map((c) => APPROVER_LABELS[c]).join(" → ")}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </Panel>
-    </div>
+    <>
+      <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => setOpen(true)}>
+        <RotateCcw className="h-3.5 w-3.5" />
+        Reset demo
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset demo</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Decisions, follow-ups, sign-offs and rule changes made in this session ({sessionEvents} events) return to the workspace's starting state.
+          </p>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                resetDemo();
+                setOpen(false);
+                toast("Demo reset", { description: "Workspace returned to its starting state.", tone: "ok" });
+              }}
+            >
+              Reset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -246,7 +220,7 @@ function Modules() {
 export function Settings() {
   return (
     <div className="space-y-4">
-      <PageHeader title="Settings" />
+      <PageHeader title="Settings" actions={<ResetDemo />} />
       <Tabs defaultValue="workspace">
         <TabsList>
           <TabsTrigger value="workspace">Workspace</TabsTrigger>
@@ -265,7 +239,7 @@ export function Settings() {
           <People />
         </TabsContent>
         <TabsContent value="policies">
-          <Policies />
+          <PolicyPanels />
         </TabsContent>
         <TabsContent value="modules">
           <Modules />
