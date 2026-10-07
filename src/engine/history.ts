@@ -8,7 +8,9 @@ import { WORLD, DATASETS, QUALITY, GL_BY_ID, REC_BY_ID } from "@/data";
 import { addDays, fmtDate, monthEnd } from "@/lib/dates";
 import { previousQuarterEnd } from "@/engine/context";
 import { effectiveRules, runRules, type RuleOverrides } from "@/engine/run";
-import { SEEDED_RULE_CHANGES, seededSignOffs } from "@/data/workspace/activity";
+import { SEEDED_RULE_CHANGES, seededJournalReviews, seededSignOffs } from "@/data/workspace/activity";
+import { PBC_AUDITOR_ID, PBC_REQUESTS } from "@/data/workspace/pbc";
+import { docByKey, journalDocs, reviewJournals } from "@/engine/journalReview";
 import { fmtINRCompact } from "@/lib/format";
 
 let cached: ActivityEvent[] | null = null;
@@ -55,6 +57,14 @@ export function seededHistory(): ActivityEvent[] {
       after: `${run.items.size.toLocaleString("en-IN")} items flagged · ${fmtINRCompact(run.flaggedValue)}`,
       details: { asOf: m, itemsFlagged: run.items.size, rulesVersion: run.version, durationMs: Math.round(run.durationMs) },
     });
+    const docs = journalDocs(monthEnd(addDays(m, -32)), m);
+    const manual = docs.filter((d) => d.manual).length;
+    const flagged = reviewJournals(docs, m).size;
+    events.push({
+      id: id(), at: `${loadDay}T06:25`, actorId: "agent:journal-reviewer", actorKind: "Agent", module: "journals",
+      object: { type: "journal-run", id: `JNLRUN-${m.replace(/-/g, "")}`, label: `Journals to ${fmtDate(m)}` }, action: "Journals reviewed",
+      after: `${manual.toLocaleString("en-IN")} manual journals checked · ${flagged} flagged`, details: { asOf: m, journals: docs.length, manual, flagged },
+    });
   }
 
   // reconciliations: prepared by the reconciler agent, confirmations sent and answered
@@ -82,6 +92,25 @@ export function seededHistory(): ActivityEvent[] {
     const object = rec ? { type: "reconciliation", id: rec.id, label: rec.name } : { type: "account", id: so.gl, label: GL_BY_ID.get(so.gl)?.description };
     if (so.preparer) events.push({ id: id(), at: so.preparer.at, actorId: so.preparer.personId, actorKind: "Person", module, object, action: "Signed off as preparer", after: "Preparer signed", details: { period: so.periodEnd } });
     if (so.reviewer) events.push({ id: id(), at: so.reviewer.at, actorId: so.reviewer.personId, actorKind: "Person", module, object, action: "Signed off as reviewer", before: "Preparer signed", after: "Signed off", details: { period: so.periodEnd } });
+  }
+
+  // journals the reviewer concluded on before the session
+  for (const jr of Object.values(seededJournalReviews())) {
+    const doc = docByKey(jr.docKey);
+    events.push({
+      id: id(), at: jr.at, actorId: jr.personId, actorKind: "Person", module: "journals",
+      object: { type: "journal", id: jr.docKey, label: doc?.docNo }, itemKeys: doc?.lines.map((l) => l.key),
+      action: "Journal accepted", before: "Flagged", after: "Accepted", reason: jr.note, details: { journal: doc?.docNo ?? jr.docKey, amount: doc?.amount ?? 0 },
+    });
+  }
+
+  // the statutory auditor's requests, and those already answered
+  for (const q of PBC_REQUESTS) {
+    const object = { type: "pbc-request", id: q.id, label: q.title };
+    events.push({ id: id(), at: `${q.requestedOn}T10:00`, actorId: PBC_AUDITOR_ID, actorKind: "Person", module: "audit-readiness", object, action: "Request raised", after: `Due ${fmtDate(q.due)}`, details: { owner: q.ownerId } });
+    if (q.seedStatus === "provided") {
+      events.push({ id: id(), at: `${addDays(q.requestedOn, 2)}T15:30`, actorId: q.ownerId, actorKind: "Person", module: "audit-readiness", object, action: "Request provided", before: "In preparation", after: "Provided", details: { evidence: q.seedEvidence ?? "" } });
+    }
   }
 
   for (const c of SEEDED_RULE_CHANGES) {

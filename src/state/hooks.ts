@@ -66,31 +66,35 @@ export function itemStatus(flagged: boolean, decision?: Decision, followUp?: Fol
 }
 
 /** Latest non-withdrawn decision per item. */
-export function useDecisionsByItem(): Map<string, Decision> {
-  const decisions = useWorkflow((s) => s.decisions);
-  return useMemo(() => {
-    const m = new Map<string, Decision>();
-    for (const d of Object.values(decisions)) {
-      if (d.status === "withdrawn") continue;
-      const cur = m.get(d.itemKey);
-      if (!cur || d.proposedAt >= cur.proposedAt) m.set(d.itemKey, d);
-    }
-    return m;
-  }, [decisions]);
+export function latestDecisions(decisions: Record<string, Decision>): Map<string, Decision> {
+  const m = new Map<string, Decision>();
+  for (const d of Object.values(decisions)) {
+    if (d.status === "withdrawn") continue;
+    const cur = m.get(d.itemKey);
+    if (!cur || d.proposedAt >= cur.proposedAt) m.set(d.itemKey, d);
+  }
+  return m;
 }
 
 /** Latest follow-up per item (open ones win). */
+export function latestFollowUps(followUps: Record<string, FollowUp>): Map<string, FollowUp> {
+  const m = new Map<string, FollowUp>();
+  for (const f of Object.values(followUps)) {
+    const cur = m.get(f.itemKey);
+    const better = !cur || (cur.status === "closed" && f.status !== "closed") || (cur.status === f.status && f.createdAt >= cur.createdAt);
+    if (better) m.set(f.itemKey, f);
+  }
+  return m;
+}
+
+export function useDecisionsByItem(): Map<string, Decision> {
+  const decisions = useWorkflow((s) => s.decisions);
+  return useMemo(() => latestDecisions(decisions), [decisions]);
+}
+
 export function useFollowUpsByItem(): Map<string, FollowUp> {
   const followUps = useWorkflow((s) => s.followUps);
-  return useMemo(() => {
-    const m = new Map<string, FollowUp>();
-    for (const f of Object.values(followUps)) {
-      const cur = m.get(f.itemKey);
-      const better = !cur || (cur.status === "closed" && f.status !== "closed") || (cur.status === f.status && f.createdAt >= cur.createdAt);
-      if (better) m.set(f.itemKey, f);
-    }
-    return m;
-  }, [followUps]);
+  return useMemo(() => latestFollowUps(followUps), [followUps]);
 }
 
 // ---------------------------------------------------------------------------
@@ -139,6 +143,80 @@ export interface Review {
 const isDocumented = (r: ItemRow) =>
   (r.decision && ["proposed", "approved", "exported", "closed-in-erp"].includes(r.decision.status)) || (r.followUp && !!r.followUp.dueDate);
 
+export interface ReviewInput {
+  run: RuleRun;
+  recs: Map<string, Recommendation>;
+  decisions: Map<string, Decision>;
+  followUps: Map<string, FollowUp>;
+  signOffs: Record<string, AccountSignOff>;
+  businessUnitId: string;
+  asOf: IsoDate;
+}
+
+/** The review model as a pure function of its inputs; `useComputeReview` memoises it, tests call it directly. */
+export function buildReview({ run, recs, decisions, followUps, signOffs, businessUnitId, asOf }: ReviewInput): Review {
+  const priorDate = previousQuarterEnd(asOf);
+  const rows: ItemRow[] = [];
+  const rowByKey = new Map<string, ItemRow>();
+  const openKeys = new Set<string>();
+  const mk = (item: LineItem, isOpen: boolean): ItemRow => {
+    const hits = run.byItem.get(item.key) ?? [];
+    const decision = decisions.get(item.key);
+    const followUp = followUps.get(item.key);
+    const age = ageOf(item, asOf);
+    return {
+      key: item.key, item, hits, rec: recs.get(item.key), decision, followUp,
+      status: itemStatus(hits.length > 0, decision, followUp),
+      age, bucket: bucketOf(age), category: GL_BY_ID.get(item.gl)!.category, flagged: hits.length > 0, isOpen,
+    };
+  };
+  for (const l of run.ctx.open) {
+    if (!inScope(l, businessUnitId)) continue;
+    openKeys.add(l.key);
+    const r = mk(l, true);
+    rows.push(r);
+    rowByKey.set(r.key, r);
+  }
+  for (const l of run.items.values()) {
+    if (openKeys.has(l.key) || !inScope(l, businessUnitId)) continue;
+    const r = mk(l, false);
+    rows.push(r);
+    rowByKey.set(r.key, r);
+  }
+
+  const scan = scanLedger(asOf, priorDate, businessUnitId);
+  const flaggedKeys = new Set(rows.filter((r) => r.flagged && r.isOpen).map((r) => r.key));
+  const heatmap = buildHeatmap(rows.filter((r) => r.isOpen).map((r) => r.item), flaggedKeys, asOf);
+
+  const byGl = new Map<string, ItemRow[]>();
+  for (const r of rows) {
+    const list = byGl.get(r.item.gl);
+    if (list) list.push(r);
+    else byGl.set(r.item.gl, [r]);
+  }
+  const accounts: AccountRow[] = [];
+  for (const s of scan.accounts.values()) {
+    if (!isReviewable(s)) continue;
+    const glRows = byGl.get(s.gl.gl) ?? [];
+    const flagged = glRows.filter((r) => r.flagged);
+    const signOff = signOffs[`${s.gl.gl}|${asOf}`];
+    const hasCommentary = !!signOff?.commentary?.trim();
+    const rd = readiness(flagged.map((r) => r.item), (k) => !!isDocumented(rowByKey.get(k)!), hasCommentary);
+    const hasActivity = hasCommentary || glRows.some((r) => r.decision || r.followUp);
+    accounts.push({
+      summary: s,
+      flaggedCount: flagged.length,
+      flaggedValue: flagged.reduce((t, r) => t + Math.abs(r.item.amount), 0),
+      signOff,
+      status: accountStatus(signOff, rd.ready, hasActivity),
+      readiness: rd,
+      hasCommentary,
+    });
+  }
+  accounts.sort((a, b) => a.summary.gl.gl.localeCompare(b.summary.gl.gl));
+  return { asOf, priorDate, businessUnitId, run, recs, rows, rowByKey, scan, heatmap, accounts, accountByGl: new Map(accounts.map((a) => [a.summary.gl.gl, a])) };
+}
+
 /** Computes the review model. Mounted once, in ReviewProvider - read it with `useReview()`. */
 export function useComputeReview(): Review {
   const run = useRuleRun();
@@ -149,68 +227,10 @@ export function useComputeReview(): Review {
   const businessUnitId = useScopeStore((s) => s.businessUnitId);
   const asOf = usePeriodStore((s) => s.periodEnd);
 
-  return useMemo(() => {
-    const priorDate = previousQuarterEnd(asOf);
-    const rows: ItemRow[] = [];
-    const rowByKey = new Map<string, ItemRow>();
-    const openKeys = new Set<string>();
-    const mk = (item: LineItem, isOpen: boolean): ItemRow => {
-      const hits = run.byItem.get(item.key) ?? [];
-      const decision = decisions.get(item.key);
-      const followUp = followUps.get(item.key);
-      const age = ageOf(item, asOf);
-      return {
-        key: item.key, item, hits, rec: recs.get(item.key), decision, followUp,
-        status: itemStatus(hits.length > 0, decision, followUp),
-        age, bucket: bucketOf(age), category: GL_BY_ID.get(item.gl)!.category, flagged: hits.length > 0, isOpen,
-      };
-    };
-    for (const l of run.ctx.open) {
-      if (!inScope(l, businessUnitId)) continue;
-      openKeys.add(l.key);
-      const r = mk(l, true);
-      rows.push(r);
-      rowByKey.set(r.key, r);
-    }
-    for (const l of run.items.values()) {
-      if (openKeys.has(l.key) || !inScope(l, businessUnitId)) continue;
-      const r = mk(l, false);
-      rows.push(r);
-      rowByKey.set(r.key, r);
-    }
-
-    const scan = scanLedger(asOf, priorDate, businessUnitId);
-    const flaggedKeys = new Set(rows.filter((r) => r.flagged && r.isOpen).map((r) => r.key));
-    const heatmap = buildHeatmap(rows.filter((r) => r.isOpen).map((r) => r.item), flaggedKeys, asOf);
-
-    const byGl = new Map<string, ItemRow[]>();
-    for (const r of rows) {
-      const list = byGl.get(r.item.gl);
-      if (list) list.push(r);
-      else byGl.set(r.item.gl, [r]);
-    }
-    const accounts: AccountRow[] = [];
-    for (const s of scan.accounts.values()) {
-      if (!isReviewable(s)) continue;
-      const glRows = byGl.get(s.gl.gl) ?? [];
-      const flagged = glRows.filter((r) => r.flagged);
-      const signOff = signOffs[`${s.gl.gl}|${asOf}`];
-      const hasCommentary = !!signOff?.commentary?.trim();
-      const rd = readiness(flagged.map((r) => r.item), (k) => !!isDocumented(rowByKey.get(k)!), hasCommentary);
-      const hasActivity = hasCommentary || glRows.some((r) => r.decision || r.followUp);
-      accounts.push({
-        summary: s,
-        flaggedCount: flagged.length,
-        flaggedValue: flagged.reduce((t, r) => t + Math.abs(r.item.amount), 0),
-        signOff,
-        status: accountStatus(signOff, rd.ready, hasActivity),
-        readiness: rd,
-        hasCommentary,
-      });
-    }
-    accounts.sort((a, b) => a.summary.gl.gl.localeCompare(b.summary.gl.gl));
-    return { asOf, priorDate, businessUnitId, run, recs, rows, rowByKey, scan, heatmap, accounts, accountByGl: new Map(accounts.map((a) => [a.summary.gl.gl, a])) };
-  }, [run, recs, decisions, followUps, signOffs, businessUnitId, asOf]);
+  return useMemo(
+    () => buildReview({ run, recs, decisions, followUps, signOffs, businessUnitId, asOf }),
+    [run, recs, decisions, followUps, signOffs, businessUnitId, asOf]
+  );
 }
 
 /** Events that concern an item: its own and those of bulk actions covering it. */

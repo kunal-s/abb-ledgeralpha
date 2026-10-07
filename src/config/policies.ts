@@ -58,6 +58,18 @@ export const CASH_APP_POLICY = {
   proposeFrom: 0.6,
 } as const;
 
+/**
+ * Journal review policy: what the journal reviewer flags on manual journals.
+ * Hours are the hour of entry (24-hour clock).
+ */
+export const JOURNAL_REVIEW_POLICY = {
+  round: { minAmount: 1_00_000, roundTo: 1_00_000 },
+  afterHours: { lateHour: 22, earlyHour: 6 },
+  /** an account pair used this few times in the whole ledger is unusual, above this amount */
+  unusualPair: { maxSeen: 2, minAmount: 5_00_000 },
+  dormantDays: 180,
+} as const;
+
 /** Items at or above this need a written justification before a decision is proposed. */
 export const MATERIALITY_POLICY = {
   documentedActionAmount: 1_00_000,

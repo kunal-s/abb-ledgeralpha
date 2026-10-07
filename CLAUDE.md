@@ -124,6 +124,24 @@ workspace (currently set up for an ABB India workshop, week of 12-Oct-2026).
   and the customer statements resolve an invoice by its reference.
 - Tests run one file at a time (`vite.config.ts`): every file generates the whole world.
 
+## Journals and Audit Readiness (I6)
+- Journals are grouped from the universal journal (`journalDocs`, `src/engine/journalReview.ts`), keyed
+  `${fiscalYear}-${docNo}` (never a line key). The five checks JNL-01 to JNL-05 are deterministic, apply to
+  manual journals only, and read their thresholds from `JOURNAL_REVIEW_POLICY`; a flag is a reason to look,
+  not a verdict. Read journals through `useJournals()` (`src/state/journalHooks.ts`).
+- The reviewer's conclusion is `reviewJournal` (accept, or request support, which also raises a follow-up to the
+  preparer); the reviewer must differ from the person who entered the journal (`userId` against `enteredBy`).
+  Journals > Proposed lists every decision that makes an entry (`buildProposal`), whichever module raised it,
+  and reuses `DecisionQueue`.
+- Audit Readiness: the request list is `src/data/workspace/pbc.ts`; a request with a `link` takes its progress
+  from sign-offs (`src/engine/audit.ts`) and cannot be provided until that work is signed off. Schedules are
+  assembled by `buildSchedule` (`src/state/auditHooks.ts`) from the review model and the reconciliation rows,
+  laid out by `src/engine/schedule.ts` (Appendix D) and written by the dependency-free `src/lib/xlsx.ts`.
+  Do not build a figure for a schedule anywhere else: it must be the figure the review shows.
+- The review model and the reconciliation rows are pure functions (`buildReview`, `buildRecRows`) so engine
+  tests can build the same models the pages read; the hooks only memoise them.
+- Status words live in `src/lib/status.ts` (the chip and the exports use the same labels).
+
 ## Harvesting
 Design system and components come from LedgerAlpha (`/app/app-ledger-alpha`); matching-engine ideas may
 come from Recon-Alpha (`/app/app-recon-alpha`). **Copy, never import across repos, never modify either

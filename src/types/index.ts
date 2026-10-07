@@ -362,6 +362,48 @@ export interface FollowUp {
   response?: { text: string; at: string; by: string };
 }
 
+/** A reviewer's conclusion on a flagged journal. */
+export interface JournalReview {
+  /** `${fiscalYear}-${docNo}` */
+  docKey: string;
+  outcome: "accepted" | "support-requested";
+  note: string;
+  personId: string;
+  at: string;
+}
+
+export type PbcStatus = "open" | "in-preparation" | "provided" | "closed";
+
+/** What a request is waiting on in the platform, so its progress is computed rather than typed in. */
+export type PbcLink =
+  | { kind: "accounts"; categories: AccountCategory[] }
+  | { kind: "recs"; types: ReconType[] }
+  | { kind: "journals" };
+
+/** A document or schedule the auditor has asked for (prepared by client). */
+export interface PbcRequest {
+  id: string;
+  title: string;
+  area: string;
+  requestedOn: IsoDate;
+  due: IsoDate;
+  ownerId: string;
+  link?: PbcLink;
+  /** status at the start of the session */
+  seedStatus: PbcStatus;
+  seedEvidence?: string;
+}
+
+/** The session's changes to a request. */
+export interface PbcWork {
+  status?: PbcStatus;
+  ownerId?: string;
+  evidence?: string;
+  note?: string;
+  by?: string;
+  at?: string;
+}
+
 export interface AccountSignOff {
   gl: string;
   periodEnd: IsoDate;

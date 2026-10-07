@@ -7,13 +7,16 @@
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import type {
-  AccountSignOff, ActionKind, ActivityEvent, ConfirmationStatus, Decision, FollowUp, IsoDate, JournalSpec, Person, ReconItem, Recommendation, RoleId, RuleHit,
+  AccountSignOff, ActionKind, ActivityEvent, ConfirmationStatus, Decision, FollowUp, IsoDate, JournalReview, JournalSpec, PbcRequest, PbcWork, Person, ReconItem, Recommendation, RoleId, RuleHit,
 } from "@/types";
-import { GL_BY_ID, LINE_BY_KEY, REC_BY_ID, WORLD, customerStatementLines } from "@/data";
+import { GL_BY_ID, LINES_BY_DOC, LINE_BY_KEY, PERSON_BY_ID, REC_BY_ID, WORLD, customerStatementLines } from "@/data";
+import { PBC_REQUESTS } from "@/data/workspace/pbc";
+import { docByKey, draftJournalFollowUp, flagsFor } from "@/engine/journalReview";
 import { useRoleStore, usePeriodStore } from "@/lib/stores";
 import { ROLES, can, type Permission } from "@/config/roles";
 import { CASH_APP_POLICY, MATERIALITY_POLICY, bandFor } from "@/config/policies";
 import { fmtINR } from "@/lib/format";
+import { addDays, fmtDate } from "@/lib/dates";
 import { effectiveRules, runRules, type RuleOverride, type RuleOverrides } from "@/engine/run";
 import { diagnoseCustomer } from "@/engine/diagnose";
 import { receiptByKey, unappliedFor } from "@/engine/cashappData";
@@ -21,7 +24,7 @@ import { applicationJournal } from "@/engine/cashapp";
 import { computeMatches, type CashAppWork } from "@/state/cashAppModel";
 import { RECON_CLASSES, reconClass } from "@/engine/recClasses";
 import { documentedItems, effectiveRec, isRecItemKey, parseRecItemKey, recItemKey, signOffBlockers, type RecWork } from "@/engine/recs";
-import { SEEDED_RULE_OVERRIDES, seededSignOffs } from "@/data/workspace/activity";
+import { SEEDED_RULE_OVERRIDES, seededJournalReviews, seededSignOffs } from "@/data/workspace/activity";
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -62,6 +65,13 @@ export interface FollowUpInput {
   message: string;
 }
 
+export interface RaiseRequestInput {
+  title: string;
+  area: string;
+  due: IsoDate;
+  ownerId: string;
+}
+
 interface WorkflowData {
   ruleOverrides: RuleOverrides;
   decisions: Record<string, Decision>;
@@ -72,6 +82,12 @@ interface WorkflowData {
   recs: Record<string, RecWork>;
   /** receipts parked or with a rejected match, by receipt line key */
   cashApp: Record<string, CashAppWork>;
+  /** the reviewer's conclusion on a flagged journal, by journal key */
+  journalReviews: Record<string, JournalReview>;
+  /** the session's changes to the auditor's requests, by request id */
+  pbc: Record<string, PbcWork>;
+  /** requests raised in the session, after those of the auditor's list */
+  pbcRaised: PbcRequest[];
   events: ActivityEvent[];
   seq: number;
 }
@@ -97,6 +113,23 @@ interface WorkflowActions {
   setCommentary: (ref: string, periodEnd: IsoDate, text: string, edited: boolean) => Result;
   signOff: (ref: string, periodEnd: IsoDate, as: "preparer" | "reviewer") => Result;
   reopen: (ref: string, periodEnd: IsoDate, reason: string) => Result;
+
+  // journals
+  /** Conclude on a flagged journal. Asking for support also raises a follow-up to the person who entered it. */
+  reviewJournal: (docKey: string, outcome: JournalReview["outcome"], note: string) => Result;
+  reopenJournalReview: (docKey: string, reason: string) => Result;
+
+  // audit readiness
+  /** The auditor asks for something, or the team logs what it was asked. */
+  raiseRequest: (input: RaiseRequestInput) => Result<{ id: string }>;
+  startRequest: (id: string) => Result;
+  /** `progress` is the work the request waits on, as the screen read it; an incomplete one blocks. */
+  provideRequest: (id: string, evidence: string, note: string, progress?: { done: number; total: number }) => Result;
+  closeRequest: (id: string) => Result;
+  reopenRequest: (id: string, reason: string) => Result;
+  assignRequest: (id: string, personId: string) => Result;
+  /** Record that schedules or an index were exported. */
+  recordExport: (what: string, details: Record<string, string | number>) => void;
 
   // cash application
   /** Propose applying a receipt to the invoices the matcher found (or another proposal, by invoice-set signature). */
@@ -128,6 +161,9 @@ const INITIAL: WorkflowData = {
   signOffs: seededSignOffs(),
   recs: {},
   cashApp: {},
+  journalReviews: seededJournalReviews(),
+  pbc: {},
+  pbcRaised: [],
   events: [],
   seq: 0,
 };
@@ -164,9 +200,10 @@ const ownerOfItem = (itemKey: string) => {
   return line ? GL_BY_ID.get(line.gl)?.ownerId : undefined;
 };
 
-/** The thing an activity event is about: a ledger line, or a reconciling item. */
+/** The thing an activity event is about: a ledger line, a reconciling item or a journal. */
 function objectOfItem(itemKey: string): ActivityEvent["object"] {
   const p = parseRecItemKey(itemKey);
+  if (!p && LINES_BY_DOC.has(itemKey)) return { type: "journal", id: itemKey, label: itemKey.split("-").slice(1).join("-") };
   if (!p) return { type: "item", id: itemKey };
   return { type: "reconciling-item", id: itemKey, label: REC_BY_ID.get(p.recId)?.name };
 }
@@ -192,6 +229,9 @@ function denied(permission: Permission, role: RoleId): string {
     "sign-reviewer": "sign off as reviewer",
     "edit-rules": "change rules",
     export: "export journal proposals",
+    "pbc-provide": "provide auditor requests",
+    "pbc-manage": "assign or close auditor requests",
+    "pbc-raise": "raise auditor requests",
   };
   return `${ROLES[role].label} cannot ${verbs[permission]}`;
 }
@@ -253,6 +293,9 @@ export const useWorkflow = create<WorkflowState>()(
       };
       const personEvent = (person: Person, e: Omit<ActivityEvent, "id" | "at" | "actorId" | "actorKind">) =>
         log({ ...e, actorId: person.id, actorKind: "Person" });
+
+      /** A request of the auditor's list, or one raised in this session. */
+      const requestOf = (id: string): PbcRequest | undefined => PBC_REQUESTS.find((r) => r.id === id) ?? get().pbcRaised.find((r) => r.id === id);
 
       const nextId = (prefix: string) => {
         const seq = get().seq + 1;
@@ -647,6 +690,149 @@ export const useWorkflow = create<WorkflowState>()(
         },
 
         // -------------------------------------------------------------------
+        // journals
+        // -------------------------------------------------------------------
+        reviewJournal: (docKey, outcome, note) => {
+          const { role, person } = actor();
+          if (!can(role, "sign-reviewer")) return fail(denied("sign-reviewer", role));
+          const doc = docByKey(docKey);
+          if (!doc) return fail("Journal not found");
+          if (!doc.manual) return fail("Only manual journals are reviewed");
+          if (person.userId === doc.enteredBy) return fail("The reviewer must be a different person from the one who entered the journal");
+          const cur = get().journalReviews[docKey];
+          if (cur?.outcome === "accepted") return fail("The journal is already accepted; reopen the review to change it");
+          if (cur && outcome === "support-requested") return fail("Support has already been requested");
+          if (!note.trim()) return fail(outcome === "accepted" ? "Note why the journal is accepted" : "Say what support is needed");
+          const at = nowLocal();
+          const review: JournalReview = { docKey, outcome, note: note.trim(), personId: person.id, at };
+          const flags = flagsFor(doc, WORLD.asOf);
+          if (outcome === "support-requested") {
+            const preparer = WORLD.people.find((p) => p.userId === doc.enteredBy);
+            const draft = draftJournalFollowUp(doc, flags, preparer?.name ?? doc.enteredBy);
+            const id = nextId("FUP");
+            const fu: FollowUp = { id, itemKey: docKey, module: "journals", owner: draft.owner, dueDate: addDays(at.slice(0, 10), 5), message: `${draft.message} ${note.trim()}`, createdBy: person.id, createdAt: at, status: "open" };
+            set((s) => ({ journalReviews: { ...s.journalReviews, [docKey]: review }, followUps: { ...s.followUps, [id]: fu } }));
+          } else {
+            set((s) => ({ journalReviews: { ...s.journalReviews, [docKey]: review } }));
+          }
+          personEvent(person, {
+            module: "journals", object: objectOfItem(docKey), itemKeys: doc.lines.map((l) => l.key),
+            action: outcome === "accepted" ? "Journal accepted" : "Support requested for a journal",
+            before: cur ? "Support requested" : "Flagged", after: outcome === "accepted" ? "Accepted" : "Support requested", reason: note.trim(),
+            details: { journal: doc.docNo, amount: doc.amount, flags: flags.map((f) => f.checkId).join(", ") || "none" },
+          });
+          return { ok: true };
+        },
+
+        reopenJournalReview: (docKey, reason) => {
+          const { role, person } = actor();
+          if (!can(role, "sign-reviewer")) return fail(denied("sign-reviewer", role));
+          const cur = get().journalReviews[docKey];
+          if (!cur) return fail("There is no conclusion to reopen");
+          if (!reason.trim()) return fail("A reason is required to reopen");
+          set((s) => {
+            const next = { ...s.journalReviews };
+            delete next[docKey];
+            return { journalReviews: next };
+          });
+          personEvent(person, { module: "journals", object: objectOfItem(docKey), action: "Journal review reopened", before: cur.outcome === "accepted" ? "Accepted" : "Support requested", after: "Flagged", reason: reason.trim() });
+          return { ok: true };
+        },
+
+        // -------------------------------------------------------------------
+        // audit readiness
+        // -------------------------------------------------------------------
+        raiseRequest: (input) => {
+          const { role, person } = actor();
+          if (!can(role, "pbc-raise")) return fail(denied("pbc-raise", role));
+          const title = input.title.trim();
+          if (!title) return fail("Describe what is asked for");
+          const owner = PERSON_BY_ID.get(input.ownerId);
+          if (!owner || owner.roleId === "external-auditor") return fail("Choose a person from the finance team to own the request");
+          const today = nowLocal().slice(0, 10);
+          if (input.due < today) return fail("The due date cannot be in the past");
+          const id = `PBC-${String(PBC_REQUESTS.length + get().pbcRaised.length + 1).padStart(3, "0")}`;
+          const req: PbcRequest = { id, title, area: input.area, requestedOn: today, due: input.due, ownerId: owner.id, seedStatus: "open" };
+          set((s) => ({ pbcRaised: [...s.pbcRaised, req] }));
+          personEvent(person, { module: "audit-readiness", object: { type: "pbc-request", id, label: title }, action: "Request raised", after: `Due ${fmtDate(input.due)}, owned by ${owner.name}`, details: { area: input.area } });
+          return { ok: true, id };
+        },
+
+        startRequest: (id) => {
+          const req = requestOf(id);
+          if (!req) return fail("Request not found");
+          const cur = get().pbc[id];
+          const { role, person } = actor(cur?.ownerId ?? req.ownerId);
+          if (!can(role, "pbc-provide")) return fail(denied("pbc-provide", role));
+          if ((cur?.status ?? req.seedStatus) !== "open") return fail("The request is already in preparation");
+          set((s) => ({ pbc: { ...s.pbc, [id]: { ...cur, status: "in-preparation", by: person.id, at: nowLocal() } } }));
+          personEvent(person, { module: "audit-readiness", object: { type: "pbc-request", id, label: req.title }, action: "Request started", before: "Open", after: "In preparation" });
+          return { ok: true };
+        },
+
+        provideRequest: (id, evidence, note, progress) => {
+          const req = requestOf(id);
+          if (!req) return fail("Request not found");
+          const cur = get().pbc[id];
+          const { role, person } = actor(cur?.ownerId ?? req.ownerId);
+          if (!can(role, "pbc-provide")) return fail(denied("pbc-provide", role));
+          const status = cur?.status ?? req.seedStatus;
+          if (status === "provided" || status === "closed") return fail("The request has already been provided");
+          if (progress && progress.total > 0 && progress.done < progress.total) return fail(`The work behind this request is not complete: ${progress.done} of ${progress.total} signed off`);
+          if (!evidence.trim()) return fail("Say what was provided and where it is filed");
+          set((s) => ({ pbc: { ...s.pbc, [id]: { ...cur, status: "provided", evidence: evidence.trim(), note: note.trim() || undefined, by: person.id, at: nowLocal() } } }));
+          personEvent(person, { module: "audit-readiness", object: { type: "pbc-request", id, label: req.title }, action: "Request provided", before: status === "open" ? "Open" : "In preparation", after: "Provided", reason: note.trim() || undefined, details: { evidence: evidence.trim() } });
+          return { ok: true };
+        },
+
+        closeRequest: (id) => {
+          const req = requestOf(id);
+          if (!req) return fail("Request not found");
+          const { role, person } = actor();
+          if (!can(role, "pbc-manage")) return fail(denied("pbc-manage", role));
+          const cur = get().pbc[id];
+          if ((cur?.status ?? req.seedStatus) !== "provided") return fail("Only a provided request can be closed");
+          set((s) => ({ pbc: { ...s.pbc, [id]: { ...cur, status: "closed", by: person.id, at: nowLocal() } } }));
+          personEvent(person, { module: "audit-readiness", object: { type: "pbc-request", id, label: req.title }, action: "Request closed", before: "Provided", after: "Closed" });
+          return { ok: true };
+        },
+
+        reopenRequest: (id, reason) => {
+          const req = requestOf(id);
+          if (!req) return fail("Request not found");
+          const { role, person } = actor();
+          if (!can(role, "pbc-manage")) return fail(denied("pbc-manage", role));
+          const cur = get().pbc[id];
+          const status = cur?.status ?? req.seedStatus;
+          if (status !== "provided" && status !== "closed") return fail("Only a provided or closed request can be reopened");
+          if (!reason.trim()) return fail("A reason is required to reopen");
+          set((s) => ({ pbc: { ...s.pbc, [id]: { ...cur, status: "in-preparation", evidence: undefined, by: person.id, at: nowLocal() } } }));
+          personEvent(person, { module: "audit-readiness", object: { type: "pbc-request", id, label: req.title }, action: "Request reopened", before: status === "closed" ? "Closed" : "Provided", after: "In preparation", reason: reason.trim() });
+          return { ok: true };
+        },
+
+        assignRequest: (id, personId) => {
+          const req = requestOf(id);
+          if (!req) return fail("Request not found");
+          const { role, person } = actor();
+          if (!can(role, "pbc-manage")) return fail(denied("pbc-manage", role));
+          const to = PERSON_BY_ID.get(personId);
+          if (!to || to.roleId === "external-auditor") return fail("Choose a person from the finance team");
+          const cur = get().pbc[id];
+          if ((cur?.status ?? req.seedStatus) === "closed") return fail("The request is closed");
+          const from = PERSON_BY_ID.get(cur?.ownerId ?? req.ownerId);
+          if (from?.id === to.id) return fail(`${to.name} already owns this request`);
+          set((s) => ({ pbc: { ...s.pbc, [id]: { ...cur, ownerId: to.id } } }));
+          personEvent(person, { module: "audit-readiness", object: { type: "pbc-request", id, label: req.title }, action: "Request reassigned", before: from?.name, after: to.name });
+          return { ok: true };
+        },
+
+        recordExport: (what, details) => {
+          const { person } = actor();
+          personEvent(person, { module: "audit-readiness", object: { type: "export", id: what }, action: `${what} exported`, details });
+        },
+
+        // -------------------------------------------------------------------
         // cash application
         // -------------------------------------------------------------------
         confirmMatch: (receiptKey, signature) => {
@@ -851,7 +1037,7 @@ export const useWorkflow = create<WorkflowState>()(
     },
     {
       name: "ledgeralpha-workflow",
-      version: 4,
+      version: 5,
       storage: createJSONStorage(() => safeStorage),
       partialize: (s) => ({
         ruleOverrides: s.ruleOverrides,
@@ -860,6 +1046,9 @@ export const useWorkflow = create<WorkflowState>()(
         signOffs: s.signOffs,
         recs: s.recs,
         cashApp: s.cashApp,
+        journalReviews: s.journalReviews,
+        pbc: s.pbc,
+        pbcRaised: s.pbcRaised,
         events: s.events,
         seq: s.seq,
       }),

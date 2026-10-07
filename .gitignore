@@ -12,7 +12,7 @@ dist
 dist-ssr
 *.local
 
-# Masked client data — never committed (FRD FR-DAT-07)
+# Masked client data: never committed (FRD FR-DAT-07)
 data/private/
 
 # Editor directories and files

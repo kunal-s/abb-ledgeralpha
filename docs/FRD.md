@@ -368,6 +368,19 @@ Each module states its purpose, what it shows, what users can do, the agents and
 - **Actions:** export the proposal batch (Excel / CSV, Appendix C); mark as posted (simulated, labelled).
 - **Agent:** Journal reviewer.
 - **FR-JNL-01 (M):** export includes source item keys and approval references; the footer states "Proposal - post in ERP after review".
+- **FR-JNL-02 (M):** the five checks are deterministic, apply to manual journals only and take their thresholds from `JOURNAL_REVIEW_POLICY`. A flag is a reason to look, not a verdict.
+
+  | Check | Flags | Severity |
+  |---|---|---|
+  | JNL-01 Round amount | an exact multiple of ₹1 lakh, ₹1 lakh or more; a reversal is reviewed with the journal it reverses | Medium |
+  | JNL-02 Entered outside working hours | entered at or after 22:00 or before 06:00 | High |
+  | JNL-03 Entered after the period end | posted inside the review period, entered after it ended | Low |
+  | JNL-04 Unusual account pair | a debit and credit pair used twice or fewer in the whole ledger, ₹5 lakh or more | Medium |
+  | JNL-05 Posting to a dormant account | the first posting on the account for more than 180 days | Low |
+- **FR-JNL-03 (M):** a flagged journal is concluded by a reviewer (controller or head of finance) who is not the person who entered it: accept with a note, or request support, which raises a follow-up to the preparer. A concluded journal can be reopened with a reason. The reviewer's run is in the activity log with the counts it checked and flagged.
+- **FR-JNL-04 (M):** the provisions roll-forward (opening, provided, utilised, reversed, closing) closes at the trial balance for every account, and the reversal calendar lists each month-end accrual with no reversal yet and the date it is due.
+- **Built in I6:** Overview (KPIs, flagged journals by check and status, journals needing review, manual journals by preparer), Proposed (the outbox: the entries proposed by every module, approval, tax review, export batches with their files), Review (flagged journals, filters, export), Register (every journal, manual and system), Accruals (provisions roll-forward and reversal calendar) and the journal page (why it was flagged, the entry, the review, the support asked for, who entered it, activity).
+- **Not built:** the "preparer = approver" flag. The ledger extract carries no approver for a journal; the review itself enforces that the reviewer is not the preparer.
 
 ### 6.5 Intercompany · `/intercompany` · Overview
 - **Purpose:** group-company balances and related-party visibility.
@@ -601,6 +614,10 @@ Each module states its purpose, what it shows, what users can do, the agents and
   - Evidence room: decisions, sign-offs, recs, support references.
 - **Actions:** generate and export schedules (Excel workbook: summary + one sheet per account); assign and close PBC requests; External Auditor role sees everything read-only.
 - **FR-AUD-01 (M):** schedule figures tie exactly to BSR and Reconciliations for the same period.
+- **FR-AUD-02 (M):** a request that depends on work in the platform shows its progress from sign-offs (accounts and reconciliations signed by the reviewer, flagged journals accepted) and cannot be marked as provided until that work is complete. A request prepared outside the platform (a letter, an actuarial report) is tracked by status and a note of what was provided and where it is filed.
+- **FR-AUD-03 (M):** the external auditor reads, exports and raises requests; it cannot prepare, provide, assign or close one. The controller, the head of finance and the controls lead can also log a request the auditor made outside the platform. Assigning, closing and reopening need those same three roles; reopening needs a reason.
+- **FR-AUD-04 (M):** a schedule not signed off by the reviewer is a draft, and the workbook says so. Every export is recorded in the activity log.
+- **Built in I6:** Overview (KPIs, requests by area and status, requests needing attention, requests by owner), Requests (tracker with filters, progress against the work behind each request, raising a request, and a panel to start, provide, close, reopen and assign), Schedules (every reviewable account with its readiness and what stands in the way, preview of the sheet, one workbook with a summary and a sheet per account), Evidence (sign-offs, decisions, accepted journals and requests answered, with an export).
 
 ### 6.18 Controls · `/controls` · Overview
 - **Purpose:** internal financial controls over R2R.
@@ -780,6 +797,7 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 **Planting:**
 - **In the I1 dataset, each asserted by a scenario test** (`src/data/world.test.ts`): S-01 to S-16, the ledger side of S-18, S-20, S-21 and S-24.
 - **Added with their modules:** S-22 (I8) and S-23 (I9).
+- **Added in I6 (Journals), asserted in `src/engine/journalReview.test.ts`:** the journal reviewer's flags on S-12 (round amount, entered at 11:42 PM), S-14 (first posting on the account in 14 months) and S-15 (the unusual account pair); the demo starts with these three journals open and part of the other flagged journals accepted.
 - **Added in I5 (Cash Application and TDS), asserted in `src/engine/cashapp.test.ts`:** the two invoices of S-11 and the customer's history, and S-17 (the customer's history of 1% deductions, two other open invoices, and the receipt with no remittance advice; L3 match, confidence 0.70).
 - **Added in I4 (Reconciliations), asserted in `src/engine/recs.test.ts`:** S-19 and S-25 in the ledger, and the customer's reply for S-18 (received, not yet applied: applying it makes the reconciler find the four items).
 
@@ -934,6 +952,13 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | D-30 | The matcher infers only the deductions in policy (FR-CAP-03) and always shows the arithmetic. What it cannot explain stays open as a short payment; it does not guess, and below 0.60 it proposes nothing | Agreed (I5) |
 | D-31 | A reconciling item can be explained by a receipt waiting in clearing; the application decision in Cash Application is the documentation sign-off needs, so the two modules never ask for the same thing twice | Agreed (I5) |
 | D-32 | Tests run one file at a time: each file generates the whole demo world, so parallel files measure machine load rather than the code | Agreed (I5) |
+| D-33 | A journal is addressed by its document key (`fiscalYear-docNo`), not by a line key. The journal checks take their thresholds from policy configuration and are not yet in Rules & Policies (parked item P-01 moves them there with a JNL- prefix) | Agreed (I6) |
+| D-34 | Journals > Proposed is the one outbox: every decision that makes an entry appears there, whichever module raised it, with the module named. Decisions that make no entry (follow up, retain) never appear | Agreed (I6) |
+| D-35 | Audit Readiness covers the whole company for the loaded period; any other scope or period shows a prompt to switch, as Reconciliations does (D-27) | Agreed (I6) |
+| D-36 | Schedules are assembled from the same models the screens read (the review's accounts and the reconciliation rows), so every figure ties by construction; the tests assert the tie to the trial balance for every account | Agreed (I6) |
+| D-37 | A request that depends on platform work is blocked from "provided" until that work is signed off; the screen passes the progress it read and the action checks it | Agreed (I6) |
+| D-38 | The workbook is written by a small dependency-free writer (`src/lib/xlsx.ts`) rather than a spreadsheet library; its output was opened in a reader to confirm it is a valid workbook | Agreed (I6) |
+| D-39 | In the demo's starting state an account that has a reconciliation is not signed ahead of it (found when the schedules showed a signed bank account over an unreconciled statement) | Agreed (I6) |
 
 ## 13. Build plan
 
@@ -947,7 +972,7 @@ One increment per prompt, each ending with §10.6.
 | **I3** | Balance Sheet Review: Overview, Accounts, Account detail, Exceptions, Decisions; the item drawer; bulk follow-up, propose and approve; journal proposal export; commentary and sign-off | ✔ **Deep** |
 | **I4** | Reconciliations: all types; bank statement view; customer statement + confirmation | ✔ **Deep** |
 | **I5** | Cash Application (matcher with deduction inference) and TDS | ✔ Working |
-| **I6** | Journals (proposals outbox, review, accruals) and Audit Readiness (schedules, PBC, evidence) | Working |
+| **I6** | Journals (proposals outbox, review, accruals) and Audit Readiness (schedules, PBC, evidence) | ✔ Working |
 | **I7** | Home, My Work, Close Cockpit | Working |
 | **I8** | Working Capital, Variance Analysis; Management Reporting and Financial Statements | Working / Overview |
 | **I9** | Bank Guarantees (working); FX Exposure, GST, Intercompany, Controls (overview) | Working / Overview |

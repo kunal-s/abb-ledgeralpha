@@ -24,9 +24,14 @@ export type Permission =
   | "sign-preparer"
   | "sign-reviewer"
   | "edit-rules"
-  | "export";
+  | "export"
+  | "pbc-provide" // prepare and provide what an auditor request asks for
+  | "pbc-manage" // assign, close and reopen auditor requests
+  | "pbc-raise"; // log a new request: the auditor asks, the team records what it was asked
 
 const PREPARERS: RoleId[] = ["gl-accountant", "ar-specialist", "treasury-analyst", "tax-specialist"];
+/** everyone inside the company; the external auditor reads and asks, and does not prepare */
+const INTERNAL: RoleId[] = ["cfo", "head-of-finance", "controller", ...PREPARERS, "reporting-analyst", "controls-lead"];
 
 const GRANTS: Record<Permission, RoleId[]> = {
   propose: PREPARERS,
@@ -36,6 +41,9 @@ const GRANTS: Record<Permission, RoleId[]> = {
   "sign-reviewer": ["controller", "head-of-finance"],
   "edit-rules": ["controller", "head-of-finance"],
   export: ["gl-accountant", "controller"],
+  "pbc-provide": INTERNAL,
+  "pbc-manage": ["controller", "head-of-finance", "controls-lead"],
+  "pbc-raise": ["external-auditor", "controller", "head-of-finance", "controls-lead"],
 };
 
 export function can(role: RoleId, permission: Permission): boolean {
