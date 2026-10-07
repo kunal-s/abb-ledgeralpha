@@ -2,7 +2,8 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { LineItem } from "@/types";
 import { GL_BY_ID, LINE_BY_KEY } from "@/data";
 import { ageOf, bucketOf } from "@/engine/review";
-import { useComputeReview, type ItemRow, type Review } from "@/state/hooks";
+import { buildReview, useComputeReview, useDecisionsByItem, useFollowUpsByItem, type ItemRow, type Review } from "@/state/hooks";
+import { useWorkflow } from "@/state/workflow";
 
 const ReviewCtx = createContext<Review | null>(null);
 
@@ -16,6 +17,18 @@ export function useReview(): Review {
   const r = useContext(ReviewCtx);
   if (!r) throw new Error("useReview must be used inside ReviewProvider");
   return r;
+}
+
+/** The review for the whole company, whatever business unit the top bar is scoped to (close, home, my work). */
+export function useCompanyReview(): Review {
+  const scoped = useReview();
+  const decisions = useDecisionsByItem();
+  const followUps = useFollowUpsByItem();
+  const signOffs = useWorkflow((s) => s.signOffs);
+  return useMemo(
+    () => (scoped.businessUnitId === "all" ? scoped : buildReview({ run: scoped.run, recs: scoped.recs, decisions, followUps, signOffs, businessUnitId: "all", asOf: scoped.asOf })),
+    [scoped, decisions, followUps, signOffs]
+  );
 }
 
 /** The row for any line: the review's own, or a plain within-policy row. */

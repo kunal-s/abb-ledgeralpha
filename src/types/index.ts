@@ -404,6 +404,46 @@ export interface PbcWork {
   at?: string;
 }
 
+/** What a close task waits on in the platform, so its status is derived from the record rather than typed in. */
+export type CloseLink =
+  | { kind: "accounts"; categories: AccountCategory[] }
+  | { kind: "recs"; types: ReconType[] }
+  | { kind: "flagged-documented" }
+  | { kind: "journals-reviewed" }
+  | { kind: "proposals-exported" }
+  | { kind: "receipts-handled" }
+  | { kind: "postings"; docType: string }
+  | { kind: "accruals-posted" }
+  | { kind: "pbc"; ids?: string[] }
+  | { kind: "manual" };
+
+export interface ClosePhaseDef {
+  id: string;
+  name: string;
+  /** only in a quarter-end close */
+  quarterOnly?: boolean;
+}
+
+/** A task of the close plan: when it is planned, who owns it, what it follows and what it depends on. */
+export interface CloseTaskDef {
+  id: string;
+  phase: string;
+  name: string;
+  ownerId: string;
+  /** working days from the period end: negative before it, positive after it */
+  startWd: number;
+  dueWd: number;
+  after: string[];
+  link: CloseLink;
+}
+
+/** The session's changes to a close task. */
+export interface CloseTaskWork {
+  ownerId?: string;
+  completed?: { personId: string; at: string; evidence: string };
+  blocker?: { personId: string; at: string; reason: string };
+}
+
 export interface AccountSignOff {
   gl: string;
   periodEnd: IsoDate;

@@ -33,28 +33,38 @@ export interface JournalsModel {
   manual: number;
 }
 
-export function useJournals(): JournalsModel {
+const flagCache = new Map<string, { docs: JournalDoc[]; flags: Map<string, JournalFlag[]> }>();
+
+/** The journals of a period as a pure function of the reviews and follow-ups; `useJournals` memoises it, tests call it directly. */
+export function buildJournals(asOf: IsoDate, businessUnitId: string, reviews: Record<string, JournalReview>, followUps: Map<string, FollowUp>): JournalsModel {
+  const from = previousQuarterEnd(asOf);
+  // the checks depend on the ledger alone, so they run once per period and scope
+  const k = `${asOf}|${businessUnitId}`;
+  let cached = flagCache.get(k);
+  if (!cached) {
+    const docs = journalDocs(from, asOf).filter((d) => d.lines.some((l) => inScope(l, businessUnitId)));
+    cached = { docs, flags: reviewJournals(docs, asOf) };
+    flagCache.set(k, cached);
+  }
+  const { docs, flags: flagged } = cached;
+  const rows = docs.map((doc): JournalRow => {
+    const flags = flagged.get(doc.key) ?? [];
+    const review = reviews[doc.key];
+    const followUp = followUps.get(doc.key);
+    const status: JournalStatus = !doc.manual ? "system" : flags.length === 0 ? "within-policy" : review ? review.outcome : "flagged";
+    return { doc, flags, severity: flags.length ? severityOf(flags) : undefined, review, followUp, status };
+  });
+  return { from, asOf, rows, byKey: new Map(rows.map((r) => [r.doc.key, r])), flagged: rows.filter((r) => r.flags.length > 0), manual: rows.filter((r) => r.doc.manual).length };
+}
+
+/** The journals of the period, in the top bar's business unit; the whole company when `company` is set. */
+export function useJournals(company = false): JournalsModel {
   const asOf = usePeriodStore((s) => s.periodEnd);
-  const businessUnitId = useScopeStore((s) => s.businessUnitId);
+  const scoped = useScopeStore((s) => s.businessUnitId);
+  const businessUnitId = company ? "all" : scoped;
   const reviews = useWorkflow((s) => s.journalReviews);
   const followUps = useFollowUpsByItem();
-
-  const base = useMemo(() => {
-    const from = previousQuarterEnd(asOf);
-    const docs = journalDocs(from, asOf).filter((d) => d.lines.some((l) => inScope(l, businessUnitId)));
-    return { from, docs, flags: reviewJournals(docs, asOf) };
-  }, [asOf, businessUnitId]);
-
-  return useMemo(() => {
-    const rows = base.docs.map((doc): JournalRow => {
-      const flags = base.flags.get(doc.key) ?? [];
-      const review = reviews[doc.key];
-      const followUp = followUps.get(doc.key);
-      const status: JournalStatus = !doc.manual ? "system" : flags.length === 0 ? "within-policy" : review ? review.outcome : "flagged";
-      return { doc, flags, severity: flags.length ? severityOf(flags) : undefined, review, followUp, status };
-    });
-    return { from: base.from, asOf, rows, byKey: new Map(rows.map((r) => [r.doc.key, r])), flagged: rows.filter((r) => r.flags.length > 0), manual: rows.filter((r) => r.doc.manual).length };
-  }, [base, reviews, followUps, asOf]);
+  return useMemo(() => buildJournals(asOf, businessUnitId, reviews, followUps), [asOf, businessUnitId, reviews, followUps]);
 }
 
 export function useJournalRow(key: string | undefined): JournalRow | undefined {

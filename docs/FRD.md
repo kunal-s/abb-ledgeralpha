@@ -340,12 +340,17 @@ Each module states its purpose, what it shows, what users can do, the agents and
   - Agent activity today.
 - **Actions:** drill only. Operators see their queue preview instead of the controller view.
 - **FR-HOM-01 (M):** every tile and cell drills to the filtered module view.
+- **FR-HOM-02 (M):** a cell is the work done over the work there is, judged against the close plan for that area at the working day being read: complete, on track (at least the share the plan expects, less a fifth), behind, or nothing to do. The same test applies to every cell, so cells compare. Home is company-wide whatever business unit the top bar is scoped to; a cell sets that scope and opens the module.
+- **FR-HOM-03 (S):** "Needs attention" ranks by kind first (a blocked close task, then late close tasks, reconciliations outside tolerance, high-severity journals and overdue auditor requests, then the largest items without an action, aged unmatched receipts and approvals waiting two days or more), and by value within a kind. At most three of a kind, at most eight in all.
+- **Built in I7:** three views by role. Leaders (CFO, head of finance, controller, controls lead) see the five KPIs, the business unit and area matrix, what needs attention and agent activity. Operators see their queue, the close calendar and agent activity. The external auditor sees the audit overview. The matrix covers the areas that exist: balance sheet review, reconciliations, journals, cash application and withholding tax; indirect tax and reporting join with their modules (I8, I9). Agent activity shows each agent's latest run and how many times it ran in the cycle.
 
 ### 6.2 My Work · `/my-work` · Working
 - **Purpose:** one queue per person across modules.
 - **Shows:** tasks, items to decide, recs to prepare or review, matches to confirm, approvals, follow-ups due, PBC requests. Filters: module, due, type.
 - **Actions:** open, complete, approve or reject (via §4.4), bulk assign / follow up.
 - **FR-MYW-01 (M):** bulk actions change state immediately; rows leave the queue.
+- **FR-MYW-02 (M):** the queue is the acting role's, built from the same state the modules read: approvals the band names the role for (never the proposer's own), tax reviews, sign-offs (as reviewer once the preparer has signed, never one's own; as preparer once the work is ready), reconciliations to prepare, matches to confirm (receivables), flagged journals to review, follow-ups raised by the role or asked of it, auditor requests and close tasks it owns, and decisions rejected back to it. Each row names the person it is with, and opens its record or the item drawer.
+- **Built in I7:** KPIs, the queue by type and due date, next up, and the queue with filters (type, module, due, owner, search) and in-place actions (approve, reject with a reason, clear tax review, sign off, confirm a match, close a follow-up). Bulk: approve, confirm matches, reassign close tasks and auditor requests.
 
 ### 6.3 Close Cockpit · `/close` · Working
 - **Purpose:** run the month-end and quarter-end close.
@@ -358,6 +363,11 @@ Each module states its purpose, what it shows, what users can do, the agents and
 - **Actions:** complete task (with evidence reference), reassign, flag blocker.
 - **Agent:** Close orchestrator.
 - **FR-CLS-01 (M):** task status derives from the linked record where one exists (e.g. a rec task completes when the rec is reviewer-signed).
+- **FR-CLS-02 (M):** the plan is 32 tasks in eight phases (the quarter-end phase only when the period closes a quarter), each with an owner, a planned window in working days and the tasks it follows. A task is complete when its record is done (accounts and reconciliations signed by the reviewer, flagged items documented, flagged journals accepted, proposals exported, receipts applied or parked, postings made, auditor requests provided) or, for work done outside the platform, when its owner completes it with a reference. A task whose record has nothing in it is complete once what it follows is complete.
+- **FR-CLS-03 (M):** the close orchestrator is deterministic. A task is late from the working day after its due day. It projects each unfinished task to finish after the days of work left (its planned length, less the share done) and never before a predecessor's projected finish plus the time the plan allows after that predecessor. The projected sign-off is the latest of these; the critical path is the chain of unfinished tasks that holds it up. Complete tasks are never on it.
+- **FR-CLS-04 (S):** the plan can be read at another working day (WD-2 to WD+8) to see what was or will be late; the page says so. Today is the session clock, kept within the calendar.
+- **FR-CLS-05 (M):** completing or reopening a task by hand, flagging or clearing a blocker, and reassigning are logged. The owner's role or a controller completes; reopening and reassigning need a controller or the head of finance; any internal role flags a blocker. A task tied to records cannot be completed by hand.
+- **Built in I7:** Overview (KPIs, the calendar with a bar per phase, the critical path, blockers and late tasks, progress by business unit and area) and Checklist (filters, export, and a panel per task with what it follows, its record, evidence, blocker, owner and activity). The calendar and the checklist are for the loaded period.
 
 ### 6.4 Journals · `/journals` · Working (proposals, review) / Overview (register, accruals)
 - **Purpose:** the journal register, journal review, and the single outbox for proposed journals.
@@ -668,6 +678,7 @@ Each module states its purpose, what it shows, what users can do, the agents and
 - **Two calendars:**
   - The company's fiscal year is workspace configuration: April–March reads "FY2026-27"; January–December reads "CY2026".
   - The **statutory tax year is April–March** and is used for withholding-tax quarters ("Q2 FY2026-27"), whatever the company's fiscal year.
+- **Working calendar:** the close plan counts working days from the period end (WD0), skipping weekends and the fixed-date national holidays (26 January, 15 August, 2 October, 25 December). Festival holidays move every year and belong in the workspace calendar, which the prototype does not hold; a close that crosses one reads one day early.
 
 ### 7.2 Taxes
 - **Indirect tax (GST):**
@@ -959,6 +970,12 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | D-37 | A request that depends on platform work is blocked from "provided" until that work is signed off; the screen passes the progress it read and the action checks it | Agreed (I6) |
 | D-38 | The workbook is written by a small dependency-free writer (`src/lib/xlsx.ts`) rather than a spreadsheet library; its output was opened in a reader to confirm it is a valid workbook | Agreed (I6) |
 | D-39 | In the demo's starting state an account that has a reconciliation is not signed ahead of it (found when the schedules showed a signed bank account over an unreconciled statement) | Agreed (I6) |
+| D-40 | The close plan is workspace data (phases, tasks, owners, working-day windows, dependencies in `src/data/workspace/close.ts`); the orchestrator and every screen read it. A task is derived from its record or completed by hand, never both | Agreed (I7) |
+| D-41 | Working days count from the period end over the localisation calendar (weekends and fixed-date national holidays); WD0 is the period end, or the working day before it when that is not one. The plan is evaluated for the loaded period, and a quarter-end period adds the quarter-end phase | Agreed (I7) |
+| D-42 | Home, My Work and the Close Cockpit are company-wide: they read the review for all business units whatever the top bar is scoped to, and a cell of the status matrix sets the scope when it opens a module | Agreed (I7) |
+| D-43 | A record belongs to a business unit by its profit centre; a counterparty to the unit most of its postings are in; a statement reconciliation to its counterparty's unit; any other reconciliation, and a journal with no line that has a unit, to corporate | Agreed (I7) |
+| D-44 | The queue in My Work is the role's, because the workflow lets any person with the role act. It never offers what the role cannot do: matches only for receivables, and no sign-off the acting person prepared | Agreed (I7) |
+| D-45 | A derived task with nothing to do does not finish ahead of what it follows: it completes only once its predecessors are complete. The projection never lets a task finish ahead of a predecessor | Agreed (I7) |
 
 ## 13. Build plan
 
@@ -973,7 +990,7 @@ One increment per prompt, each ending with §10.6.
 | **I4** | Reconciliations: all types; bank statement view; customer statement + confirmation | ✔ **Deep** |
 | **I5** | Cash Application (matcher with deduction inference) and TDS | ✔ Working |
 | **I6** | Journals (proposals outbox, review, accruals) and Audit Readiness (schedules, PBC, evidence) | ✔ Working |
-| **I7** | Home, My Work, Close Cockpit | Working |
+| **I7** | Home, My Work, Close Cockpit | ✔ Working |
 | **I8** | Working Capital, Variance Analysis; Management Reporting and Financial Statements | Working / Overview |
 | **I9** | Bank Guarantees (working); FX Exposure, GST, Intercompany, Controls (overview) | Working / Overview |
 | **I10** | Agents, Ask LedgerAlpha, Explain, global search | Working |

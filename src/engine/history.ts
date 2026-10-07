@@ -10,6 +10,9 @@ import { previousQuarterEnd } from "@/engine/context";
 import { effectiveRules, runRules, type RuleOverrides } from "@/engine/run";
 import { SEEDED_RULE_CHANGES, seededJournalReviews, seededSignOffs } from "@/data/workspace/activity";
 import { PBC_AUDITOR_ID, PBC_REQUESTS } from "@/data/workspace/pbc";
+import { CLOSE_PHASES, CLOSE_TASKS, CLOSE_WD_RANGE, SEEDED_CLOSE_WORK, SEEDED_UNTIL_WD } from "@/data/workspace/close";
+import { isQuarterEnd } from "@/engine/close";
+import { dateOfWd, wdLabel } from "@/lib/workdays";
 import { docByKey, journalDocs, reviewJournals } from "@/engine/journalReview";
 import { fmtINRCompact } from "@/lib/format";
 
@@ -110,6 +113,25 @@ export function seededHistory(): ActivityEvent[] {
     events.push({ id: id(), at: `${q.requestedOn}T10:00`, actorId: PBC_AUDITOR_ID, actorKind: "Person", module: "audit-readiness", object, action: "Request raised", after: `Due ${fmtDate(q.due)}`, details: { owner: q.ownerId } });
     if (q.seedStatus === "provided") {
       events.push({ id: id(), at: `${addDays(q.requestedOn, 2)}T15:30`, actorId: q.ownerId, actorKind: "Person", module: "audit-readiness", object, action: "Request provided", before: "In preparation", after: "Provided", details: { evidence: q.seedEvidence ?? "" } });
+    }
+  }
+
+  // the close plan: the orchestrator's evaluation each working day, and the tasks done by hand
+  const planned = CLOSE_TASKS.filter((t) => isQuarterEnd(WORLD.asOf) || !CLOSE_PHASES.find((p) => p.id === t.phase)?.quarterOnly);
+  for (let wd = CLOSE_WD_RANGE.min; wd <= SEEDED_UNTIL_WD; wd += 1) {
+    events.push({
+      id: id(), at: `${dateOfWd(WORLD.asOf, wd)}T06:30`, actorId: "agent:close", actorKind: "Agent", module: "close",
+      object: { type: "close-plan", id: `CLOSE-${WORLD.asOf}`, label: `Close of ${fmtDate(WORLD.asOf)}` }, action: "Close plan evaluated",
+      after: `${planned.filter((t) => t.dueWd <= wd).length} of ${planned.length} tasks due by ${wdLabel(wd)}`, details: { wd },
+    });
+  }
+  for (const [taskId, w] of Object.entries(SEEDED_CLOSE_WORK)) {
+    const task = CLOSE_TASKS.find((t) => t.id === taskId)!;
+    if (w.completed) {
+      events.push({
+        id: id(), at: w.completed.at, actorId: w.completed.personId, actorKind: "Person", module: "close", object: { type: "close-task", id: taskId, label: task.name },
+        action: "Close task completed", before: "Open", after: "Complete", details: { evidence: w.completed.evidence },
+      });
     }
   }
 

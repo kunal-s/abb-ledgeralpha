@@ -7,7 +7,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import type {
-  AccountSignOff, ActionKind, ActivityEvent, ConfirmationStatus, Decision, FollowUp, IsoDate, JournalReview, JournalSpec, PbcRequest, PbcWork, Person, ReconItem, Recommendation, RoleId, RuleHit,
+  AccountSignOff, ActionKind, ActivityEvent, CloseTaskWork, ConfirmationStatus, Decision, FollowUp, IsoDate, JournalReview, JournalSpec, PbcRequest, PbcWork, Person, ReconItem, Recommendation, RoleId, RuleHit,
 } from "@/types";
 import { GL_BY_ID, LINES_BY_DOC, LINE_BY_KEY, PERSON_BY_ID, REC_BY_ID, WORLD, customerStatementLines } from "@/data";
 import { PBC_REQUESTS } from "@/data/workspace/pbc";
@@ -25,6 +25,7 @@ import { computeMatches, type CashAppWork } from "@/state/cashAppModel";
 import { RECON_CLASSES, reconClass } from "@/engine/recClasses";
 import { documentedItems, effectiveRec, isRecItemKey, parseRecItemKey, recItemKey, signOffBlockers, type RecWork } from "@/engine/recs";
 import { SEEDED_RULE_OVERRIDES, seededJournalReviews, seededSignOffs } from "@/data/workspace/activity";
+import { CLOSE_TASKS, SEEDED_CLOSE_WORK } from "@/data/workspace/close";
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -88,6 +89,8 @@ interface WorkflowData {
   pbc: Record<string, PbcWork>;
   /** requests raised in the session, after those of the auditor's list */
   pbcRaised: PbcRequest[];
+  /** the work done on close tasks, by task id */
+  closeWork: Record<string, CloseTaskWork>;
   events: ActivityEvent[];
   seq: number;
 }
@@ -131,6 +134,14 @@ interface WorkflowActions {
   /** Record that schedules or an index were exported. */
   recordExport: (what: string, details: Record<string, string | number>) => void;
 
+  // close
+  /** Complete a task the owner does by hand, with the reference of what was done. A task tied to records completes with them. */
+  completeCloseTask: (id: string, evidence: string) => Result;
+  reopenCloseTask: (id: string, reason: string) => Result;
+  reassignCloseTask: (id: string, personId: string) => Result;
+  flagCloseBlocker: (id: string, reason: string) => Result;
+  clearCloseBlocker: (id: string) => Result;
+
   // cash application
   /** Propose applying a receipt to the invoices the matcher found (or another proposal, by invoice-set signature). */
   confirmMatch: (receiptKey: string, signature?: string) => Result<{ id: string }>;
@@ -164,6 +175,7 @@ const INITIAL: WorkflowData = {
   journalReviews: seededJournalReviews(),
   pbc: {},
   pbcRaised: [],
+  closeWork: SEEDED_CLOSE_WORK,
   events: [],
   seq: 0,
 };
@@ -232,6 +244,8 @@ function denied(permission: Permission, role: RoleId): string {
     "pbc-provide": "provide auditor requests",
     "pbc-manage": "assign or close auditor requests",
     "pbc-raise": "raise auditor requests",
+    "close-task": "work on close tasks",
+    "close-manage": "complete, reopen or reassign any close task",
   };
   return `${ROLES[role].label} cannot ${verbs[permission]}`;
 }
@@ -833,6 +847,80 @@ export const useWorkflow = create<WorkflowState>()(
         },
 
         // -------------------------------------------------------------------
+        // close
+        // -------------------------------------------------------------------
+        completeCloseTask: (id, evidence) => {
+          const task = CLOSE_TASKS.find((t) => t.id === id);
+          if (!task) return fail("Task not found");
+          const cur = get().closeWork[id];
+          const ownerId = cur?.ownerId ?? task.ownerId;
+          const { role, person } = actor(ownerId);
+          if (!can(role, "close-task")) return fail(denied("close-task", role));
+          if (task.link.kind !== "manual") return fail("This task completes when the records behind it are done");
+          if (cur?.completed) return fail("The task is already complete");
+          if (PERSON_BY_ID.get(ownerId)?.roleId !== role && !can(role, "close-manage")) return fail("Only the owner of the task, or a controller, can complete it");
+          if (!evidence.trim()) return fail("Give the reference of what was done");
+          set((s) => ({ closeWork: { ...s.closeWork, [id]: { ...cur, completed: { personId: person.id, at: nowLocal(), evidence: evidence.trim() }, blocker: undefined } } }));
+          personEvent(person, { module: "close", object: { type: "close-task", id, label: task.name }, action: "Close task completed", before: "Open", after: "Complete", details: { evidence: evidence.trim() } });
+          return { ok: true };
+        },
+
+        reopenCloseTask: (id, reason) => {
+          const task = CLOSE_TASKS.find((t) => t.id === id);
+          if (!task) return fail("Task not found");
+          const { role, person } = actor();
+          if (!can(role, "close-manage")) return fail(denied("close-manage", role));
+          const cur = get().closeWork[id];
+          if (!cur?.completed) return fail("Only a task completed by hand can be reopened");
+          if (!reason.trim()) return fail("A reason is required to reopen");
+          set((s) => ({ closeWork: { ...s.closeWork, [id]: { ...cur, completed: undefined } } }));
+          personEvent(person, { module: "close", object: { type: "close-task", id, label: task.name }, action: "Close task reopened", before: "Complete", after: "Open", reason: reason.trim() });
+          return { ok: true };
+        },
+
+        reassignCloseTask: (id, personId) => {
+          const task = CLOSE_TASKS.find((t) => t.id === id);
+          if (!task) return fail("Task not found");
+          const { role, person } = actor();
+          if (!can(role, "close-manage")) return fail(denied("close-manage", role));
+          const to = PERSON_BY_ID.get(personId);
+          if (!to || to.roleId === "external-auditor") return fail("Choose a person from the finance team");
+          const cur = get().closeWork[id];
+          if (cur?.completed) return fail("The task is complete");
+          const from = PERSON_BY_ID.get(cur?.ownerId ?? task.ownerId);
+          if (from?.id === to.id) return fail(`${to.name} already owns this task`);
+          set((s) => ({ closeWork: { ...s.closeWork, [id]: { ...cur, ownerId: to.id } } }));
+          personEvent(person, { module: "close", object: { type: "close-task", id, label: task.name }, action: "Close task reassigned", before: from?.name, after: to.name });
+          return { ok: true };
+        },
+
+        flagCloseBlocker: (id, reason) => {
+          const task = CLOSE_TASKS.find((t) => t.id === id);
+          if (!task) return fail("Task not found");
+          const { role, person } = actor();
+          if (!can(role, "close-task")) return fail(denied("close-task", role));
+          const cur = get().closeWork[id];
+          if (cur?.completed) return fail("The task is complete");
+          if (cur?.blocker) return fail("A blocker is already flagged");
+          if (!reason.trim()) return fail("Say what is in the way");
+          set((s) => ({ closeWork: { ...s.closeWork, [id]: { ...cur, blocker: { personId: person.id, at: nowLocal(), reason: reason.trim() } } } }));
+          personEvent(person, { module: "close", object: { type: "close-task", id, label: task.name }, action: "Blocker flagged", after: "Blocked", reason: reason.trim() });
+          return { ok: true };
+        },
+
+        clearCloseBlocker: (id) => {
+          const task = CLOSE_TASKS.find((t) => t.id === id);
+          if (!task) return fail("Task not found");
+          const { role, person } = actor();
+          if (!can(role, "close-task")) return fail(denied("close-task", role));
+          const cur = get().closeWork[id];
+          if (!cur?.blocker) return fail("No blocker is flagged");
+          set((s) => ({ closeWork: { ...s.closeWork, [id]: { ...cur, blocker: undefined } } }));
+          personEvent(person, { module: "close", object: { type: "close-task", id, label: task.name }, action: "Blocker cleared", before: "Blocked", reason: cur.blocker.reason });
+          return { ok: true };
+        },
+
+        // -------------------------------------------------------------------
         // cash application
         // -------------------------------------------------------------------
         confirmMatch: (receiptKey, signature) => {
@@ -1037,7 +1125,7 @@ export const useWorkflow = create<WorkflowState>()(
     },
     {
       name: "ledgeralpha-workflow",
-      version: 5,
+      version: 6,
       storage: createJSONStorage(() => safeStorage),
       partialize: (s) => ({
         ruleOverrides: s.ruleOverrides,
@@ -1049,6 +1137,7 @@ export const useWorkflow = create<WorkflowState>()(
         journalReviews: s.journalReviews,
         pbc: s.pbc,
         pbcRaised: s.pbcRaised,
+        closeWork: s.closeWork,
         events: s.events,
         seq: s.seq,
       }),

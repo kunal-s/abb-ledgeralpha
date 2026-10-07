@@ -52,6 +52,13 @@ export const STATUS_MAP: Record<string, { label: string; tone: Tone }> = {
   system: { label: "System posted", tone: "neutral" },
   accepted: { label: "Accepted", tone: "ok" },
   "support-requested": { label: "Support requested", tone: "warn" },
+  // Close tasks (docs/FRD.md §6.3)
+  complete: { label: "Complete", tone: "ok" },
+  "in-progress": { label: "In progress", tone: "info" },
+  blocked: { label: "Blocked", tone: "danger" },
+  late: { label: "Late", tone: "danger" },
+  "on-track": { label: "On track", tone: "info" },
+  behind: { label: "Behind", tone: "warn" },
   // Auditor requests (docs/FRD.md §6.17)
   open: { label: "Open", tone: "neutral" },
   "in-preparation": { label: "In preparation", tone: "info" },

@@ -16,6 +16,15 @@ export const LOCALISATION_IN = {
     indirect: { label: "GST", name: "Goods and Services Tax" },
     withholding: { label: "TDS", name: "Tax Deducted at Source" },
   },
+  /**
+   * The working calendar behind the close plan (working days after the period end).
+   * Weekend days are JavaScript day numbers (0 = Sunday). Holidays are the fixed-date national
+   * ones, as "MM-DD"; festival holidays move every year and are kept in the workspace calendar.
+   */
+  workCalendar: {
+    weekend: [0, 6],
+    holidays: ["01-26", "08-15", "10-02", "12-25"],
+  },
   /** Schedule III ageing bands for disclosure notes (in months) */
   disclosureAgeing: {
     tradeReceivables: [

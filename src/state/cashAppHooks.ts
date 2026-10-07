@@ -44,34 +44,43 @@ export function statusOf(best: Proposal | undefined, decision?: Decision, follow
   return "unmatched";
 }
 
+export interface CashAppInput {
+  decisions: Record<string, Decision>;
+  work: Record<string, CashAppWork>;
+  decisionByItem: Map<string, Decision>;
+  followUpByItem: Map<string, FollowUp>;
+}
+
+/** The receipt rows as a pure function of the workflow state; `useCashApp` memoises it, tests call it directly. */
+export function buildCashApp({ decisions, work, decisionByItem, followUpByItem }: CashAppInput, data: CashAppData = buildCashAppData()): { rows: ReceiptRow[]; byKey: Map<string, ReceiptRow>; data: CashAppData } {
+  const matches = computeMatches(decisions, work);
+  const rows: ReceiptRow[] = [];
+  for (const m of matches.values()) {
+    const top = m.proposals[0];
+    const best = top && top.confidence >= CASH_APP_POLICY.proposeFrom ? top : undefined;
+    const decision = decisionByItem.get(m.receipt.key);
+    const followUp = followUpByItem.get(m.receipt.key);
+    const parked = work[m.receipt.key]?.parked;
+    const customerId = best?.customerId ?? (m.customers[0]?.score >= 0.9 ? m.customers[0].customerId : undefined);
+    rows.push({
+      key: m.receipt.key, receipt: m.receipt, match: m, best, weak: best ? undefined : top, decision, followUp, parked,
+      rejected: work[m.receipt.key]?.rejected?.length ?? 0,
+      status: statusOf(best, decision, followUp, parked),
+      age: receiptAge(m.receipt, data.asOf),
+      customerId, customerName: customerId ? PARTY_BY_ID.get(customerId)?.name : undefined,
+    });
+  }
+  rows.sort((a, b) => b.age - a.age || b.receipt.amount - a.receipt.amount);
+  return { rows, byKey: new Map(rows.map((r) => [r.key, r])), data };
+}
+
 export function useCashApp(): { rows: ReceiptRow[]; byKey: Map<string, ReceiptRow>; data: CashAppData } {
   const decisions = useWorkflow((s) => s.decisions);
   const work = useWorkflow((s) => s.cashApp);
   const decisionByItem = useDecisionsByItem();
   const followUpByItem = useFollowUpsByItem();
   const data = useMemo(() => buildCashAppData(), []);
-
-  return useMemo(() => {
-    const matches = computeMatches(decisions, work);
-    const rows: ReceiptRow[] = [];
-    for (const m of matches.values()) {
-      const top = m.proposals[0];
-      const best = top && top.confidence >= CASH_APP_POLICY.proposeFrom ? top : undefined;
-      const decision = decisionByItem.get(m.receipt.key);
-      const followUp = followUpByItem.get(m.receipt.key);
-      const parked = work[m.receipt.key]?.parked;
-      const customerId = best?.customerId ?? (m.customers[0]?.score >= 0.9 ? m.customers[0].customerId : undefined);
-      rows.push({
-        key: m.receipt.key, receipt: m.receipt, match: m, best, weak: best ? undefined : top, decision, followUp, parked,
-        rejected: work[m.receipt.key]?.rejected?.length ?? 0,
-        status: statusOf(best, decision, followUp, parked),
-        age: receiptAge(m.receipt, data.asOf),
-        customerId, customerName: customerId ? PARTY_BY_ID.get(customerId)?.name : undefined,
-      });
-    }
-    rows.sort((a, b) => b.age - a.age || b.receipt.amount - a.receipt.amount);
-    return { rows, byKey: new Map(rows.map((r) => [r.key, r])), data };
-  }, [decisions, work, decisionByItem, followUpByItem, data]);
+  return useMemo(() => buildCashApp({ decisions, work, decisionByItem, followUpByItem }, data), [decisions, work, decisionByItem, followUpByItem, data]);
 }
 
 export function useReceiptRow(key: string | undefined): ReceiptRow | undefined {

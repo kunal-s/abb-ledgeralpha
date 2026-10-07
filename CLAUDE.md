@@ -142,6 +142,21 @@ workspace (currently set up for an ABB India workshop, week of 12-Oct-2026).
   tests can build the same models the pages read; the hooks only memoise them.
 - Status words live in `src/lib/status.ts` (the chip and the exports use the same labels).
 
+## Home, My Work and Close Cockpit (I7)
+- The close plan is data (`src/data/workspace/close.ts`); the orchestrator is pure (`src/engine/close.ts`):
+  a task derives its status from a record (`deriveProgress`) or is completed by hand with a reference; late,
+  projected finish, critical path and the area cell state all come from there. Working days are
+  `src/lib/workdays.ts` over the localisation calendar. Do not compute a close figure in a page.
+- One close model for every screen: `buildCloseModel` (`src/state/closeModel.ts`), read through `useClose()`.
+  My Work (`workModel.ts`, `useWork()`) and Home (`homeModel.ts`, `useHome()`) are pure functions over the same
+  models; `src/test/models.ts` builds them for tests. Add a queue kind or an attention kind there, with a test.
+- These screens are company-wide: use `useCompanyReview()` and `useJournals(true)`, not the business-unit scoped
+  ones. Business unit attribution is `src/engine/attribution.ts`.
+- Write actions are in the workflow store (`closeWork`, `completeCloseTask`, `flagCloseBlocker`, ...); the queue
+  must never offer an action the acting role cannot take (see the rules in `buildWork`).
+- Every model has a pure builder (`buildReview`, `buildRecRows`, `buildJournals`, `buildCashApp`): hooks only
+  memoise them.
+
 ## Harvesting
 Design system and components come from LedgerAlpha (`/app/app-ledger-alpha`); matching-engine ideas may
 come from Recon-Alpha (`/app/app-recon-alpha`). **Copy, never import across repos, never modify either

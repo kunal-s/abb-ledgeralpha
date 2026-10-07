@@ -16,7 +16,7 @@ import { pbcState, type AuditInputs, type PbcState } from "@/engine/audit";
 import { readinessOf, type AccountSchedule, type ScheduleDecision, type ScheduleItem, type ScheduleRec } from "@/engine/schedule";
 import { useReview } from "@/state/ReviewContext";
 import { useRecRows, type RecRow } from "@/state/recHooks";
-import { useJournals } from "@/state/journalHooks";
+import { useJournals, type JournalRow } from "@/state/journalHooks";
 import { nowLocal, useWorkflow } from "@/state/workflow";
 import type { AccountRow, Review } from "@/state/hooks";
 import { CATEGORY_LABELS } from "@/lib/labels";
@@ -30,18 +30,19 @@ const DECISION_STATUS: Record<Decision["status"], string> = {
 const nameOf = (id?: string) => (id ? PERSON_BY_ID.get(id)?.name ?? id : "");
 
 /** What the requests that depend on platform work read: account and reconciliation sign-offs and journal reviews. */
+export function auditInputsOf(review: Review, recRows: RecRow[], flagged: JournalRow[]): AuditInputs {
+  return {
+    accounts: review.accounts.map((a) => ({ category: a.summary.gl.category, status: a.status })),
+    recs: recRows.map((r) => ({ type: r.rec.type, status: r.status })),
+    journals: flagged.map((r) => ({ reviewed: r.status === "accepted" })),
+  };
+}
+
 export function useAuditInputs(): AuditInputs {
   const review = useReview();
   const recRows = useRecRows();
   const { flagged } = useJournals();
-  return useMemo(
-    () => ({
-      accounts: review.accounts.map((a) => ({ category: a.summary.gl.category, status: a.status })),
-      recs: recRows.map((r) => ({ type: r.rec.type, status: r.status })),
-      journals: flagged.map((r) => ({ reviewed: r.status === "accepted" })),
-    }),
-    [review.accounts, recRows, flagged]
-  );
+  return useMemo(() => auditInputsOf(review, recRows, flagged), [review, recRows, flagged]);
 }
 
 /** The auditor's list, then the requests raised in the session. */
