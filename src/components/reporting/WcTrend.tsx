@@ -29,7 +29,7 @@ function WcTip({ active, payload }: { active?: boolean; payload?: { payload: Row
   );
 }
 
-/** Twelve months of receivable, inventory and payable days. */
+/** The recent months of receivable, inventory and payable days. */
 export function WcTrend({ points }: { points: WcPoint[] }) {
   const data = points.map((p) => ({ month: fmtMonth(p.periodEnd).slice(0, 3), label: fmtMonth(p.periodEnd), dso: Math.round(p.dso), dio: Math.round(p.dio), dpo: Math.round(p.dpo) }));
   return (

@@ -25,6 +25,33 @@ export const LOCALISATION_IN = {
     weekend: [0, 6],
     holidays: ["01-26", "08-15", "10-02", "12-25"],
   },
+  /**
+   * Schedule III (Division II, Ind AS) layout of the statutory statements: the order of the lines and
+   * where each one sits. A line is the `statementLine` of the chart of accounts.
+   */
+  scheduleIII: {
+    balanceSheet: [
+      {
+        section: "Assets",
+        groups: [
+          { label: "Non-current assets", lines: ["Property, plant and equipment", "Capital work-in-progress", "Other intangible assets", "Other non-current assets"] },
+          { label: "Current assets", lines: ["Inventories", "Trade receivables", "Cash and cash equivalents", "Other financial assets", "Current tax assets (net)", "Other current assets"] },
+        ],
+      },
+      {
+        section: "Equity and liabilities",
+        groups: [
+          { label: "Equity", lines: ["Equity share capital", "Other equity"] },
+          { label: "Current liabilities", lines: ["Trade payables", "Other financial liabilities", "Other current liabilities", "Provisions", "Current tax liabilities (net)"] },
+        ],
+      },
+    ],
+    profitAndLoss: {
+      income: ["Revenue from operations", "Other income"],
+      expenses: ["Cost of materials consumed", "Purchases of stock-in-trade", "Changes in inventories", "Employee benefits expense", "Depreciation and amortisation expense", "Other expenses"],
+      tax: ["Tax expense"],
+    },
+  },
   /** Schedule III ageing bands for disclosure notes (in months) */
   disclosureAgeing: {
     tradeReceivables: [

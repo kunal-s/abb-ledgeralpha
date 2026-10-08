@@ -93,6 +93,13 @@ export function bandFor(amount: number): (typeof APPROVAL_BANDS)[number] {
   return APPROVAL_BANDS.find((b) => b.upTo === null || abs <= b.upTo)!;
 }
 
+/**
+ * What the balance sheet is compared with. Schedule III compares with the previous year end; an interim
+ * statement is more useful against the previous quarter end, and in the demo dataset balances from before the
+ * last quarter hold only the items still open today, so the quarter end is the comparison that means something.
+ */
+export const STATEMENT_POLICY = { balanceSheetComparative: "previous-quarter-end" as "previous-quarter-end" | "previous-year-end" };
+
 /** An escalation is decided one level above the band its amount falls in (never below the first). */
 export function escalatedBandFor(amount: number): (typeof APPROVAL_BANDS)[number] {
   const i = APPROVAL_BANDS.findIndex((b) => b.id === bandFor(amount).id);

@@ -14,7 +14,8 @@ export const WORKING_CAPITAL_POLICY = {
   flowMonths: 3,
   /** micro and small enterprises must be paid within this many days */
   msmeDays: 45,
-  trendMonths: 12,
+  /** the trend covers the months whose balances are complete: earlier months hold only the items still open today */
+  trendMonths: 4,
 } as const;
 
 export const DEFINITIONS = {
