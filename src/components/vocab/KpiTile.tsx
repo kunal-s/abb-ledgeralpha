@@ -43,11 +43,11 @@ export function KpiTile({
   const TrendIcon =
     trend === "up" ? ArrowUpRight : trend === "down" ? ArrowDownRight : Minus;
 
-  const accentBar = {
-    ok: "before:bg-ok",
-    warn: "before:bg-warn",
-    danger: "before:bg-danger",
-    info: "before:bg-info",
+  const dot = {
+    ok: "bg-ok",
+    warn: "bg-warn",
+    danger: "bg-danger",
+    info: "bg-info",
     none: "",
   }[accent];
 
@@ -55,16 +55,14 @@ export function KpiTile({
     <Card
       onClick={onClick}
       className={cn(
-        "relative overflow-hidden p-3.5",
-        accent !== "none" &&
-          "before:absolute before:left-0 before:top-0 before:h-full before:w-0.5 before:content-['']",
-        accentBar,
-        onClick && "cursor-pointer transition-shadow hover:shadow-md",
+        "relative overflow-hidden px-4 py-3.5",
+        onClick && "cursor-pointer transition-colors hover:border-primary/40 hover:bg-accent/40",
         className
       )}
     >
       <div className="flex items-start justify-between">
-        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+        <span className="flex items-center gap-1.5 text-2xs font-medium uppercase tracking-[0.06em] text-muted-foreground">
+          {accent !== "none" && <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />}
           {label}
         </span>
         {icon && <span className="text-muted-foreground">{icon}</span>}
@@ -72,7 +70,7 @@ export function KpiTile({
       <div className="mt-1.5 flex items-end justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-baseline gap-1">
-            <span className="text-xl font-semibold tracking-tight tnum text-foreground">
+            <span className="text-2xl font-medium tracking-tight tnum text-foreground">
               {value}
             </span>
             {unit && (

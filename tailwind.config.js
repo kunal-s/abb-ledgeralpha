@@ -11,7 +11,7 @@ export default {
     extend: {
       fontFamily: {
         sans: [
-          "Inter",
+          "IBM Plex Sans",
           "ui-sans-serif",
           "system-ui",
           "-apple-system",
@@ -22,6 +22,7 @@ export default {
           "sans-serif",
         ],
         mono: [
+          "IBM Plex Mono",
           "ui-monospace",
           "SFMono-Regular",
           "Menlo",

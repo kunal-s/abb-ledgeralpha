@@ -976,6 +976,8 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | D-43 | A record belongs to a business unit by its profit centre; a counterparty to the unit most of its postings are in; a statement reconciliation to its counterparty's unit; any other reconciliation, and a journal with no line that has a unit, to corporate | Agreed (I7) |
 | D-44 | The queue in My Work is the role's, because the workflow lets any person with the role act. It never offers what the role cannot do: matches only for receivables, and no sign-off the acting person prepared | Agreed (I7) |
 | D-45 | A derived task with nothing to do does not finish ahead of what it follows: it completes only once its predecessors are complete. The projection never lets a task finish ahead of a predecessor | Agreed (I7) |
+| D-46 | The Oct 5 priority reset (Balance Sheet Review first, reconciliation second) changes the order of the remaining build. The workshop plan (W1 to W7, §13) supersedes I8 to I11 for sequencing; every module in the registry is built rather than disabled, so D-13 holds by completeness, not by hiding | Agreed (W1) |
+| D-47 | Visual language: warm paper surface, deep ink text, one petrol accent, state colour only for state, one sequential ageing ramp (`--age-1` to `--age-4`) shared by every ageing visual, IBM Plex Sans and Mono bundled locally so the demo needs no network. Finance idioms over dashboard widgets: bridges, ageing ribbons, statement-style tables. Motion is short, ease-out and off for reduced-motion users | Agreed (W1) |
 
 ## 13. Build plan
 
@@ -995,6 +997,18 @@ One increment per prompt, each ending with §10.6.
 | **I9** | Bank Guarantees (working); FX Exposure, GST, Intercompany, Controls (overview) | Working / Overview |
 | **I10** | Agents, Ask LedgerAlpha, Explain, global search | Working |
 | **I11** | Workspace calibration to the client's answers; masked data import if approved; full dry run | - |
+
+### Workshop plan (supersedes the sequencing of I8 to I11, D-46)
+
+| Inc. | Scope | Depth |
+|---|---|---|
+| **W1** | Design system and shell: tokens, KPI/panel/page header, shared ageing visual, nav leads with Reconcile & review, Home hero (balance sheet at risk, reconciliation health), Data Sources connections and write-back, global search | ✔ Working |
+| **W2** | Balance Sheet Review as a story: category lens, stale balances, why column, item timeline, Escalate, portfolio commentary, owner view, schedule link | Deep |
+| **W3** | Reconciliation bridge: GL to subledger/schedule/bank bridge, ageing of reconciling items, reconciler summary, GR/IR type, drill-downs, cash application hand-off | Deep |
+| **W4** | Rule Studio: plain-language rule drafts, backtest on the ledger, suggested rules | Working |
+| **W5** | Guided story launcher and motion polish | Working |
+| **W6** | Working Capital, Management Reporting, Financial Statements, Agents, Controls | Working |
+| **W7** | Bank Guarantees, FX Exposure, GST, Intercompany, Variance Analysis (with the data each needs) | Working / Overview |
 
 **Workshop-critical path:** I1–I5 and I7; then I6 and I8. Anything not finished before the workshop is disabled in the workspace configuration (D-13), never shown as a placeholder.
 

@@ -41,8 +41,8 @@ export type ModuleGroup =
   | "Automation & data";
 
 export const NAV_GROUPS: ModuleGroup[] = [
-  "Close",
   "Reconcile & review",
+  "Close",
   "Treasury",
   "Tax",
   "Reporting",

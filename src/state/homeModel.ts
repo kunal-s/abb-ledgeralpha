@@ -2,7 +2,8 @@
 // across modules (docs/FRD.md §6.1). Pure, over the models the modules read.
 
 import type { Decision, IsoDate, RoleId } from "@/types";
-import { LINE_BY_KEY } from "@/data";
+import { GL_BY_ID, LINE_BY_KEY } from "@/data";
+import { BUCKETS, bucketOf, type BucketId } from "@/engine/review";
 import { MATERIALITY_POLICY } from "@/config/policies";
 import type { PbcState } from "@/engine/audit";
 import { wdLabel } from "@/lib/workdays";
@@ -32,6 +33,23 @@ export interface HomeKpis {
   exceptionsValue: number;
   approvals: number;
   approvalsForRole: number;
+}
+
+/** The balance sheet at risk: open flagged value by ageing bucket, and the accounts with the oldest flagged balances. */
+export interface BalanceRisk {
+  byBucket: Record<BucketId, { count: number; amount: number }>;
+  flaggedValue: number;
+  flaggedCount: number;
+  stale: { gl: string; name: string; amount: number; count: number; oldest: number; action?: string }[];
+}
+
+/** Reconciliation health by type: how much is still unexplained outside tolerance, and how many are certified. */
+export interface RecHealth {
+  type: string;
+  total: number;
+  signed: number;
+  outside: number;
+  unexplained: number;
 }
 
 export type AttentionKind = "close" | "reconciliation" | "item" | "journal" | "request" | "receipt" | "approval";
@@ -66,7 +84,7 @@ export interface HomeInput {
 
 const MAX_PER_KIND = 3;
 
-export function buildHome(i: HomeInput): { kpis: HomeKpis; attention: AttentionItem[] } {
+export function buildHome(i: HomeInput): { kpis: HomeKpis; attention: AttentionItem[]; risk: BalanceRisk; recHealth: RecHealth[] } {
   const proposed = Object.values(i.decisions).filter((d) => d.status === "proposed");
   const required = i.review.accounts.flatMap((a) => a.readiness.undocumented);
   const kpis: HomeKpis = {
@@ -143,7 +161,50 @@ export function buildHome(i: HomeInput): { kpis: HomeKpis; attention: AttentionI
     })
     .slice(0, 8);
 
-  return { kpis, attention };
+  // balance sheet at risk: open items flagged by a rule
+  const byBucket = Object.fromEntries(BUCKETS.map((b) => [b.id, { count: 0, amount: 0 }])) as BalanceRisk["byBucket"];
+  const perGl = new Map<string, { amount: number; count: number; oldest: number; top: number; action?: string }>();
+  for (const r of i.review.rows) {
+    if (!r.flagged || !r.isOpen) continue;
+    const amt = Math.abs(r.item.amount);
+    const b = byBucket[bucketOf(r.age)];
+    b.count += 1;
+    b.amount += amt;
+    if (r.age <= 365) continue;
+    const g = perGl.get(r.item.gl) ?? { amount: 0, count: 0, oldest: 0, top: 0 };
+    g.amount += amt;
+    g.count += 1;
+    g.oldest = Math.max(g.oldest, r.age);
+    if (amt > g.top) {
+      g.top = amt;
+      g.action = r.rec?.action;
+    }
+    perGl.set(r.item.gl, g);
+  }
+  const risk: BalanceRisk = {
+    byBucket,
+    flaggedValue: Object.values(byBucket).reduce((s, b) => s + b.amount, 0),
+    flaggedCount: Object.values(byBucket).reduce((s, b) => s + b.count, 0),
+    stale: [...perGl.entries()]
+      .map(([gl, g]) => ({ gl, name: GL_BY_ID.get(gl)?.description ?? gl, amount: g.amount, count: g.count, oldest: g.oldest, action: g.action }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 6),
+  };
+
+  const byType = new Map<string, RecHealth>();
+  for (const r of i.recRows) {
+    const h = byType.get(r.rec.type) ?? { type: r.rec.type, total: 0, signed: 0, outside: 0, unexplained: 0 };
+    h.total += 1;
+    if (r.status === "reviewer-signed") h.signed += 1;
+    if (r.view.unexplained !== null && !r.view.withinTolerance && r.status !== "reviewer-signed") {
+      h.outside += 1;
+      h.unexplained += Math.abs(r.view.unexplained);
+    }
+    byType.set(r.rec.type, h);
+  }
+  const recHealth = [...byType.values()].sort((a, b) => b.unexplained - a.unexplained);
+
+  return { kpis, attention, risk, recHealth };
 }
 
 /** "WD+4 of WD+8", for the close tile. */

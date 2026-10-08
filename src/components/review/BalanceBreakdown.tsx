@@ -8,7 +8,7 @@ import { fmtINRCompact, fmtInt, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // Ordinal ramp, steps 250 / 350 / 500 / 650 of the reference blue: older is darker.
-const BUCKET_COLOURS: Record<BucketId, string> = { "0-90": "#86b6ef", "91-180": "#5598e7", "181-365": "#256abf", "365+": "#104281" };
+const BUCKET_COLOURS: Record<BucketId, string> = { "0-90": "hsl(var(--age-1))", "91-180": "hsl(var(--age-2))", "181-365": "hsl(var(--age-3))", "365+": "hsl(var(--age-4))" };
 
 export interface BreakdownBucket {
   id: BucketId;

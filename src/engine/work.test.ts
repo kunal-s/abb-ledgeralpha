@@ -211,3 +211,29 @@ describe("Home", () => {
     expect(modelsAt().home("controller").attention.some((a) => a.id === first.id)).toBe(false);
   });
 });
+
+describe("Home: balance sheet at risk and reconciliation health", () => {
+  beforeEach(() => as("controller"));
+
+  it("splits the flagged open value across the ageing buckets without losing any", () => {
+    const { risk } = modelsAt().home("controller");
+    const byBucket = Object.values(risk.byBucket);
+    expect(byBucket.reduce((s, b) => s + b.amount, 0)).toBeCloseTo(risk.flaggedValue, 2);
+    expect(byBucket.reduce((s, b) => s + b.count, 0)).toBe(risk.flaggedCount);
+    expect(risk.flaggedCount).toBeGreaterThan(0);
+  });
+
+  it("lists only accounts with a flagged balance over a year old, largest first", () => {
+    const { risk } = modelsAt().home("controller");
+    expect(risk.stale.length).toBeGreaterThan(0);
+    for (const a of risk.stale) expect(a.oldest).toBeGreaterThan(365);
+    const amounts = risk.stale.map((a) => a.amount);
+    expect(amounts).toEqual([...amounts].sort((a, b) => b - a));
+  });
+
+  it("counts every reconciliation once in the health table", () => {
+    const { recHealth, kpis } = modelsAt().home("controller");
+    expect(recHealth.reduce((s, h) => s + h.total, 0)).toBe(kpis.recsTotal);
+    expect(recHealth.reduce((s, h) => s + h.signed, 0)).toBe(kpis.recsSigned);
+  });
+});

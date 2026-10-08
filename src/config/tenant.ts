@@ -14,6 +14,8 @@ export interface TenantConfig {
   currentPeriodEnd: string;
   priorReviewDate: string;
   sourceSystems: string[];
+  /** what each source system is used for, in the same order as `sourceSystems` */
+  sourceRoles: { role: "Operational" | "Analytics"; scope: string }[];
   dataMode: "demo" | "masked" | "live";
   enabledModules: "all" | ModuleId[];
 }
@@ -31,6 +33,11 @@ export const TENANT: TenantConfig = {
   currentPeriodEnd: "2026-09-30",
   priorReviewDate: "2026-06-30",
   sourceSystems: ["SAP Central Finance", "Legacy SAP", "Snowflake"],
+  sourceRoles: [
+    { role: "Operational", scope: "Balance sheet, receivables, payables" },
+    { role: "Operational", scope: "Controlling, materials, plant maintenance" },
+    { role: "Analytics", scope: "History, rates and reporting" },
+  ],
   dataMode: "demo",
   enabledModules: "all",
 };

@@ -1,4 +1,6 @@
-import { Building2, CalendarClock, Check, ChevronDown, Search, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Building2, CalendarClock, Check, ChevronDown, Search } from "lucide-react";
+import { CommandPalette } from "@/components/shell/CommandPalette";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,6 +43,17 @@ export function TopBar() {
   const { periodEnd, setPeriodEnd } = usePeriodStore();
   const { startMonth, prefix } = TENANT.fiscalYear;
   const bu = TENANT.businessUnits.find((b) => b.id === businessUnitId);
+  const [searchOpen, setSearchOpen] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card px-4">
@@ -72,22 +85,14 @@ export function TopBar() {
 
       <button
         type="button"
-        disabled
-        className="flex h-8 w-56 min-w-0 shrink items-center gap-2 rounded-md border border-input bg-background px-2.5 text-sm text-muted-foreground disabled:cursor-not-allowed"
+        onClick={() => setSearchOpen(true)}
+        className="flex h-8 w-56 min-w-0 shrink items-center gap-2 rounded-md border border-input bg-background px-2.5 text-sm text-muted-foreground transition-colors hover:border-primary/40"
       >
         <Search className="h-3.5 w-3.5 shrink-0" />
         <span className="flex-1 text-left">Search</span>
         <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-2xs font-medium xl:inline">Ctrl K</kbd>
       </button>
-
-      <button
-        type="button"
-        disabled
-        className="flex h-8 items-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-2.5 text-sm font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-70"
-      >
-        <Sparkles className="h-3.5 w-3.5 text-primary" />
-        <span className="hidden lg:inline">Ask LedgerAlpha</span>
-      </button>
+      <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
 
       <div className="flex-1" />
 

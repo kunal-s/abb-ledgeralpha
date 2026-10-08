@@ -1,3 +1,4 @@
+import { ConnectionsPanel } from "@/components/data/ConnectionsPanel";
 import { useMemo, useState } from "react";
 import { CheckCircle2, Download, XCircle } from "lucide-react";
 import { KpiTile, PageHeader, Panel, StatusChip } from "@/components/vocab";
@@ -227,6 +228,8 @@ export function DataSources() {
         <KpiTile label="Load checks" value={`${passed}/${QUALITY.length}`} sublabel="passed" accent={allPassed ? "ok" : "danger"} />
         <KpiTile label="Extracted" value={fmtDate(extractedDate)} sublabel={`${fmtTime(WORLD.extractedAt.slice(11))} · as at ${fmtDate(WORLD.asOf)}`} />
       </div>
+
+      <ConnectionsPanel datasets={DATASETS} />
 
       <Panel title="Data flow">
         <SourceFlow

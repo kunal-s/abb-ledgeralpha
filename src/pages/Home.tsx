@@ -2,13 +2,15 @@ import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Bot } from "lucide-react";
 import { ActivityRow, KpiTile, MethodBadge, PageHeader, Panel, StatusChip } from "@/components/vocab";
+import { AgeingStack } from "@/components/charts/AgeingStack";
 import { PhaseGantt } from "@/components/close/PhaseGantt";
 import { StatusMatrix } from "@/components/close/StatusMatrix";
 import { OverviewTab as AuditOverview } from "@/pages/audit/OverviewTab";
 import { AGENT_BY_ID } from "@/engine/agents";
 import { CORPORATE } from "@/engine/attribution";
 import type { CloseArea } from "@/engine/close";
-import { ATTENTION_LABEL, closeDay, homeViewOf, type AttentionItem } from "@/state/homeModel";
+import { ATTENTION_LABEL, closeDay, homeViewOf, type AttentionItem, type BalanceRisk, type RecHealth } from "@/state/homeModel";
+import { BUCKETS } from "@/engine/review";
 import { useHome } from "@/state/homeHooks";
 import { useWork } from "@/state/workHooks";
 import { useActivity } from "@/state/hooks";
@@ -86,8 +88,69 @@ function Attention({ items }: { items: AttentionItem[] }) {
   );
 }
 
+function BalanceAtRisk({ risk }: { risk: BalanceRisk }) {
+  const navigate = useNavigate();
+  const slices = BUCKETS.map((b) => ({ id: b.id, label: b.label, amount: risk.byBucket[b.id].amount, count: risk.byBucket[b.id].count }));
+  return (
+    <Panel
+      title="Balance sheet at risk"
+      actions={<span className="text-xs text-muted-foreground tnum">{fmtINRCompact(risk.flaggedValue)} across {fmtInt(risk.flaggedCount)} flagged items</span>}
+    >
+      <AgeingStack slices={slices} onSelect={() => navigate("/balance-sheet-review?tab=exceptions")} />
+      <div className="mt-5 border-t border-border pt-3">
+        <div className="mb-1 text-2xs font-medium uppercase tracking-[0.06em] text-muted-foreground">Oldest balances, over 365 days</div>
+        {risk.stale.length === 0 ? (
+          <div className="py-3 text-sm text-muted-foreground">No flagged balance is older than a year</div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {risk.stale.slice(0, 4).map((a) => (
+              <li key={a.gl}>
+                <Link to={`/balance-sheet-review/${a.gl}`} className="flex items-center justify-between gap-3 py-1.5 text-sm hover:text-primary">
+                  <span className="min-w-0 truncate">{a.name}</span>
+                  <span className="flex shrink-0 items-center gap-3 text-xs tnum text-muted-foreground">
+                    <span>{a.oldest} days</span>
+                    {a.action && <span>{a.action}</span>}
+                    <span className="w-16 text-right text-foreground">{fmtINRCompact(a.amount)}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+function ReconHealth({ rows }: { rows: RecHealth[] }) {
+  const navigate = useNavigate();
+  const max = Math.max(1, ...rows.map((r) => r.unexplained));
+  return (
+    <Panel title="Reconciliation health" bodyClassName="p-0">
+      <ul className="divide-y divide-border">
+        {rows.map((r, i) => (
+          <li key={r.type}>
+            <button type="button" onClick={() => navigate(`/reconciliations?tab=register&type=${encodeURIComponent(r.type)}`)} className="block w-full px-4 py-2.5 text-left hover:bg-accent/50">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-sm">{r.type}</span>
+                <span className="shrink-0 text-xs tnum text-muted-foreground">{r.signed}/{r.total} certified</span>
+              </div>
+              <div className="mt-1.5 flex items-center gap-3">
+                <div className="h-1.5 flex-1 rounded-full bg-secondary">
+                  <div className="anim-grow-x h-full rounded-full bg-warn" style={{ width: `${(r.unexplained / max) * 100}%`, animationDelay: `${i * 60}ms` }} />
+                </div>
+                <span className="w-28 shrink-0 whitespace-nowrap text-right text-xs tnum">{r.unexplained ? `${fmtINRCompact(r.unexplained)} open` : "within tolerance"}</span>
+              </div>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Panel>
+  );
+}
+
 function LeaderHome() {
-  const { kpis, attention, close } = useHome();
+  const { kpis, attention, close, risk, recHealth } = useHome();
   const navigate = useNavigate();
   const setBusinessUnit = useScopeStore((s) => s.setBusinessUnit);
   const ev = close.evaluation;
@@ -106,6 +169,11 @@ function LeaderHome() {
         <KpiTile label="Reconciliations certified" value={`${fmtInt(kpis.recsSigned)}/${fmtInt(kpis.recsTotal)}`} sublabel="reviewer signed" accent="info" onClick={() => navigate("/reconciliations?tab=register&rstatus=signed")} />
         <KpiTile label="Exceptions open" value={fmtInt(kpis.exceptions)} sublabel={`${fmtINRCompact(kpis.exceptionsValue)} without an action`} accent={kpis.exceptions ? "warn" : "ok"} onClick={() => navigate("/balance-sheet-review?tab=exceptions")} />
         <KpiTile label="Approvals waiting" value={fmtInt(kpis.approvals)} sublabel={`${fmtInt(kpis.approvalsForRole)} for this role`} accent={kpis.approvalsForRole ? "warn" : "none"} onClick={() => navigate("/my-work?wtype=approval")} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-5">
+        <div className="xl:col-span-3"><BalanceAtRisk risk={risk} /></div>
+        <div className="xl:col-span-2"><ReconHealth rows={recHealth} /></div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">

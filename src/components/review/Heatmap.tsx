@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 // Sequential blue ramp (one hue, light → dark): steps 100–700 of the reference
 // palette. Lightest step means "little here"; the darkest, "most".
-const RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"];
+const RAMP = ["#dcebe9", "#bcd9d6", "#8fc0bd", "#5da3a3", "#2f8186", "#165d66", "#0b3f4a"];
 
 export type HeatMode = "amount" | "count";
 
