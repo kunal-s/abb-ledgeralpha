@@ -190,6 +190,28 @@ export interface BankGuarantee {
   acceptance?: "Pending" | "Accepted";
 }
 
+/** One supply a supplier reported in its return, as it appears in the inward supply statement (GSTR-2B in the India pack). */
+export interface GstStatementLine {
+  id: string;
+  /** the return period, "2026-09" */
+  period: string;
+  supplierId: string;
+  supplierGstin: string;
+  invoiceRef: string;
+  invoiceDate: IsoDate;
+  taxable: number;
+  igst: number;
+  cgst: number;
+  sgst: number;
+}
+
+/** A monthly return of the company (GSTR-3B): when it was due and when it was filed. */
+export interface GstReturn {
+  period: string;
+  dueDate: IsoDate;
+  filedOn?: IsoDate;
+}
+
 /** A forward contract with a bank, bought or sold to cover foreign-currency receivables or payables. */
 export interface ForwardContract {
   id: string;
@@ -629,6 +651,8 @@ export interface World {
   purchaseOrders: PurchaseOrderStatus[];
   bankGuarantees: BankGuarantee[];
   forwards: ForwardContract[];
+  gstStatement: GstStatementLine[];
+  gstReturns: GstReturn[];
   taxCredits: TaxCreditStatementLine[];
   fxRates: FxRate[];
   reconciliations: Reconciliation[];

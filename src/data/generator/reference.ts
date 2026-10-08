@@ -2,7 +2,7 @@
 // legacy purchasing module), the bank-guarantee register, the tax credit
 // statement (Form 26AS) and month-end FX rates.
 
-import type { BankGuarantee, ForwardContract, FxRate, IsoDate, PurchaseOrderStatus, TaxCreditStatementLine } from "@/types";
+import type { BankGuarantee, ForwardContract, FxRate, GstReturn, GstStatementLine, LineItem, IsoDate, PurchaseOrderStatus, TaxCreditStatementLine } from "@/types";
 import { addDays, daysBetween, fiscalQuarterLabel, monthEnd } from "@/lib/dates";
 import { makeRng } from "@/data/rng";
 import { isOpenAt } from "@/data/quality";
@@ -146,6 +146,73 @@ export function buildForwards(ctx: Ctx, fxRates: FxRate[]): ForwardContract[] {
   // S-21: EUR 5,00,000 payable booked at 96.00 and covered by a forward bought at 96.40
   push("EUR", "Buy", 5_00_000, 96.4, "2026-10-30", "2026-08-03");
   return out.sort((a, b) => a.maturity.localeCompare(b.maturity) || a.id.localeCompare(b.id));
+}
+
+/** Input credit accounts, by the tax they carry. */
+export const GST_INPUT = { igst: "162300", cgst: "162100", sgst: "162200" } as const;
+
+/**
+ * The inward supply statement as the suppliers' returns reported it, and the company's own monthly returns.
+ * Most supplier invoices in the books appear in the statement as booked; a few appear with different tax, a few
+ * do not appear because the supplier has not filed, and a few supplies appear that the books do not have. The three
+ * planted invoices (S-23) are the ones left out of the statement on purpose.
+ */
+export function buildGst(ctx: Ctx): { gstStatement: GstStatementLine[]; gstReturns: GstReturn[] } {
+  const rng = makeRng(S.seed + 19);
+  const planted = new Set(ctx.anchors["S-23"] ?? []);
+  const parties = new Map(ctx.m.parties.map((p) => [p.id, p]));
+  const from = `${ctx.asOf.slice(0, 4)}-01-01`;
+  const docs = new Map<string, LineItem[]>();
+  for (const l of ctx.b.lines) {
+    if (l.docType !== "KR") continue;
+    const k = `${l.fiscalYear}-${l.docNo}`;
+    const list = docs.get(k);
+    if (list) list.push(l);
+    else docs.set(k, [l]);
+  }
+  const legs = new Set<string>(Object.values(GST_INPUT));
+  const out: GstStatementLine[] = [];
+  let n = 0;
+  const line = (supplierId: string, gstin: string, ref: string, date: IsoDate, taxable: number, igst: number, cgst: number, sgst: number) =>
+    out.push({ id: `2B-${String(++n).padStart(6, "0")}`, period: date.slice(0, 7), supplierId, supplierGstin: gstin, invoiceRef: ref, invoiceDate: date, taxable, igst, cgst, sgst });
+
+  for (const [, lines] of [...docs.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const ap = lines.find((l) => l.gl === "210100" && l.partner?.type === "Vendor");
+    if (!ap || ap.postingDate < from || !ap.reference || planted.has(ap.key)) continue;
+    const taxLines = lines.filter((l) => legs.has(l.gl));
+    if (!taxLines.length) continue;
+    const gstin = parties.get(ap.partner!.id)?.indirectTaxIdMasked;
+    if (!gstin) continue;
+    const sum = (gl: string) => taxLines.filter((l) => l.gl === gl).reduce((s, l) => s + l.amount, 0);
+    const taxable = lines.filter((l) => l.gl !== "210100" && !legs.has(l.gl)).reduce((s, l) => s + l.amount, 0);
+    const outcome = rng.weighted([{ value: "matched", weight: 0.92 }, { value: "different", weight: 0.05 }, { value: "missing", weight: 0.03 }]);
+    if (outcome === "missing") continue;
+    const k = outcome === "different" ? rng.range(0.4, 0.9) : 1;
+    line(ap.partner!.id, gstin, ap.reference, ap.postingDate, taxable, Math.round(sum(GST_INPUT.igst) * k), Math.round(sum(GST_INPUT.cgst) * k), Math.round(sum(GST_INPUT.sgst) * k));
+  }
+
+  // supplies the suppliers reported that the books do not have
+  const vendors = ctx.m.vendors.filter((v) => v.country === "IN" && v.indirectTaxIdMasked && !ctx.reserved.has(v.id));
+  const extra = Math.round(out.length * 0.025);
+  for (let i = 0; i < extra && vendors.length; i += 1) {
+    const v = rng.pick(vendors);
+    const date = addDays(ctx.asOf, -rng.int(1, 240));
+    if (date < from) continue;
+    const taxable = rng.money(9_00_000, 1.0, 20_000, 1_00_00_000);
+    const g = Math.round(taxable * 0.18);
+    line(v.id, v.indirectTaxIdMasked!, `${v.id.slice(5)}/${rng.int(10000, 99999)}`, date, taxable, g, 0, 0);
+  }
+
+  // the company's own returns: due on the 20th of the following month; June was filed two days late
+  const returns: GstReturn[] = [];
+  for (let m = 1; m <= Number(ctx.asOf.slice(5, 7)); m += 1) {
+    const period = `${ctx.asOf.slice(0, 4)}-${String(m).padStart(2, "0")}`;
+    const next = m === 12 ? `${Number(ctx.asOf.slice(0, 4)) + 1}-01` : `${ctx.asOf.slice(0, 4)}-${String(m + 1).padStart(2, "0")}`;
+    const dueDate = `${next}-20`;
+    const filedOn = dueDate <= ctx.asOf ? addDays(dueDate, period.endsWith("-06") ? 2 : -rng.int(0, 4)) : undefined;
+    returns.push({ period, dueDate, filedOn });
+  }
+  return { gstStatement: out.sort((a, b) => a.period.localeCompare(b.period) || a.id.localeCompare(b.id)), gstReturns: returns };
 }
 
 /** Quarter end (Indian tax year quarters end Jun, Sep, Dec, Mar). */

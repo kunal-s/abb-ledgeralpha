@@ -7,7 +7,7 @@
 import type { IsoDate, LineItem, Party, Project } from "@/types";
 import { addDays } from "@/lib/dates";
 import type { Masters } from "@/data/generator/masters";
-import { anchor, bizTime, trackPo, type Ctx } from "@/data/generator/context";
+import { anchor, bizTime, gstLegs, trackPo, type Ctx } from "@/data/generator/context";
 import { payVendor, postGoodsReceipt, postInvoiceReceipt, postReceiptWithTds } from "@/data/generator/population";
 import { WORLD_SPEC as S } from "@/data/workspace/spec";
 
@@ -318,6 +318,19 @@ export function plantScenarios(ctx: Ctx, r: ScenarioRefs): void {
     [V.S24b, 119, 7_58_100],
     [V.S24c, 88, 8_12_200],
   ];
+  // S-23 three supplier invoices in the books that the supplier has not reported: input tax credit of 6,84,200 not yet available
+  const s23 = ([["2026-09-12", 15_00_000, "6104"], ["2026-09-18", 15_00_000, "6118"], ["2026-09-24", 8_01_111, "6127"]] as [string, number, string][]).map(([date, taxable, ref]) => {
+    const gst = gstLegs(taxable, "input", true, "PC-EL-01");
+    const gross = taxable + gst.reduce((s, l) => s + l.amount, 0);
+    const [ap] = b.post({ docType: "KR", postingDate: date, enteredBy: "AP_SSC01", reference: `${V.S16.id.slice(5)}/${ref}`, entryTime: "11:08", text: "Switchgear components" }, [
+      { gl: "210100", amount: -gross, pc: "PC-EL-01", partner: { type: "Vendor", id: V.S16.id }, dueDate: addDays(date, 60), assignment: V.S16.id },
+      { gl: "510100", amount: taxable, pc: "PC-EL-01" },
+      ...gst,
+    ]);
+    return ap;
+  });
+  anchor(ctx, "S-23", ...s23.map((l) => l.key));
+
   anchor(ctx, "S-24", ...msme.map(([v, age, gross]) => vendorInvoiceGross(ctx, v, addDays(ctx.asOf, -age), gross).key));
 
   // S-19 Bank reconciliation: items between the books and the bank statements at the period end.
