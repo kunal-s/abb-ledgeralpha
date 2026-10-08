@@ -315,6 +315,21 @@ export const useWorkflow = create<WorkflowState>()(
       const personEvent = (person: Person, e: Omit<ActivityEvent, "id" | "at" | "actorId" | "actorKind">) =>
         log({ ...e, actorId: person.id, actorKind: "Person" });
 
+      /** The proposer tried to approve their own decision: the workflow refuses, and the refusal is evidence for the controls. */
+      const logBlockedSelfApproval = (d: Decision, person: Person, error: string) => {
+        if (person.id !== d.proposedBy || !error.includes("own decision")) return;
+        personEvent(person, {
+          module: d.module,
+          object: objectOfItem(d.itemKey),
+          itemKeys: [d.itemKey],
+          action: "Self-approval blocked",
+          before: "Proposed",
+          after: "Still waiting for another approver",
+          reason: error,
+          details: { decision: d.id },
+        });
+      };
+
       /** A request of the auditor's list, or one raised in this session. */
       const requestOf = (id: string): PbcRequest | undefined => PBC_REQUESTS.find((r) => r.id === id) ?? get().pbcRaised.find((r) => r.id === id);
 
@@ -500,7 +515,10 @@ export const useWorkflow = create<WorkflowState>()(
           const d = get().decisions[id];
           if (!d) return fail("Decision not found");
           const r = approveOne(d, role, person, note);
-          if (!r.ok) return r;
+          if (!r.ok) {
+            logBlockedSelfApproval(d, person, r.error);
+            return r;
+          }
           set((s) => ({ decisions: { ...s.decisions, [id]: r.decision } }));
           const status = r.decision.status;
           personEvent(person, {
@@ -525,7 +543,10 @@ export const useWorkflow = create<WorkflowState>()(
             if (!d) continue;
             const r = approveOne(d, role, person, note);
             if (r.ok) updated.push(r.decision);
-            else skipped += 1;
+            else {
+              skipped += 1;
+              logBlockedSelfApproval(d, person, r.error);
+            }
           }
           if (!updated.length) return fail(skipped ? `None of the ${skipped} selected decisions is waiting for ${ROLES[role].label}` : "Nothing selected");
           set((s) => {

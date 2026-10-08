@@ -100,6 +100,9 @@ export function bandFor(amount: number): (typeof APPROVAL_BANDS)[number] {
  */
 export const STATEMENT_POLICY = { balanceSheetComparative: "previous-quarter-end" as "previous-quarter-end" | "previous-year-end" };
 
+/** The control tests read these windows: a reviewer signs by this many days after the period end. */
+export const CONTROL_POLICY = { accountReviewDays: 15, journalReviewDays: 7 };
+
 /** An escalation is decided one level above the band its amount falls in (never below the first). */
 export function escalatedBandFor(amount: number): (typeof APPROVAL_BANDS)[number] {
   const i = APPROVAL_BANDS.findIndex((b) => b.id === bandFor(amount).id);

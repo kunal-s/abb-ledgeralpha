@@ -13,6 +13,7 @@ import { buildCashApp } from "@/state/cashAppHooks";
 import { buildCloseModel } from "@/state/closeModel";
 import { buildHome } from "@/state/homeModel";
 import { buildAgentStats } from "@/engine/agentStats";
+import { evaluateControls } from "@/engine/controls";
 import { seededHistory } from "@/engine/history";
 import { buildReview, getRun, latestDecisions, latestFollowUps } from "@/state/hooks";
 import { buildJournals } from "@/state/journalHooks";
@@ -43,6 +44,10 @@ export function modelsAt(opts: { wd?: number; today?: string } = {}) {
   return {
     review, recRows, journals, receipts, pbc, close, today,
     work: (role: RoleId) => buildWork({ role, today, review, recRows, receipts, journals, decisions: s.decisions, followUps: s.followUps, pbc, close }),
+    controls: () => evaluateControls({
+      periodEnd: WORLD.asOf, today, signOffs: s.signOffs, recRows, accountsAwaiting: review.accounts.filter((a) => a.status !== "reviewer-signed").length,
+      decisions: Object.values(s.decisions), journals, journalReviews: s.journalReviews, events: [...seededHistory(), ...s.events],
+    }),
     agents: () => buildAgentStats({
       decisions: Object.values(s.decisions), review, recRows, receipts, journals, close, signOffs: s.signOffs,
       followUps: Object.values(s.followUps), journalReviews: s.journalReviews, events: [...seededHistory(), ...s.events],
