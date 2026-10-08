@@ -8,6 +8,20 @@ import { BSR_EVALUATORS, BSR_RULES, type Evaluator } from "@/engine/rules/bsr";
 export const PRODUCT_RULES: RuleDefinition[] = [...BSR_RULES];
 const EVALUATORS: Record<string, Evaluator> = { ...BSR_EVALUATORS };
 
+/** A rule configured in the workspace joins the library until it is removed. */
+export function registerRule(def: RuleDefinition, evaluator: Evaluator): void {
+  const i = PRODUCT_RULES.findIndex((r) => r.id === def.id);
+  if (i >= 0) PRODUCT_RULES[i] = def;
+  else PRODUCT_RULES.push(def);
+  EVALUATORS[def.id] = evaluator;
+}
+
+export function unregisterRule(id: string): void {
+  const i = PRODUCT_RULES.findIndex((r) => r.id === id && r.custom);
+  if (i >= 0) PRODUCT_RULES.splice(i, 1);
+  delete EVALUATORS[id];
+}
+
 export interface RuleOverride {
   enabled?: boolean;
   params?: Record<string, number>;

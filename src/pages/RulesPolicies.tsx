@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Lock, RotateCcw } from "lucide-react";
 import { KpiTile, PageHeader, Panel, SeverityBadge, StatusChip } from "@/components/vocab";
 import { Fields } from "@/components/vocab/Fields";
+import { StudioTab } from "@/pages/rules/StudioTab";
 import { PolicyPanels } from "@/components/settings/PolicyPanels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,7 +44,7 @@ function HitsByRule({ rules, selected, onSelect }: { rules: { rule: EffectiveRul
             <span className="font-mono text-2xs text-muted-foreground">{rule.id}</span>
             <span className={cn("truncate", !rule.enabled && "text-muted-foreground")}>
               {rule.name}
-              {rule.changed && <span className="ml-1.5 text-2xs text-info-foreground">· changed</span>}
+              {rule.custom ? <span className="ml-1.5 text-2xs text-info-foreground">· workspace rule</span> : rule.changed && <span className="ml-1.5 text-2xs text-info-foreground">· changed</span>}
             </span>
             <span className="flex items-center gap-2">
               <span className="h-2 flex-1 rounded-sm bg-muted">
@@ -102,7 +103,7 @@ function RuleDetail({ rule, lastDelta, onApplied }: { rule: EffectiveRule; lastD
       bodyClassName="p-0"
     >
       <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
-        <StatusChip status={rule.changed ? "in-review" : "not-started"} label={rule.changed ? "Changed for this workspace" : "Product default"} />
+        <StatusChip status={rule.custom || rule.changed ? "in-review" : "not-started"} label={rule.custom ? "Added in Rule Studio" : rule.changed ? "Changed for this workspace" : "Product default"} />
         <SeverityBadge severity={rule.severity} />
         <span className="text-2xs text-muted-foreground">
           {fmtInt(stat.count)} items · {fmtINRCompact(stat.value)}
@@ -311,9 +312,10 @@ export function RulesPolicies() {
         <KpiTile label="Workspace changes" value={changed} sublabel={changed === 1 ? "rule differs from default" : "rules differ from default"} accent={changed ? "info" : "none"} />
       </div>
 
-      <Tabs defaultValue="rules">
+      <Tabs value={params.get("rtab") ?? "rules"} onValueChange={(v) => setParams({ rtab: v === "rules" ? null : v })}>
         <TabsList>
           <TabsTrigger value="rules">Rules</TabsTrigger>
+          <TabsTrigger value="studio">Rule Studio</TabsTrigger>
           <TabsTrigger value="policies">Policies</TabsTrigger>
           <TabsTrigger value="log">Change log</TabsTrigger>
         </TabsList>
@@ -324,6 +326,9 @@ export function RulesPolicies() {
             </Panel>
             <RuleDetail rule={rule} lastDelta={lastDelta} onApplied={setLastDelta} />
           </div>
+        </TabsContent>
+        <TabsContent value="studio">
+          <StudioTab />
         </TabsContent>
         <TabsContent value="policies">
           <PolicyPanels />

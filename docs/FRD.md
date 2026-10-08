@@ -647,7 +647,7 @@ Each module states its purpose, what it shows, what users can do, the agents and
 - **FR-AGT-02 (M):** no agent statistic is hard-coded.
 
 ### 6.20 Rules & Policies · `/rules` · Working
-- **Shows:** rule library across modules (parameters, enabled, hits, value at stake) and policies (§4.4).
+- **Shows:** rule library across modules (parameters, enabled, hits, value at stake), **Rule Studio** (describe a rule in words, see it drafted as conditions, backtest it on the ledger, add it; patterns no rule covers are suggested with their evidence) and policies (§4.4).
 - **Actions:** edit and re-run (FR-RUL-01), reset, change log.
 - **FR-RUL-05 (M):** rules shipped as product defaults are distinguishable from workspace-configured rules.
 
@@ -982,6 +982,7 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | D-49 | **Escalate** is an action: no entry is made, and the decision goes one approval level above the band of its amount. It is recommended only for an item no specific rule explains that is at least ₹50 lakh and over a year old (`ESCALATION_POLICY`); its confidence is the sum of its own evidence factors, so it never falls below the 0.60 floor by construction |
 | D-50 | A reconciliation is shown as a bridge: the difference between books and source walked down through each class of reconciling item to the unexplained amount, which ends the bridge and is green inside tolerance. What stands behind the balances is read from the ledger: open items by business partner for a sub-ledger, open lines by purchase order for GR/IR, and the opening balance rolled forward by document type for a supporting schedule. Each ties to the reconciliation's own balance and the tests assert the tie |
 | D-51 | GR/IR clearing is a reconciliation type. The source is the purchase order history, which leaves out goods posted in the last days of the period (timing) and lines whose order is closed or flagged for deletion (classification: the action is taken in Balance Sheet Review, so the reconciliation asks for no entry). Every reconciling item is a real ledger line |
+| D-52 | Rule Studio is deterministic: a controller describes a rule in words, a parser reads it into scope, conditions and an action (the same sentence always gives the same rule), the draft is backtested on the loaded ledger against the rules already flagging each item, and a person accepts it. The draft carries the Judgement badge; an accepted rule is a workspace rule (`CUS-nn`) that runs through the same evaluator, parameters, change log and recommendation framework as a product rule, and ranks after the specific product rules and before age alone. Rules are numbered in turn, can be removed, and are forgotten by Reset demo. No model is called, so the demo runs offline and repeats exactly |
 
 ## 13. Build plan
 

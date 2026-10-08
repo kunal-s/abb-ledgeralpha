@@ -22,7 +22,7 @@ import { parseRecItemKey } from "@/engine/recs";
 import { useRoleStore } from "@/lib/stores";
 import { ROLES, can } from "@/config/roles";
 import { MATERIALITY_POLICY, APPROVAL_BANDS } from "@/config/policies";
-import { RULE_PRIORITY } from "@/engine/recommend";
+import { priorityOf } from "@/engine/recommend";
 import { draftFollowUp } from "@/engine/followup";
 import { BUCKETS } from "@/engine/review";
 import { FIELD_MAP } from "@/lib/fieldMap";
@@ -75,7 +75,7 @@ function Findings({ row }: { row: ItemRow }) {
   const review = useReview();
   if (!row.hits.length) return null;
   const rules = new Map(review.run.rules.map((r) => [r.id, r]));
-  const sorted = [...row.hits].sort((a, b) => RULE_PRIORITY.indexOf(a.ruleId) - RULE_PRIORITY.indexOf(b.ruleId));
+  const sorted = [...row.hits].sort((a, b) => priorityOf(a.ruleId) - priorityOf(b.ruleId));
   return (
     <Section title="Rule findings" aside={<MethodBadge method="deterministic" />}>
       <ul className="space-y-2">

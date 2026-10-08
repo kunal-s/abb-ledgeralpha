@@ -266,6 +266,8 @@ export interface RuleDefinition {
   basis?: string;
   /** product defaults; a workspace may change parameters or enablement */
   enabledByDefault: boolean;
+  /** a rule configured in this workspace (Rule Studio), not shipped with the product */
+  custom?: boolean;
 }
 
 /** A rule with the workspace's overrides applied. */

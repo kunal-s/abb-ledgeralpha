@@ -3,10 +3,10 @@
 // evidence factors that are shown with it. Below 0.60 the recommendation falls
 // back to Follow up. Narratives are templates over the facts (decision D-04).
 
-import type { ActionKind, ConfidenceFactor, LineItem, Recommendation, RuleHit } from "@/types";
+import type { ActionKind, ConfidenceFactor, LineItem, Recommendation, RuleDefinition, RuleHit } from "@/types";
 import { daysBetween, fmtDate } from "@/lib/dates";
 import { fmtINR } from "@/lib/format";
-import { ESCALATION_POLICY, bandFor, escalatedBandFor } from "@/config/policies";
+import { AGEING_POLICY, ESCALATION_POLICY, bandFor, escalatedBandFor } from "@/config/policies";
 import { WORLD } from "@/data";
 import type { RuleRun } from "@/engine/run";
 import type { EvalContext } from "@/engine/context";
@@ -18,6 +18,13 @@ export const RULE_PRIORITY = [
 ];
 
 const WEAK = 0.6;
+
+/** Position in the order of precedence: a rule configured in the workspace comes after the specific product rules and before age alone. */
+export function priorityOf(ruleId: string): number {
+  const i = RULE_PRIORITY.indexOf(ruleId);
+  if (i >= 0) return i;
+  return ruleId.startsWith("CUS-") ? RULE_PRIORITY.indexOf("BSR-01") - 0.5 : -1;
+}
 
 interface Draft {
   action: ActionKind;
@@ -326,12 +333,30 @@ function draft(ctx: EvalContext, item: LineItem, hit: RuleHit, all: RuleHit[], o
   }
 }
 
+/** A rule configured in the workspace: its own action, with confidence from what is known about the item. */
+function customDraft(run: RuleRun, rule: RuleDefinition, item: LineItem, hit: RuleHit, openFollowUp: boolean): Draft {
+  const ctx = run.ctx;
+  const partner = item.partner ? ctx.party.get(item.partner.id) : undefined;
+  return {
+    action: rule.candidateAction,
+    factors: [
+      f("Meets a rule set for this workspace", 0.4, true),
+      f("Older than the review threshold", 0.2, daysBetween(item.postingDate, ctx.asOf) > AGEING_POLICY.reviewThresholdDays),
+      f("Business partner known and active", 0.2, !partner || partner.status === "Active"),
+      f("No open follow-up", 0.2, !openFollowUp),
+    ],
+    rationale: `${fmtINR(Math.abs(item.amount))}: ${hit.reason}.`,
+    nextStep: `${rule.candidateAction} as set in ${rule.id}`,
+  };
+}
+
 export function recommend(run: RuleRun, itemKey: string, openFollowUps: ReadonlySet<string>): Recommendation | undefined {
   const hits = run.byItem.get(itemKey);
   const item = run.items.get(itemKey);
   if (!hits?.length || !item) return undefined;
-  const primary = [...hits].sort((a, b) => RULE_PRIORITY.indexOf(a.ruleId) - RULE_PRIORITY.indexOf(b.ruleId))[0];
-  const d = draft(run.ctx, item, primary, hits, openFollowUps.has(itemKey));
+  const primary = [...hits].sort((a, b) => priorityOf(a.ruleId) - priorityOf(b.ruleId))[0];
+  const custom = run.rules.find((r) => r.id === primary.ruleId && r.custom);
+  const d = custom ? customDraft(run, custom, item, primary, openFollowUps.has(itemKey)) : draft(run.ctx, item, primary, hits, openFollowUps.has(itemKey));
   let confidence = Math.round(d.factors.reduce((s, x) => s + (x.met ? x.weight : 0), 0) * 100) / 100;
   let action = d.action;
   let rationale = d.rationale;

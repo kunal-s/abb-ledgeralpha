@@ -17,7 +17,8 @@ import { ROLES, can, type Permission } from "@/config/roles";
 import { CASH_APP_POLICY, MATERIALITY_POLICY, bandFor, escalatedBandFor } from "@/config/policies";
 import { fmtINR } from "@/lib/format";
 import { addDays, fmtDate } from "@/lib/dates";
-import { effectiveRules, runRules, type RuleOverride, type RuleOverrides } from "@/engine/run";
+import { effectiveRules, registerRule, runRules, unregisterRule, type RuleOverride, type RuleOverrides } from "@/engine/run";
+import { definitionOf, evaluatorOf, nextStudioId, type StudioRule } from "@/engine/ruleStudio";
 import { diagnoseCustomer } from "@/engine/diagnose";
 import { receiptByKey, unappliedFor } from "@/engine/cashappData";
 import { applicationJournal } from "@/engine/cashapp";
@@ -75,6 +76,8 @@ export interface RaiseRequestInput {
 
 interface WorkflowData {
   ruleOverrides: RuleOverrides;
+  /** rules configured in the workspace (Rule Studio); they join the library when the store loads */
+  studioRules: StudioRule[];
   decisions: Record<string, Decision>;
   followUps: Record<string, FollowUp>;
   /** sign-offs of accounts and reconciliations, keyed `${gl or reconciliation id}|${periodEnd}` */
@@ -97,6 +100,9 @@ interface WorkflowData {
 
 interface WorkflowActions {
   setRuleOverride: (ruleId: string, override: RuleOverride, reason?: string) => Result<{ delta: RuleChangeDelta }>;
+  /** Accept a drafted rule into the library; it runs at once and is logged. */
+  addStudioRule: (rule: Omit<StudioRule, "id">) => Result<{ id: string; count: number }>;
+  removeStudioRule: (id: string) => Result;
   resetRules: () => Result;
   proposeDecision: (input: ProposeInput) => Result<{ id: string }>;
   /** Bulk: each input is validated on its own; one activity event covers the batch. */
@@ -167,6 +173,7 @@ export type WorkflowState = WorkflowData & WorkflowActions;
 
 const INITIAL: WorkflowData = {
   ruleOverrides: SEEDED_RULE_OVERRIDES,
+  studioRules: [],
   decisions: {},
   followUps: {},
   signOffs: seededSignOffs(),
@@ -425,6 +432,39 @@ export const useWorkflow = create<WorkflowState>()(
             details: { asOf },
           });
           return { ok: true, delta: { ruleId, before, after } };
+        },
+
+        addStudioRule: (draft) => {
+          const { role, person } = actor();
+          if (!can(role, "edit-rules")) return fail(denied("edit-rules", role));
+          if (!draft.conditions.length) return fail("The rule needs at least one condition");
+          const rule: StudioRule = { ...draft, id: nextStudioId(get().studioRules.map((r) => r.id)) };
+          registerRule(definitionOf(rule), evaluatorOf(rule));
+          const overrides: RuleOverrides = { ...get().ruleOverrides, [rule.id]: { enabled: true } };
+          const asOf = usePeriodStore.getState().periodEnd;
+          const stat = runRules(asOf, effectiveRules(overrides)).byRule.get(rule.id) ?? { count: 0, value: 0 };
+          set({ studioRules: [...get().studioRules, rule], ruleOverrides: overrides });
+          personEvent(person, {
+            module: "rules-policies",
+            object: { type: "rule", id: rule.id, label: rule.name },
+            action: "Rule added",
+            after: definitionOf(rule).logic,
+            reason: rule.source,
+            details: { itemsAfter: stat.count, valueAfter: stat.value },
+          });
+          return { ok: true, id: rule.id, count: stat.count };
+        },
+
+        removeStudioRule: (id) => {
+          const { role, person } = actor();
+          if (!can(role, "edit-rules")) return fail(denied("edit-rules", role));
+          const rule = get().studioRules.find((r) => r.id === id);
+          if (!rule) return fail("Rule not found");
+          unregisterRule(id);
+          const { [id]: _gone, ...overrides } = get().ruleOverrides;
+          set({ studioRules: get().studioRules.filter((r) => r.id !== id), ruleOverrides: overrides });
+          personEvent(person, { module: "rules-policies", object: { type: "rule", id, label: rule.name }, action: "Rule removed", before: definitionOf(rule).logic });
+          return { ok: true };
         },
 
         resetRules: () => {
@@ -1118,6 +1158,7 @@ export const useWorkflow = create<WorkflowState>()(
         },
 
         resetDemo: () => {
+          for (const r of get().studioRules) unregisterRule(r.id);
           set({ ...INITIAL, signOffs: seededSignOffs() });
           safeStorage.removeItem("ledgeralpha-workflow");
         },
@@ -1127,8 +1168,12 @@ export const useWorkflow = create<WorkflowState>()(
       name: "ledgeralpha-workflow",
       version: 6,
       storage: createJSONStorage(() => safeStorage),
+      onRehydrateStorage: () => (state) => {
+        for (const r of state?.studioRules ?? []) registerRule(definitionOf(r), evaluatorOf(r));
+      },
       partialize: (s) => ({
         ruleOverrides: s.ruleOverrides,
+        studioRules: s.studioRules,
         decisions: s.decisions,
         followUps: s.followUps,
         signOffs: s.signOffs,
