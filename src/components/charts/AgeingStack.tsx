@@ -14,11 +14,13 @@ export interface AgeingSlice {
 interface AgeingStackProps {
   slices: AgeingSlice[];
   onSelect?: (id: string) => void;
+  /** one row per slice instead of columns, for five bands or long labels */
+  list?: boolean;
   className?: string;
 }
 
 /** A single stacked bar of value by ageing bucket, with the figures written under each segment. */
-export function AgeingStack({ slices, onSelect, className }: AgeingStackProps) {
+export function AgeingStack({ slices, onSelect, list, className }: AgeingStackProps) {
   const total = slices.reduce((s, x) => s + x.amount, 0);
   return (
     <div className={cn("space-y-3", className)}>
@@ -38,6 +40,18 @@ export function AgeingStack({ slices, onSelect, className }: AgeingStackProps) {
           );
         })}
       </div>
+      {list ? (
+        <ul className="divide-y divide-border">
+          {slices.map((s) => (
+            <li key={s.id} className="flex items-center gap-2 py-1.5 text-sm">
+              <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: s.fill ?? AGEING_FILL[s.id] }} />
+              <span className="min-w-0 flex-1 truncate">{s.label}</span>
+              <span className="text-2xs text-muted-foreground tnum">{s.count} items</span>
+              <span className="w-20 text-right font-medium tnum">{fmtINRCompact(s.amount)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
       <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${slices.length}, minmax(0, 1fr))` }}>
         {slices.map((s) => (
           <div key={s.id} className="min-w-0">
@@ -50,6 +64,7 @@ export function AgeingStack({ slices, onSelect, className }: AgeingStackProps) {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

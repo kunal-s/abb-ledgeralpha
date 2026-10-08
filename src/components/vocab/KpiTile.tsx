@@ -1,10 +1,13 @@
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
-import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Info, Minus } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ReactNode } from "react";
 
 interface KpiTileProps {
   label: string;
+  /** the figure's definition, shown on hover (help lives in tooltips, not on the page) */
+  hint?: string;
   value: ReactNode;
   unit?: string;
   /** trend direction relative to a target/prior; semantics set by `goodWhen` */
@@ -23,6 +26,7 @@ interface KpiTileProps {
 
 export function KpiTile({
   label,
+  hint,
   value,
   unit,
   delta,
@@ -64,6 +68,14 @@ export function KpiTile({
         <span className="flex items-center gap-1.5 text-2xs font-medium uppercase tracking-[0.06em] text-muted-foreground">
           {accent !== "none" && <span className={cn("h-1.5 w-1.5 rounded-full", dot)} />}
           {label}
+          {hint && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3 w-3 shrink-0 cursor-help opacity-60" aria-label={`Definition of ${label}`} />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs normal-case tracking-normal">{hint}</TooltipContent>
+            </Tooltip>
+          )}
         </span>
         {icon && <span className="text-muted-foreground">{icon}</span>}
       </div>
@@ -79,11 +91,11 @@ export function KpiTile({
               </span>
             )}
           </div>
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
             {delta && (
               <span
                 className={cn(
-                  "inline-flex items-center gap-0.5 text-2xs font-medium tnum",
+                  "inline-flex items-center gap-0.5 whitespace-nowrap text-2xs font-medium tnum",
                   isGood === null
                     ? "text-muted-foreground"
                     : isGood
