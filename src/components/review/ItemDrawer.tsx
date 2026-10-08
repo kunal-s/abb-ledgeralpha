@@ -13,6 +13,10 @@ import { useReview, useItemRow } from "@/state/ReviewContext";
 import type { ItemRow } from "@/state/hooks";
 import { useWorkflow } from "@/state/workflow";
 import { DecisionApproval, FollowUpBody, History, Section } from "@/components/review/drawerParts";
+import { ItemTimeline } from "@/components/review/ItemTimeline";
+import { EvidenceChain, type ChainStep } from "@/components/review/EvidenceChain";
+import { itemTimeline } from "@/engine/reviewStory";
+import { accountStatusIsSigned } from "@/components/review/signed";
 import { RecItemBody } from "@/components/recon/RecItemDrawer";
 import { parseRecItemKey } from "@/engine/recs";
 import { useRoleStore } from "@/lib/stores";
@@ -29,7 +33,7 @@ import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { ActionKind } from "@/types";
 
-const DECISION_ACTIONS: ActionKind[] = ["Clear", "Reclassify", "Write off", "Write back", "Provide", "Retain"];
+const DECISION_ACTIONS: ActionKind[] = ["Clear", "Reclassify", "Write off", "Write back", "Provide", "Escalate", "Retain"];
 const MODULE = "balance-sheet-review";
 
 // ---------------------------------------------------------------------------
@@ -78,10 +82,19 @@ function Findings({ row }: { row: ItemRow }) {
         {sorted.map((h) => (
           <li key={h.ruleId} className="text-sm">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-2xs text-muted-foreground">{h.ruleId}</span>
+              <Link to={`/rules?rule=${h.ruleId}`} onClick={() => useItemDrawer.getState().close()} className="font-mono text-2xs text-primary hover:underline">{h.ruleId}</Link>
               <span className="font-medium">{rules.get(h.ruleId)?.name}</span>
             </div>
             <div className="text-xs text-muted-foreground">{h.reason}</div>
+            {rules.get(h.ruleId)?.params.length ? (
+              <div className="mt-1 flex flex-wrap gap-1">
+                {rules.get(h.ruleId)!.params.map((p) => (
+                  <span key={p.key} className="rounded-sm bg-secondary px-1.5 py-0.5 text-2xs text-muted-foreground">
+                    {p.label}: <span className="font-medium text-foreground tnum">{p.unit === "amount" ? fmtINRCompact(p.value) : `${p.value}${p.unit === "%" ? "%" : ` ${p.unit}`}`}</span>
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -190,6 +203,27 @@ function FollowUp({ row }: { row: ItemRow }) {
 }
 
 // ---------------------------------------------------------------------------
+function Chain({ row }: { row: ItemRow }) {
+  const review = useReview();
+  const acct = review.accountByGl.get(row.item.gl);
+  const d = row.decision;
+  const steps: ChainStep[] = [
+    { label: "Source", detail: row.item.sourceSystem, done: true },
+    { label: "Rule", detail: row.hits.length ? row.hits.map((h) => h.ruleId).slice(0, 2).join(", ") : "None", done: row.hits.length > 0 },
+    { label: "Proposed", detail: row.rec ? `${row.rec.action}, ${row.rec.confidence.toFixed(2)}` : "-", done: !!row.rec },
+    { label: "Decision", detail: d ? d.status : row.followUp ? "Follow-up" : "Open", done: !!d && d.status !== "rejected" && d.status !== "withdrawn" },
+    { label: "Approved", detail: d && ["approved", "exported", "closed-in-erp"].includes(d.status) ? "Yes" : "Waiting", done: !!d && ["approved", "exported", "closed-in-erp"].includes(d.status) },
+    { label: "Schedule", detail: acct && accountStatusIsSigned(acct.status) ? "Signed off" : "Not signed", done: !!acct && accountStatusIsSigned(acct.status) },
+  ];
+  return <EvidenceChain steps={steps} />;
+}
+
+function Timeline({ row }: { row: ItemRow }) {
+  const review = useReview();
+  return <ItemTimeline events={itemTimeline(row, review.asOf)} />;
+}
+
+// ---------------------------------------------------------------------------
 function Related({ row }: { row: ItemRow }) {
   const item = row.item;
   const party = item.partner ? PARTY_BY_ID.get(item.partner.id) : undefined;
@@ -284,11 +318,17 @@ function Body({ row }: { row: ItemRow }) {
         </div>
       </header>
       <div className="flex-1 overflow-y-auto">
+        <Section title="Evidence">
+          <Chain row={row} />
+        </Section>
         <Recommendation row={row} />
         <Findings row={row} />
         <Decision key={`d-${row.key}-${row.decision?.id ?? "none"}`} row={row} />
         <FollowUp key={`f-${row.key}-${row.followUp?.id ?? "none"}-${row.followUp?.status ?? ""}`} row={row} />
         <Related row={row} />
+        <Section title="Timeline">
+          <Timeline row={row} />
+        </Section>
         <Section title="Document fields">
           <Fields rows={FIELD_MAP.map((f) => [f.field, <span key={f.field}><span className="mr-2 font-mono text-2xs text-muted-foreground">{f.sap}</span>{f.value(row.item)}</span>])} />
         </Section>

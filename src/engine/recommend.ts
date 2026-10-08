@@ -6,7 +6,7 @@
 import type { ActionKind, ConfidenceFactor, LineItem, Recommendation, RuleHit } from "@/types";
 import { daysBetween, fmtDate } from "@/lib/dates";
 import { fmtINR } from "@/lib/format";
-import { bandFor } from "@/config/policies";
+import { ESCALATION_POLICY, bandFor, escalatedBandFor } from "@/config/policies";
 import { WORLD } from "@/data";
 import type { RuleRun } from "@/engine/run";
 import type { EvalContext } from "@/engine/context";
@@ -342,6 +342,22 @@ export function recommend(run: RuleRun, itemKey: string, openFollowUps: Readonly
     action = "Follow up";
   }
   confidence = Math.min(1, confidence);
+  // large and old with nothing specific to act on: a senior reviewer should look
+  let escalate = false;
+  if (action === "Follow up" && primary.ruleId === "BSR-01" && Math.abs(item.amount) >= ESCALATION_POLICY.minAmount && daysBetween(item.postingDate, run.ctx.asOf) > ESCALATION_POLICY.minAgeDays) {
+    escalate = true;
+    action = "Escalate";
+    d.factors = [
+      f("Older than the review threshold", 0.2, true),
+      f("Older than a year", 0.25, true),
+      f("At or above the escalation amount", 0.25, true),
+      f("No specific finding explains it", 0.1, true),
+      f("No open follow-up", 0.1, !openFollowUps.has(itemKey)),
+    ];
+    confidence = Math.round(d.factors.reduce((s, x) => s + (x.met ? x.weight : 0), 0) * 100) / 100;
+    rationale = `${rationale} No specific finding explains it, and it is large and over a year old.`;
+    nextStep = "Escalate for senior review";
+  }
   const category = run.ctx.gl.get(item.gl)!.category;
   return {
     itemKey,
@@ -352,7 +368,7 @@ export function recommend(run: RuleRun, itemKey: string, openFollowUps: Readonly
     rationale,
     nextStep,
     requiresTaxReview: action === "Write back" || (action === "Write off" && (category === "tds-recv" || category === "gst")),
-    approvalBandId: bandFor(item.amount).id,
+    approvalBandId: (escalate ? escalatedBandFor(item.amount) : bandFor(item.amount)).id,
   };
 }
 

@@ -48,6 +48,7 @@ export function draftCommentary(f: CommentaryFacts): string {
   if (a.Clear) bits.push(`${plural(a.Clear.count, "item")} (${fmtINRCompact(a.Clear.value)}) for clearing against offsetting entries`);
   if (a.Reclassify) bits.push(`${plural(a.Reclassify.count, "item")} (${fmtINRCompact(a.Reclassify.value)}) for reclassification`);
   if (bits.length) parts.push(`Recommended: ${bits.join("; ")}.`);
+  if (a.Escalate) parts.push(`${plural(a.Escalate.count, "item")} (${fmtINRCompact(a.Escalate.value)}) are large and old with no specific finding and are recommended for senior review.`);
   if (a["Follow up"]) parts.push(`${plural(a["Follow up"].count, "item")} (${fmtINRCompact(a["Follow up"].value)}) need follow-up with the owner or counterparty.`);
   const d = f.decisions;
   if (d.proposed + d.approved + d.exported > 0) {

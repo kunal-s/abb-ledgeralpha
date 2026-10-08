@@ -92,6 +92,15 @@ export function bandFor(amount: number): (typeof APPROVAL_BANDS)[number] {
   return APPROVAL_BANDS.find((b) => b.upTo === null || abs <= b.upTo)!;
 }
 
+/** An escalation is decided one level above the band its amount falls in (never below the first). */
+export function escalatedBandFor(amount: number): (typeof APPROVAL_BANDS)[number] {
+  const i = APPROVAL_BANDS.findIndex((b) => b.id === bandFor(amount).id);
+  return APPROVAL_BANDS[Math.min(i + 1, APPROVAL_BANDS.length - 1)];
+}
+
+/** An item with no specific finding is recommended for escalation when it is this large and this old. */
+export const ESCALATION_POLICY = { minAmount: 50_00_000, minAgeDays: 365 };
+
 /** Actions that always need tax review, whatever the band. */
 export const TAX_REVIEW_POLICY = ["Write back", "Write off of tax receivables"] as const;
 

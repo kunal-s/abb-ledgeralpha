@@ -4,6 +4,11 @@ import { KpiTile, Panel, DocLink, ConfidenceChip } from "@/components/vocab";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HeatmapGrid, type HeatMode } from "@/components/review/Heatmap";
+import { AgeingLegend, FocusAreas } from "@/components/review/FocusAreas";
+import { ActionMix } from "@/components/review/ActionMix";
+import { StaleBalances } from "@/components/review/StaleBalances";
+import { MethodBadge } from "@/components/vocab";
+import { draftPortfolioCommentary, portfolioFacts } from "@/engine/reviewStory";
 import { GL_BY_ID, PARTY_BY_ID, PERSON_BY_ID, WORLD } from "@/data";
 import { useReview } from "@/state/ReviewContext";
 import { useQueryParams } from "@/lib/useQueryParams";
@@ -76,6 +81,9 @@ export function OverviewTab() {
   }
   const progress = [...byCategory.entries()].sort((a, b) => b[1].total - a[1].total);
 
+  const facts = useMemo(() => portfolioFacts(rows, { signed, total: accounts.length }), [rows, signed, accounts.length]);
+  const commentary = useMemo(() => draftPortfolioCommentary(facts), [facts]);
+
   const movement = REVIEW_CATEGORIES.map((c) => review.scan.categories.get(c)).filter((m): m is NonNullable<typeof m> => !!m && (Math.abs(m.closing) > 0 || m.over > 0 || m.priorOver > 0));
 
   const drill = (category: AccountCategory | null, bucket: string | null) =>
@@ -135,6 +143,15 @@ export function OverviewTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+        <Panel title="Where the risk sits" className="xl:col-span-2" actions={<AgeingLegend />}>
+          <FocusAreas areas={facts.focus} onSelect={(c, b) => drill(c, b ?? null)} />
+        </Panel>
+        <Panel title="What the engine recommends" actions={<MethodBadge method="judgement" showConfidence={false} />}>
+          <ActionMix slices={facts.mix} onSelect={(a) => setParams({ tab: "exceptions", category: null, bucket: null, show: "all", status: null, rule: null, q: null, action: a }, { replace: false })} />
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <Panel
           title="Open items by category and age"
           className="xl:col-span-2"
@@ -168,6 +185,7 @@ export function OverviewTab() {
                       {r.item.partner ? ` · ${PARTY_BY_ID.get(r.item.partner.id)?.name}` : ""}
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="text-muted-foreground tnum">{fmtInt(r.age)} d</span>
                       <span className="font-medium">{r.rec!.action}</span>
                       <ConfidenceChip score={r.rec!.confidence} showIcon={false} />
                     </span>
@@ -176,6 +194,15 @@ export function OverviewTab() {
               ))}
             </ul>
           )}
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+        <Panel title="Oldest balances, over a year" bodyClassName="p-0" className="xl:col-span-2">
+          <StaleBalances accounts={facts.stale.slice(0, 6)} />
+        </Panel>
+        <Panel title="Reading of the balance sheet" actions={<MethodBadge method="judgement" showConfidence={false} />}>
+          <p className="text-sm leading-6">{commentary}</p>
         </Panel>
       </div>
 

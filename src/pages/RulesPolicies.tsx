@@ -1,3 +1,4 @@
+import { useQueryParams } from "@/lib/useQueryParams";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Lock, RotateCcw } from "lucide-react";
 import { KpiTile, PageHeader, Panel, SeverityBadge, StatusChip } from "@/components/vocab";
@@ -271,7 +272,9 @@ export function RulesPolicies() {
   const run = useRuleRun();
   const role = useRoleStore((s) => s.role);
   const resetRules = useWorkflow((s) => s.resetRules);
-  const [selected, setSelected] = useState("BSR-05");
+  const [params, setParams] = useQueryParams();
+  const selected = params.get("rule") ?? "BSR-05";
+  const setSelected = (id: string) => setParams({ rule: id });
   const [lastDelta, setLastDelta] = useState<RuleChangeDelta>();
   const rows = run.rules.map((rule) => ({ rule, ...(run.byRule.get(rule.id) ?? { count: 0, value: 0 }) }));
   const enabled = run.rules.filter((r) => r.enabled).length;

@@ -229,6 +229,7 @@ export type ActionKind =
   | "Adjust books" // a reconciling item that needs an entry in the books
   | "Apply receipt" // a receipt in clearing applied to open invoices (Cash Application)
   | "Follow up"
+  | "Escalate" // no entry: a senior reviewer looks at the item, one approval level above its band
   | "Retain";
 
 /** Journal lines carried by a decision whose entry is not derived from one ledger line (reconciling items, receipt applications). */

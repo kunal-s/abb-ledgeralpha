@@ -2,7 +2,8 @@
 // across modules (docs/FRD.md §6.1). Pure, over the models the modules read.
 
 import type { Decision, IsoDate, RoleId } from "@/types";
-import { GL_BY_ID, LINE_BY_KEY } from "@/data";
+import { LINE_BY_KEY } from "@/data";
+import { staleBalances, type StaleAccount } from "@/engine/reviewStory";
 import { BUCKETS, bucketOf, type BucketId } from "@/engine/review";
 import { MATERIALITY_POLICY } from "@/config/policies";
 import type { PbcState } from "@/engine/audit";
@@ -40,7 +41,7 @@ export interface BalanceRisk {
   byBucket: Record<BucketId, { count: number; amount: number }>;
   flaggedValue: number;
   flaggedCount: number;
-  stale: { gl: string; name: string; amount: number; count: number; oldest: number; action?: string }[];
+  stale: StaleAccount[];
 }
 
 /** Reconciliation health by type: how much is still unexplained outside tolerance, and how many are certified. */
@@ -163,32 +164,17 @@ export function buildHome(i: HomeInput): { kpis: HomeKpis; attention: AttentionI
 
   // balance sheet at risk: open items flagged by a rule
   const byBucket = Object.fromEntries(BUCKETS.map((b) => [b.id, { count: 0, amount: 0 }])) as BalanceRisk["byBucket"];
-  const perGl = new Map<string, { amount: number; count: number; oldest: number; top: number; action?: string }>();
   for (const r of i.review.rows) {
     if (!r.flagged || !r.isOpen) continue;
-    const amt = Math.abs(r.item.amount);
     const b = byBucket[bucketOf(r.age)];
     b.count += 1;
-    b.amount += amt;
-    if (r.age <= 365) continue;
-    const g = perGl.get(r.item.gl) ?? { amount: 0, count: 0, oldest: 0, top: 0 };
-    g.amount += amt;
-    g.count += 1;
-    g.oldest = Math.max(g.oldest, r.age);
-    if (amt > g.top) {
-      g.top = amt;
-      g.action = r.rec?.action;
-    }
-    perGl.set(r.item.gl, g);
+    b.amount += Math.abs(r.item.amount);
   }
   const risk: BalanceRisk = {
     byBucket,
     flaggedValue: Object.values(byBucket).reduce((s, b) => s + b.amount, 0),
     flaggedCount: Object.values(byBucket).reduce((s, b) => s + b.count, 0),
-    stale: [...perGl.entries()]
-      .map(([gl, g]) => ({ gl, name: GL_BY_ID.get(gl)?.description ?? gl, amount: g.amount, count: g.count, oldest: g.oldest, action: g.action }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 6),
+    stale: staleBalances(i.review.rows).slice(0, 6),
   };
 
   const byType = new Map<string, RecHealth>();

@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { useItemDrawer } from "@/state/drawer";
 import type { ActionKind, Decision } from "@/types";
 
-const ACTIONS: ActionKind[] = ["Clear", "Reclassify", "Write off", "Write back", "Provide", "Retain"];
+const ACTIONS: ActionKind[] = ["Clear", "Reclassify", "Write off", "Write back", "Provide", "Escalate", "Retain"];
 const FILTERS = [
   { key: "mine", label: "Awaiting me" },
   { key: "open", label: "In progress" },

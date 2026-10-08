@@ -108,7 +108,7 @@ export function ItemsTable({ rows, showAccount, bulk, pageSize = 25, empty = "No
             <TableHead>Party and text</TableHead>
             <SortHead label="Age" k="age" sort={sort} onSort={setSort} />
             <SortHead label="Amount" k="amount" sort={sort} onSort={setSort} className="text-right" />
-            <TableHead>Findings</TableHead>
+            <TableHead>Why it is flagged</TableHead>
             <SortHead label="Suggested" k="confidence" sort={sort} onSort={setSort} />
             <TableHead>Status</TableHead>
           </TableRow>
@@ -152,16 +152,23 @@ export function ItemsTable({ rows, showAccount, bulk, pageSize = 25, empty = "No
                   <div className="text-2xs text-muted-foreground">{bucket.label}</div>
                 </TableCell>
                 <TableCell className="whitespace-nowrap py-2 text-right tnum text-sm">{fmtDrCr(r.item.amount)}</TableCell>
-                <TableCell className="py-2">
-                  <div className="flex flex-wrap gap-1">
-                    {r.hits.slice(0, 2).map((h) => (
-                      <span key={h.ruleId} title={h.reason} className="rounded bg-secondary px-1.5 py-0.5 font-mono text-2xs">
-                        {h.ruleId}
-                      </span>
-                    ))}
-                    {r.hits.length > 2 && <span className="text-2xs text-muted-foreground">+{r.hits.length - 2}</span>}
-                    {r.hits.length === 0 && <span className="text-2xs text-muted-foreground">-</span>}
-                  </div>
+                <TableCell className="max-w-64 py-2">
+                  {r.hits.length === 0 ? (
+                    <span className="text-2xs text-muted-foreground">-</span>
+                  ) : (
+                    (() => {
+                      const primary = r.hits.find((h) => h.ruleId === r.rec?.primaryRuleId) ?? r.hits[0];
+                      return (
+                        <div className="min-w-0">
+                          <div className="truncate text-xs">{primary.reason}</div>
+                          <div className="mt-0.5 flex items-center gap-1 font-mono text-2xs text-muted-foreground">
+                            {primary.ruleId}
+                            {r.hits.length > 1 && <span>and {r.hits.length - 1} more</span>}
+                          </div>
+                        </div>
+                      );
+                    })()
+                  )}
                 </TableCell>
                 <TableCell className="whitespace-nowrap py-2">
                   {r.rec ? (

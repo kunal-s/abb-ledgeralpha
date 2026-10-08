@@ -18,7 +18,7 @@ import { fmtDrCr, fmtINRCompact, fmtInt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ItemRow } from "@/state/hooks";
 
-const ACTION_ORDER = ["Write back", "Write off", "Provide", "Clear", "Reclassify", "Follow up", "Retain", "No finding"] as const;
+const ACTION_ORDER = ["Write back", "Write off", "Provide", "Clear", "Reclassify", "Escalate", "Follow up", "Retain", "No finding"] as const;
 
 export function AccountScrutiny() {
   const { gl } = useParams();
@@ -100,6 +100,16 @@ export function AccountScrutiny() {
         title={`${account.gl} · ${account.description}`}
         breadcrumbs={[{ label: "Balance Sheet Review", to: "/balance-sheet-review" }, { label: "Accounts", to: "/balance-sheet-review?tab=accounts" }, { label: account.gl }]}
         badge={<StatusChip status={acct.status} />}
+        actions={
+          <>
+            <Button asChild variant="outline" size="sm" className="h-8">
+              <Link to={`/audit-readiness?tab=schedules&sched=${account.gl}`}>Auditor schedule</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="h-8">
+              <Link to="/rules">Rules applied</Link>
+            </Button>
+          </>
+        }
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">

@@ -183,7 +183,7 @@ export function ExceptionsTab() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All suggested actions</SelectItem>
-              {["Write back", "Write off", "Provide", "Clear", "Reclassify", "Follow up"].map((a) => (
+              {["Write back", "Write off", "Provide", "Clear", "Reclassify", "Escalate", "Follow up"].map((a) => (
                 <SelectItem key={a} value={a}>
                   {a}
                 </SelectItem>

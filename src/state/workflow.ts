@@ -14,7 +14,7 @@ import { PBC_REQUESTS } from "@/data/workspace/pbc";
 import { docByKey, draftJournalFollowUp, flagsFor } from "@/engine/journalReview";
 import { useRoleStore, usePeriodStore } from "@/lib/stores";
 import { ROLES, can, type Permission } from "@/config/roles";
-import { CASH_APP_POLICY, MATERIALITY_POLICY, bandFor } from "@/config/policies";
+import { CASH_APP_POLICY, MATERIALITY_POLICY, bandFor, escalatedBandFor } from "@/config/policies";
 import { fmtINR } from "@/lib/format";
 import { addDays, fmtDate } from "@/lib/dates";
 import { effectiveRules, runRules, type RuleOverride, type RuleOverrides } from "@/engine/run";
@@ -338,7 +338,7 @@ export const useWorkflow = create<WorkflowState>()(
             skipped.push({ itemKey: input.itemKey, error: `A justification is required for amounts of ${fmtINR(MATERIALITY_POLICY.documentedActionAmount)} or more` });
             continue;
           }
-          const band = bandFor(input.amount);
+          const band = input.action === "Escalate" ? escalatedBandFor(input.amount) : bandFor(input.amount);
           seq += 1;
           inBatch.add(input.itemKey);
           decisions.push({
