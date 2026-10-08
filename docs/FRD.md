@@ -995,6 +995,7 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | D-62 | FX exposure is the open monetary balances in foreign currency (receivables, group receivables, payables, group payables; advances paid are not monetary and are left out) by currency and by when they settle, revalued at the closing rate. A forward covers only in the direction opposed to the exposure, and cover is shown within 90 days. Forward contracts are a treasury register dataset generated from the exposure itself (a net bucket, a bank, a rate at the closing rate plus forward points), with the planted EUR payable's own forward (S-21). Unrealised gains and losses are what revaluing the open items would add to or take from the result; they are not posted, and the exchange accounts of the books show what is already realised |
 | D-63 | Indirect tax reconciles the input credit in the books to the inward supply statement invoice by invoice (supplier tax ID and invoice reference), in four classes: matched, different tax, in the books and not in the statement, in the statement and not in the books. Credit is available to claim only for supplies in both, at the lower of the two taxes. The statement is a dataset generated from the books (most supplies as booked, a few with different tax, a few unreported, a few the books lack), with the three planted invoices of S-23 left out on purpose for ₹6,84,200. Asking a supplier to report an invoice is a follow-up on the ledger item. Output tax against the returns is not shown: the demo ledger carries only items still open, so a month by month output tax would not be representative |
 | D-64 | Intercompany shows what is owed to and by each group company on the open items of the group accounts, set beside the confirmation reconciliation of the same counterparty (so a difference is explained or not, and links to the reconciliation), and the related-party disclosure by nature for the fiscal year to date. The nature of a transaction is read from the profit and loss line of its document (sales and services rendered as income; purchases, royalty and services received as expense), so the disclosure is the ledger and ties to its accounts |
+| D-65 | Variance analysis is a bridge of a month's operating profit against the month before or the same month last year. Every profit and loss line of either month falls in exactly one component (revenue stream, materials, employees, each expense account with the smallest merged, one-off entries), so the components add up to the whole and the residual, shown, is nil by construction (FR-VAR-01). A one-off is a manual journal of ₹25 lakh or more on an account that has none like it in the other month; a routine monthly journal is not. Drivers are what the ledger carries: price and volume need quantities, which the extract does not have, so they are not split. The reading is a template over the bridge (Judgement); the largest postings of any component are listed with their documents |
 
 ## 13. Build plan
 
@@ -1020,12 +1021,12 @@ One increment per prompt, each ending with §10.6.
 | Inc. | Scope | Depth |
 |---|---|---|
 | **W1** | Design system and shell: tokens, KPI/panel/page header, shared ageing visual, nav leads with Reconcile & review, Home hero (balance sheet at risk, reconciliation health), Data Sources connections and write-back, global search | ✔ Working |
-| **W2** | Balance Sheet Review as a story: category lens, stale balances, why column, item timeline, Escalate, portfolio commentary, owner view, schedule link | Deep |
-| **W3** | Reconciliation bridge: GL to subledger/schedule/bank bridge, ageing of reconciling items, reconciler summary, GR/IR type, drill-downs, cash application hand-off | Deep |
-| **W4** | Rule Studio: plain-language rule drafts, backtest on the ledger, suggested rules | Working |
-| **W5** | Guided story launcher and motion polish | Working |
-| **W6** | Working Capital, Management Reporting, Financial Statements, Agents, Controls | Working |
-| **W7** | Bank Guarantees, FX Exposure, GST, Intercompany, Variance Analysis (with the data each needs) | Working / Overview |
+| **W2** | Balance Sheet Review as a story: where the risk sits by area and age, what the engine recommends, oldest balances, portfolio reading, why column, item timeline and evidence chain, Escalate, schedule link | ✔ Deep |
+| **W3** | Reconciliation bridge: difference to unexplained, ageing of reconciling items, reconciler summary, GR/IR type, sub-ledger / GR/IR / roll-forward drill-downs, receipt flow | ✔ Deep |
+| **W4** | Rule Studio: plain-language rule drafts, backtest on the ledger, suggested rules | ✔ Working |
+| **W5** | Walkthrough launcher (seven threads) and motion polish | ✔ Working |
+| **W6** | Working Capital, Management Reporting, Financial Statements, Agents, Controls | ✔ Working |
+| **W7** | Bank Guarantees, FX Exposure, GST, Intercompany, Variance Analysis (with the data each needs) | ✔ Working |
 
 **Workshop-critical path:** I1–I5 and I7; then I6 and I8. Anything not finished before the workshop is disabled in the workspace configuration (D-13), never shown as a placeholder.
 
@@ -1036,6 +1037,11 @@ One increment per prompt, each ending with §10.6.
 | ID | Item | Why | Shape |
 |---|---|---|---|
 | P-01 | **Rule sets for every module, not only Balance Sheet Review.** Rules & Policies lists all rules, with a module selector (dropdown) in the page header; hits, parameters and the change log work the same way for every module | Other modules already need deterministic rules that a controller wants to tune | Reconciliations (tolerances, auto-certify thresholds, reconciling-item classification), Cash Application (match levels, tolerance, deduction tables: withholding rates, GST TDS, retention, LD, bank charges), Journals (pre-posting and anomaly checks), TDS and GST (matching tolerances, credit-at-risk windows), Close Cockpit (slippage and escalation), Controls (test frequency). The engine already carries a `module` on every rule (`RuleModule`), `PRODUCT_RULES` is a registry, and evaluators are registered per rule set. Add per-module ID prefixes (REC-, CAP-, JNL-, TDS-, GST-) and move BSR-17 and BSR-18 (payables and indirect tax) to the modules they belong to. Each module's own page also shows its rules in context |
+| P-02 | **Owner confirmation in the account sign-off** (owner, then preparer, then reviewer) and a "my accounts" view | The workshop plan lists the owner as a distinct step | A third step in `signOffs` with the owner's role, shown in the sign-off panel and read by the controls |
+| P-03 | **Module selector in Rules & Policies** for reconciliation and cash application rule sets | Only the balance sheet rules run through the rule engine today; Rule Studio writes balance sheet rules | See P-01: per-module prefixes and evaluators |
+| P-04 | **Price and volume in the variance bridge** | The bridge splits by what the ledger carries; a price/volume split needs quantities and unit prices | Add quantity and unit to material cost lines in the extract, then a price/volume/mix component |
+| P-05 | **Output tax against the returns** in GST | The demo ledger carries only items still open, so month by month output tax is not representative | A masked extract with full history, then books against GSTR-1 and GSTR-3B by month |
+| P-06 | **Realised exchange gains and losses** in FX Exposure | No exchange difference is booked in the demo ledger; the page shows what is realised in the books (nil) beside what is unrealised | Post settlement differences when a foreign item is cleared at another rate |
 
 ## Appendix A: Glossary
 

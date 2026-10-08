@@ -51,12 +51,12 @@ export function Waterfall({ columns, min, max, plot = 260, pad = 26, format = (v
                 style={{ ...pos, animationDelay: `${i * 90}ms` }}
                 aria-label={`${c.label}: ${format(c.value)}`}
               />
-              <div className="absolute inset-x-0 text-center text-xs font-medium tnum" style={{ top: above ? pos.top - 19 : pos.top + pos.height + 4 }}>
+              <div className={cn("absolute inset-x-0 whitespace-nowrap text-center font-medium tnum", columns.length > 10 ? "text-2xs" : "text-xs")} style={{ top: above ? pos.top - 19 : pos.top + pos.height + 4 }}>
                 {format(c.value)}
               </div>
             </div>
             <div className="mt-2 px-1 text-center">
-              <div className="line-clamp-2 text-xs font-medium leading-4">{c.label}</div>
+              <div className={cn("line-clamp-3 font-medium leading-4", columns.length > 10 ? "text-2xs" : "text-xs")}>{c.label}</div>
               {c.sub && <div className="text-2xs text-muted-foreground">{c.sub}</div>}
             </div>
           </div>
