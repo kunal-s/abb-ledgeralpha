@@ -29,6 +29,7 @@ import { Controls } from "@/pages/Controls";
 import { BankGuarantees } from "@/pages/BankGuarantees";
 import { FxExposure } from "@/pages/FxExposure";
 import { Gst } from "@/pages/Gst";
+import { Intercompany } from "@/pages/Intercompany";
 import { BankGuaranteeDetail } from "@/pages/BankGuaranteeDetail";
 
 // Routes come from the module registry (src/lib/modules.ts), filtered by the
@@ -60,6 +61,7 @@ const BUILT: Record<string, ReactNode> = {
   "/bank-guarantees": <BankGuarantees />,
   "/fx-exposure": <FxExposure />,
   "/tax/indirect": <Gst />,
+  "/intercompany": <Intercompany />,
   "/bank-guarantees/:id": <BankGuaranteeDetail />,
 };
 
