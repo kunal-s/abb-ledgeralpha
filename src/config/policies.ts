@@ -79,6 +79,28 @@ export const WORKING_CAPITAL_POLICY = {
   daysBasisMonths: 3,
   trendMonths: 12,
   msmePaymentDays: 45,
+  /** days of sales outstanding: above `dsoWatchDays` a unit is watched, above `dsoActionDays` it needs action */
+  dsoWatchDays: 75,
+  dsoActionDays: 90,
+  /** the share of a balance older than the review threshold at which a row is watched, and at which it needs action */
+  agedShareWatch: 0.2,
+  agedShareAct: 0.35,
+} as const;
+
+/**
+ * Collections: the next step for an open receivable or payable, from how long it is past its due date and how
+ * old it is. Days past due count from the due date; an item with none (retention) is read by its age.
+ */
+export const COLLECTION_POLICY = {
+  /** past due: a reminder from 1 day, a confirmed payment date from 31 days, escalation from 91 days */
+  confirmAfterDaysPastDue: 31,
+  escalateAfterDaysPastDue: 91,
+  /** an invoice older than this is escalated whatever its due date, and its provision is reviewed */
+  provisionReviewAfterAgeDays: 365,
+  /** retention held for longer than this on a project not yet at the end of its defects liability period is asked about */
+  retentionQueryAfterAgeDays: 365,
+  /** days given to answer, by the step */
+  dueInDays: { remind: 7, confirm: 7, escalate: 5, retention: 14, payable: 7 },
 } as const;
 
 /** Items at or above this need a written justification before a decision is proposed. */

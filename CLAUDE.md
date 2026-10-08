@@ -172,6 +172,11 @@ workspace (currently set up for an ABB India workshop, week of 12-Oct-2026).
   summaries must be sized around it. Priced receipts, project estimates and exchange differences work this way.
 - Working capital balances and the balance sheet comparative are limited to the previous quarter end (D-50,
   parked item P-02); days of inventory are the company's only (D-51).
+- Working capital: balances are the open items of each business unit (`balances()` in `workingCapital.ts`),
+  so the overview, the drill and the review agree. The next step of an item is `stepOf` in
+  `src/engine/collections.ts` with its thresholds in `COLLECTION_POLICY`; the follow-up it creates is
+  `followUpFor`. `src/engine/consistency.test.ts` holds the "same number on every screen" checks: add to it when a
+  module shows a figure another module also shows.
 - Charts: waterfalls are `components/reporting/Waterfall.tsx` (floating bars, sign in the tooltip and the table
   beside it); statements are `StatementTable.tsx`. A truncated chart label must show its full text in the
   tooltip (`labelFormatter`).

@@ -47,16 +47,12 @@ export function resultsTable(month: string): ResultRow[] {
 export interface ProjectRow {
   project: Project;
   contractValue: number;
-  /** revenue the ledger holds against the project */
-  revenueBooked: number;
   costToDate: number;
   estimateAtCompletion: number;
   /** cost to date over the estimate: the input method of Ind AS 115 */
   percentComplete: number;
   /** the contract value times the percentage complete */
   revenueEarned: number;
-  /** earned less booked: positive is revenue still to bill (a contract asset), negative is billed ahead */
-  unbilled: number;
   /** contract value less the estimate */
   marginAtCompletion: number;
   marginPercent: number;
@@ -65,19 +61,6 @@ export interface ProjectRow {
   estimateChange: number;
   /** margin at completion at each month end, oldest first */
   trend: { monthEnd: IsoDate; marginPercent: number }[];
-}
-
-let bookedCache: Map<string, number> | undefined;
-
-function revenueBooked(): Map<string, number> {
-  if (bookedCache) return bookedCache;
-  const m = new Map<string, number>();
-  for (const l of WORLD.lines) {
-    if (!l.wbs || (l.gl !== "410200" && l.gl !== "410300")) continue;
-    m.set(l.wbs, (m.get(l.wbs) ?? 0) - l.amount);
-  }
-  bookedCache = m;
-  return m;
 }
 
 /** The projects with an estimate at the date, those whose margin fell most first. */
@@ -89,7 +72,6 @@ export function projectRows(asOf: IsoDate = WORLD.asOf): ProjectRow[] {
     list.push(e);
     byProject.set(e.wbs, list);
   }
-  const booked = revenueBooked();
   const rows: ProjectRow[] = [];
   for (const [wbs, list] of byProject) {
     const project = PROJECT_BY_WBS.get(wbs);
@@ -101,8 +83,8 @@ export function projectRows(asOf: IsoDate = WORLD.asOf): ProjectRow[] {
     const percentComplete = last.estimateAtCompletion > 0 ? Math.min(1, last.costToDate / last.estimateAtCompletion) : 0;
     const revenueEarned = percentComplete * project.contractValue;
     rows.push({
-      project, contractValue: project.contractValue, revenueBooked: booked.get(wbs) ?? 0, costToDate: last.costToDate, estimateAtCompletion: last.estimateAtCompletion,
-      percentComplete, revenueEarned, unbilled: revenueEarned - (booked.get(wbs) ?? 0),
+      project, contractValue: project.contractValue, costToDate: last.costToDate, estimateAtCompletion: last.estimateAtCompletion,
+      percentComplete, revenueEarned,
       marginAtCompletion: project.contractValue - last.estimateAtCompletion, marginPercent: marginPct(last),
       priorMarginPercent: prev ? marginPct(prev) : undefined, estimateChange: prev ? last.estimateAtCompletion - prev.estimateAtCompletion : 0,
       trend: list.map((e) => ({ monthEnd: e.monthEnd, marginPercent: marginPct(e) })),

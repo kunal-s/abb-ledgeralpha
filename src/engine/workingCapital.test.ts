@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { BALANCES, PARTY_BY_ID, WORLD, balanceAt } from "@/data";
 import { WORKING_CAPITAL_POLICY as P } from "@/config/policies";
 import { buOfProfitCentre } from "@/engine/attribution";
-import { WC_GLS, balanceOf, drill, msmeOverdue, openOf, reliableFrom, reviewAgeing, statutoryAgeing, wcMetrics, wcTrend, type Side } from "@/engine/workingCapital";
+import { STEP_ORDER } from "@/engine/collections";
+import { ageOf, type BucketId } from "@/engine/review";
+import { WC_GLS, agedGrade, attention, balanceOf, drill, dsoExcess, dsoDrivers, dsoGrade, msmeOverdue, openOf, reliableFrom, reviewAgeing, statutoryAgeing, wcMetrics, wcTrend, type Side } from "@/engine/workingCapital";
 
 const MONTH = WORLD.asOf.slice(0, 7);
 const closing = (gls: readonly string[], date: string) => gls.reduce((s, g) => s + (balanceAt(BALANCES, g, date)?.closing ?? 0), 0);
@@ -85,6 +87,98 @@ describe("receivables and payables ageing", () => {
     expect(rec).toBeCloseTo(closing([...WC_GLS.receivables, ...WC_GLS.retention], WORLD.asOf), 0);
     const pay = openOf("payables").reduce((s, l) => s - l.amount, 0);
     expect(pay).toBeCloseTo(-closing(WC_GLS.payables, WORLD.asOf), 0);
+  });
+});
+
+describe("grading and the days of sales (FR-WCP-03)", () => {
+  it("grades days of sales against the policy: on track up to 75, watch up to 90, act above", () => {
+    expect([dsoGrade(40), dsoGrade(75), dsoGrade(75.1), dsoGrade(90), dsoGrade(90.1), dsoGrade(130)]).toEqual(["ok", "ok", "watch", "watch", "act", "act"]);
+    expect([agedGrade(0), agedGrade(0.19), agedGrade(0.2), agedGrade(0.34), agedGrade(0.35), agedGrade(0.9)]).toEqual(["ok", "ok", "watch", "watch", "act", "act"]);
+    expect([P.dsoWatchDays, P.dsoActionDays]).toEqual([75, 90]);
+  });
+
+  it("Process Automation is the one unit that needs action, at 93 days against the company's 62", () => {
+    const grades = Object.fromEntries(BUS.filter((b) => b !== "CORP").map((b) => [b, dsoGrade(wcMetrics(MONTH, b).dso)]));
+    expect(grades).toEqual({ EL: "ok", MO: "ok", PA: "act", RA: "ok" });
+    expect(Math.round(wcMetrics(MONTH, "PA").dso)).toBe(93);
+    expect(Math.round(wcMetrics(MONTH, "all").dso)).toBe(62);
+  });
+
+  it("the drivers of a unit's days add up to its days of sales, for the company and for each unit", () => {
+    for (const bu of ["all", ...BUS.filter((b) => b !== "CORP")]) {
+      const drivers = dsoDrivers(bu);
+      expect(drivers.map((d) => d.id)).toEqual(["not-due", "remind", "confirm", "escalate", "retention", "unbilled", "credits"]);
+      expect(drivers.reduce((s, d) => s + d.days, 0), bu).toBeCloseTo(wcMetrics(MONTH, bu).dso, 6);
+      const m = wcMetrics(MONTH, bu).balances;
+      expect(drivers.reduce((s, d) => s + d.amount, 0), bu).toBeCloseTo(m.receivables + m.unbilled + m.retention, 0);
+    }
+  });
+
+  it("the days above the company add up to the unit's days less the company's", () => {
+    for (const bu of BUS.filter((b) => b !== "CORP")) {
+      const rows = dsoExcess(bu);
+      expect(rows.reduce((s, r) => s + r.delta, 0), bu).toBeCloseTo(wcMetrics(MONTH, bu).dso - wcMetrics(MONTH, "all").dso, 6);
+      for (const r of rows) expect(r.delta).toBeCloseTo(r.days - r.company, 9);
+    }
+  });
+
+  it("names the units above the watch level, with their steps and the customers that hold the most", () => {
+    const units = attention();
+    expect(units.map((u) => u.bu)).toEqual(["PA"]);
+    const pa = units[0];
+    expect(pa.grade).toBe("act");
+    expect(pa.excess).toBeCloseTo(wcMetrics(MONTH, "PA").dso - wcMetrics(MONTH, "all").dso, 6);
+    // the steps are the drill's items that need a step, by step
+    const d = drill("receivables", { bu: "PA" });
+    expect(pa.steps.reduce((s, r) => s + r.count, 0)).toBe(d.total.toAct);
+    expect(pa.toActAmount).toBeCloseTo(d.total.toActAmount, 2);
+    for (const s of pa.steps) {
+      const one = drill("receivables", { bu: "PA", step: s.id });
+      expect([one.total.count, Math.round(one.total.amount)], s.id).toEqual([s.count, Math.round(s.amount)]);
+    }
+    // the most pressing first, and the customers by the amount they hold
+    for (let i = 1; i < pa.steps.length; i += 1) expect(STEP_ORDER.findIndex((o) => o.id === pa.steps[i - 1].id)).toBeLessThan(STEP_ORDER.findIndex((o) => o.id === pa.steps[i].id));
+    expect(pa.holders).toHaveLength(3);
+    for (let i = 1; i < pa.holders.length; i += 1) expect(pa.holders[i - 1].amount).toBeGreaterThanOrEqual(pa.holders[i].amount);
+    for (const h of pa.holders) expect(h.share).toBeCloseTo(h.amount / pa.toActAmount, 9);
+  });
+});
+
+describe("drill filters", () => {
+  it("an age band narrows every level to the items in it, and agrees with the review ageing", () => {
+    for (const side of ["receivables", "payables"] as Side[]) {
+      for (const row of reviewAgeing(side)) {
+        const d = drill(side, { band: row.id as BucketId });
+        expect(d.total.count, `${side} ${row.id}`).toBe(row.count);
+        expect(d.total.amount, `${side} ${row.id}`).toBeCloseTo(row.amount, 2);
+        expect(d.rows.reduce((s, r) => s + r.amount, 0)).toBeCloseTo(row.amount, 2);
+      }
+    }
+  });
+
+  it("a next step narrows the view to the items with it, and filters combine with the path", () => {
+    const all = drill("receivables", {});
+    const byStep = STEP_ORDER.map((s) => drill("receivables", { step: s.id }).total);
+    expect(byStep.reduce((s, t) => s + t.count, 0)).toBe(all.total.count);
+    const pa = drill("receivables", { bu: "PA", step: "escalate", band: "365+" });
+    for (const l of drill("receivables", { bu: "PA", step: "escalate", band: "365+" }, WORLD.asOf, true).items) expect(ageOf(l, WORLD.asOf)).toBeGreaterThan(365);
+    expect(pa.total.count).toBeGreaterThan(0);
+    expect(pa.total.count).toBeLessThan(drill("receivables", { bu: "PA", step: "escalate" }).total.count);
+  });
+
+  it("lists the documents of any view on request, with the next step of each, and not otherwise", () => {
+    expect(drill("receivables", { bu: "PA" }).items).toHaveLength(0);
+    const d = drill("receivables", { bu: "PA" }, WORLD.asOf, true);
+    expect(d.items).toHaveLength(d.total.count);
+    for (const l of d.items) expect(d.steps.get(l.key), l.key).toBeDefined();
+  });
+
+  it("a row's ageing bands add to its amount, and its past due part never exceeds it", () => {
+    for (const r of drill("receivables", {}).rows) {
+      expect(Object.values(r.bands).reduce((s, v) => s + v, 0)).toBeCloseTo(r.amount, 2);
+      expect(r.pastDue).toBeLessThanOrEqual(r.amount + 0.01);
+      expect(r.toAct).toBeLessThanOrEqual(r.count);
+    }
   });
 });
 

@@ -80,7 +80,6 @@ describe("projects", () => {
       expect(r.percentComplete, r.project.wbs).toBeLessThanOrEqual(1);
       expect(r.percentComplete).toBeCloseTo(Math.min(1, r.costToDate / r.estimateAtCompletion), 10);
       expect(r.revenueEarned).toBeCloseTo(r.percentComplete * r.contractValue, 2);
-      expect(r.unbilled).toBeCloseTo(r.revenueEarned - r.revenueBooked, 2);
       expect(r.marginAtCompletion).toBe(r.contractValue - r.estimateAtCompletion);
       expect(r.marginPercent).toBeCloseTo(r.marginAtCompletion / r.contractValue, 10);
       expect(r.trend).toHaveLength(6);

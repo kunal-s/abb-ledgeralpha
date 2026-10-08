@@ -3,10 +3,9 @@ import { Download } from "lucide-react";
 import { DocLink, KpiTile, Panel } from "@/components/vocab";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { WORLD } from "@/data";
 import { WORKING_CAPITAL_POLICY } from "@/config/policies";
 import { msmeOverdue } from "@/engine/workingCapital";
-import { useWorkflow } from "@/state/workflow";
+import { nowLocal, useWorkflow } from "@/state/workflow";
 import { useFollowUpsByItem } from "@/state/hooks";
 import { useRoleStore } from "@/lib/stores";
 import { ROLES, can } from "@/config/roles";
@@ -35,7 +34,7 @@ export function MsmeTab() {
   const request = () => {
     const r = requestFollowUps(
       chosen.map((i) => ({
-        itemKey: i.line.key, module: "working-capital", owner: "Procurement and accounts payable", dueDate: addDays(WORLD.asOf, 7),
+        itemKey: i.line.key, module: "working-capital", owner: "Procurement and accounts payable", dueDate: addDays(nowLocal().slice(0, 10), 7),
         message: `Invoice ${i.line.reference ?? i.line.docNo} of ${i.vendor}, ${fmtINR(i.amount)} dated ${fmtDate(i.line.documentDate)}, is ${i.days} days old. The supplier is a ${i.enterprise.toLowerCase()} enterprise and the payment window is ${days} days. Confirm the payment date or the reason for the delay.`,
       }))
     );

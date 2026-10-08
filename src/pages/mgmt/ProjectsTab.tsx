@@ -48,8 +48,6 @@ function Detail({ p }: { p: ProjectRow }) {
             ["Estimate at completion", `${fmtINRCompact(p.estimateAtCompletion)}, ${signed(p.estimateChange)} in the month`],
             ["Percentage complete", `${fmtPct(p.percentComplete)} (cost to date over the estimate)`],
             ["Revenue earned", fmtINRCompact(p.revenueEarned)],
-            ["Revenue booked", fmtINRCompact(p.revenueBooked)],
-            [p.unbilled >= 0 ? "Still to bill" : "Billed ahead", fmtINRCompact(Math.abs(p.unbilled))],
             ["Margin at completion", `${fmtINRCompact(p.marginAtCompletion)}, ${fmtPct(p.marginPercent)}`],
           ]}
         />
