@@ -29,7 +29,8 @@ export type Permission =
   | "pbc-manage" // assign, close and reopen auditor requests
   | "pbc-raise" // log a new request: the auditor asks, the team records what it was asked
   | "close-task" // complete a close task you own, flag or clear a blocker
-  | "close-manage"; // complete or reopen any close task, reassign tasks
+  | "close-manage" // complete or reopen any close task, reassign tasks
+  | "report-commentary"; // save or discard the commentary on a variance
 
 const PREPARERS: RoleId[] = ["gl-accountant", "ar-specialist", "treasury-analyst", "tax-specialist"];
 /** everyone inside the company; the external auditor reads and asks, and does not prepare */
@@ -37,7 +38,7 @@ const INTERNAL: RoleId[] = ["cfo", "head-of-finance", "controller", ...PREPARERS
 
 const GRANTS: Record<Permission, RoleId[]> = {
   propose: PREPARERS,
-  "follow-up": [...PREPARERS, "controller"],
+  "follow-up": [...PREPARERS, "controller", "reporting-analyst"],
   "tax-review": ["tax-specialist"],
   "sign-preparer": PREPARERS,
   "sign-reviewer": ["controller", "head-of-finance"],
@@ -48,6 +49,7 @@ const GRANTS: Record<Permission, RoleId[]> = {
   "pbc-raise": ["external-auditor", "controller", "head-of-finance", "controls-lead"],
   "close-task": INTERNAL,
   "close-manage": ["controller", "head-of-finance"],
+  "report-commentary": ["reporting-analyst", "controller", "head-of-finance", "cfo"],
 };
 
 export function can(role: RoleId, permission: Permission): boolean {

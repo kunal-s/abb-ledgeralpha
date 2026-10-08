@@ -21,6 +21,10 @@ import { AuditReadiness } from "@/pages/AuditReadiness";
 import { Home } from "@/pages/Home";
 import { MyWork } from "@/pages/MyWork";
 import { Close } from "@/pages/Close";
+import { Variance } from "@/pages/Variance";
+import { WorkingCapital } from "@/pages/WorkingCapital";
+import { ManagementReporting } from "@/pages/ManagementReporting";
+import { FinancialStatements } from "@/pages/FinancialStatements";
 
 // Routes come from the module registry (src/lib/modules.ts), filtered by the
 // workspace's enabled modules. As a module is built, map its path to the real
@@ -43,6 +47,10 @@ const BUILT: Record<string, ReactNode> = {
   "/": <Home />,
   "/my-work": <MyWork />,
   "/close": <Close />,
+  "/reporting/variance": <Variance />,
+  "/reporting/working-capital": <WorkingCapital />,
+  "/reporting/management": <ManagementReporting />,
+  "/reporting/financial-statements": <FinancialStatements />,
 };
 
 const router = createBrowserRouter([

@@ -34,6 +34,8 @@ export const WORLD_SPEC = {
   monthlyRevenue2026: 1_100_00_00_000,
   /** year-on-year growth applied backwards to 2025 */
   growth: 0.12,
+  /** monthly revenue seasonality, January to December */
+  seasonality: [0.95, 0.97, 1.12, 0.9, 0.95, 1.02, 0.96, 0.98, 1.06, 0.97, 0.99, 1.13],
 
   people: [
     { id: "P01", name: "Meera Iyer", roleId: "controller", title: "Financial Controller", userId: "MIYER" },

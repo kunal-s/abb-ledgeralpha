@@ -7,7 +7,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 import type {
-  AccountSignOff, ActionKind, ActivityEvent, CloseTaskWork, ConfirmationStatus, Decision, FollowUp, IsoDate, JournalReview, JournalSpec, PbcRequest, PbcWork, Person, ReconItem, Recommendation, RoleId, RuleHit,
+  AccountSignOff, ActionKind, ActivityEvent, CloseTaskWork, ConfirmationStatus, Decision, FollowUp, IsoDate, JournalReview, JournalSpec, PbcRequest, PbcWork, Person, ReconItem, Recommendation, RoleId, RuleHit, VarianceNote,
 } from "@/types";
 import { GL_BY_ID, LINES_BY_DOC, LINE_BY_KEY, PERSON_BY_ID, REC_BY_ID, WORLD, customerStatementLines } from "@/data";
 import { PBC_REQUESTS } from "@/data/workspace/pbc";
@@ -91,6 +91,8 @@ interface WorkflowData {
   pbcRaised: PbcRequest[];
   /** the work done on close tasks, by task id */
   closeWork: Record<string, CloseTaskWork>;
+  /** commentary saved on variances, by `${scope}|${month}|${comparator}` */
+  varianceNotes: Record<string, VarianceNote>;
   events: ActivityEvent[];
   seq: number;
 }
@@ -142,6 +144,11 @@ interface WorkflowActions {
   flagCloseBlocker: (id: string, reason: string) => Result;
   clearCloseBlocker: (id: string) => Result;
 
+  // reporting
+  /** Save the commentary on a variance; `edited` is true when a person changed the drafted text. */
+  saveVarianceNote: (key: string, label: string, text: string, edited: boolean) => Result;
+  discardVarianceNote: (key: string, label: string, reason: string) => Result;
+
   // cash application
   /** Propose applying a receipt to the invoices the matcher found (or another proposal, by invoice-set signature). */
   confirmMatch: (receiptKey: string, signature?: string) => Result<{ id: string }>;
@@ -176,6 +183,7 @@ const INITIAL: WorkflowData = {
   pbc: {},
   pbcRaised: [],
   closeWork: SEEDED_CLOSE_WORK,
+  varianceNotes: {},
   events: [],
   seq: 0,
 };
@@ -246,6 +254,7 @@ function denied(permission: Permission, role: RoleId): string {
     "pbc-raise": "raise auditor requests",
     "close-task": "work on close tasks",
     "close-manage": "complete, reopen or reassign any close task",
+    "report-commentary": "save commentary on a variance",
   };
   return `${ROLES[role].label} cannot ${verbs[permission]}`;
 }
@@ -921,6 +930,33 @@ export const useWorkflow = create<WorkflowState>()(
         },
 
         // -------------------------------------------------------------------
+        // reporting
+        // -------------------------------------------------------------------
+        saveVarianceNote: (key, label, text, edited) => {
+          const { role, person } = actor();
+          if (!can(role, "report-commentary")) return fail(denied("report-commentary", role));
+          if (!text.trim()) return fail("Commentary cannot be empty");
+          const cur = get().varianceNotes[key];
+          set((s) => ({ varianceNotes: { ...s.varianceNotes, [key]: { text: text.trim(), edited: edited || !!cur?.edited, personId: person.id, at: nowLocal() } } }));
+          personEvent(person, { module: "variance-analysis", object: { type: "variance-note", id: key, label }, action: cur ? "Variance commentary updated" : edited ? "Variance commentary edited and saved" : "Variance commentary drafted and saved" });
+          return { ok: true };
+        },
+
+        discardVarianceNote: (key, label, reason) => {
+          const { role, person } = actor();
+          if (!can(role, "report-commentary")) return fail(denied("report-commentary", role));
+          if (!get().varianceNotes[key]) return fail("There is no saved commentary");
+          if (!reason.trim()) return fail("A reason is required to discard the commentary");
+          set((s) => {
+            const next = { ...s.varianceNotes };
+            delete next[key];
+            return { varianceNotes: next };
+          });
+          personEvent(person, { module: "variance-analysis", object: { type: "variance-note", id: key, label }, action: "Variance commentary discarded", reason: reason.trim() });
+          return { ok: true };
+        },
+
+        // -------------------------------------------------------------------
         // cash application
         // -------------------------------------------------------------------
         confirmMatch: (receiptKey, signature) => {
@@ -1125,7 +1161,7 @@ export const useWorkflow = create<WorkflowState>()(
     },
     {
       name: "ledgeralpha-workflow",
-      version: 6,
+      version: 7,
       storage: createJSONStorage(() => safeStorage),
       partialize: (s) => ({
         ruleOverrides: s.ruleOverrides,
@@ -1138,6 +1174,7 @@ export const useWorkflow = create<WorkflowState>()(
         pbc: s.pbc,
         pbcRaised: s.pbcRaised,
         closeWork: s.closeWork,
+        varianceNotes: s.varianceNotes,
         events: s.events,
         seq: s.seq,
       }),

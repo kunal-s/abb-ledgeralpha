@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
+import { InfoTip } from "@/components/vocab/InfoTip";
 import type { ReactNode } from "react";
 
 interface KpiTileProps {
@@ -19,6 +20,8 @@ interface KpiTileProps {
   chart?: ReactNode;
   className?: string;
   onClick?: () => void;
+  /** what the measure is, shown on hover next to the label */
+  info?: string;
 }
 
 export function KpiTile({
@@ -34,6 +37,7 @@ export function KpiTile({
   chart,
   className,
   onClick,
+  info,
 }: KpiTileProps) {
   const isGood =
     trend === "flat"
@@ -64,8 +68,9 @@ export function KpiTile({
       )}
     >
       <div className="flex items-start justify-between">
-        <span className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">
+        <span className="flex items-center gap-1 text-2xs font-medium uppercase tracking-wide text-muted-foreground">
           {label}
+          {info && <InfoTip text={info} />}
         </span>
         {icon && <span className="text-muted-foreground">{icon}</span>}
       </div>

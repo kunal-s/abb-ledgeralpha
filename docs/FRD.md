@@ -298,7 +298,10 @@ The draft contract is `src/types/index.ts`. Fields mirror SAP (ACDOCA / BSEG) so
 | Counterparty statements (customer / vendor) | Reconciliations |
 | Intercompany confirmations | Intercompany |
 | FX rates (closing, average) and forward contracts | FX Exposure |
-| Budget by profit centre and month | Variance Analysis, Management Reporting |
+| Budget by profit centre and month (derived from the first-half ledger ratios and the plan, D-47) | Variance Analysis, Management Reporting |
+| Material price reference: the item master's standard price and the price each vendor invoiced, per receipt, with the commodity a price is linked to | Variance Analysis (purchase price variance, S-22) |
+| Sales price list actions by business unit (percent, effective date) | Variance Analysis (price effect) |
+| Project controlling: cost to date and estimate at completion at each month end | Management Reporting (project margin) |
 | Close calendar and checklist | Close Cockpit |
 | Controls register | Controls |
 | PBC requests | Audit Readiness |
@@ -589,12 +592,23 @@ Each module states its purpose, what it shows, what users can do, the agents and
   - Balance sheet and statement of profit and loss for the period with comparatives, in the statutory format (India pack: Schedule III, Division II).
   - Notes generated from the ledger, including the statutory **ageing schedules** for trade receivables, trade payables and CWIP (§7.3).
 - **FR-FST-01 (M):** every statement line drills to its accounts and then to documents.
+- **FR-FST-02 (M):** the balance sheet balances. The profit of the year so far is shown in other equity until the year closes, and any difference between assets and equity plus liabilities is shown, never hidden. Each ageing note agrees to its balance sheet line through the allowance or clearing amount it names, and shows a difference if it does not.
+- **Built in I8:**
+  - **Balance sheet:** at the period end against the previous quarter end (the comparative the demo ledger can support, D-50), in the statutory line order, with a tile that reads "Balanced" when the difference is zero.
+  - **Profit and loss:** the quarter or the year to date against the same months of the year before.
+  - **Notes:** trade receivables, trade payables and CWIP ageing in the statutory bands, from the open items.
+  - **Mapping:** every account with its statement line, category and month movement; the trial balance nets to nil and no account is unmapped.
+  - **Account sheet:** a line expands to its accounts; an account opens a sheet with its month-end balances and postings, which link to the document.
 
 ### 6.14 Management Reporting · `/reporting/management` · Overview
 - **Purpose:** results by business unit, profit centre and project.
 - **Shows:**
   - P&L by business unit / profit centre vs prior period and budget.
   - Project margin: contract value, cost to date, estimate at completion, percentage of completion revenue (Ind AS 115 input method), margin trend.
+- **FR-MGT-01 (M):** each level of the results table adds up to the level above it (profit centres to business unit to company) for the month, the prior month, the budget and the year to date, and reads the same report lines as the variance analysis.
+- **Built in I8:**
+  - **Results:** revenue, operating result and margin for the company, each business unit and each profit centre, against the prior month and the budget, for the month or the year to date; a row opens the variance analysis for that scope (the "Explain" action).
+  - **Projects:** the projects under way (execution and commissioned) with contract value, percentage complete (cost to date over the estimate at completion), cost to date, estimate at completion, the change in the estimate in the month, margin at completion and its trend; the project sheet shows the unbilled or billed-ahead revenue.
 
 ### 6.15 Variance Analysis · `/reporting/variance` · Working
 - **Purpose:** explain what moved this month.
@@ -603,6 +617,12 @@ Each module states its purpose, what it shows, what users can do, the agents and
   - The ten transactions that drove most of the variance, each linked to its document.
   - Drafted commentary (Narrator, template).
 - **FR-VAR-01 (M):** bridge components sum exactly to the total variance. Any residual is shown as "other", never hidden.
+- **FR-VAR-02 (M):** the material price component is the purchase price variance of the receipts that carry a price reference (quantity times invoiced price less standard price). Material cost that has no price reference falls in material usage and mix, never in material price (D-49).
+- **FR-VAR-03 (M):** the commentary is drafted from the bridge by a template and nothing else; it is saved by a person who may comment on reports (reporting analyst, controller, head of finance, chief financial officer), marked as edited if they changed it, and discarded only with a reason. Both are in the activity log.
+- **Built in I8:**
+  - **Scope and comparator:** the company, a business unit or a profit centre, against the prior month or the budget (the budget exists only in the budget year); the month is the period of the top bar.
+  - **Bridge:** price, volume, material price, material usage and mix, employee cost, depreciation, exchange differences, one-offs and other expenses (D-46, D-48), as a waterfall and a table, with a "bridge check" tile that shows the residual.
+  - **Largest transactions:** priced receipts, one-off postings and exchange differences ranked by their effect on the result, each linked to its document, with an "Ask for an explanation" action that asks the buyer or the project manager through a follow-up (the reporting analyst may ask).
 
 ### 6.16 Working Capital · `/reporting/working-capital` · Working
 - **Purpose:** cash tied up in the business, at business-unit and transaction level.
@@ -615,6 +635,11 @@ Each module states its purpose, what it shows, what users can do, the agents and
   - MSME payables beyond the statutory payment window.
   - Drill: business unit → profit centre → project → customer / vendor → document.
 - **FR-WCP-01 (M):** each metric shows its definition in a tooltip, not as page text, and drills to its components.
+- **FR-WCP-02 (M):** every level of the drill adds up to the level above it, down to the document, and the open items agree to the control accounts of the trial balance.
+- **Built in I8:**
+  - **Overview:** DSO, DSO net of customer advances, DPO, DIO, cash conversion cycle and net working capital for the company and each business unit; the trend from the previous quarter end (D-50); days of inventory only for the company (D-51).
+  - **Receivables and payables:** review and statutory ageing, and the drill business unit, profit centre, project, customer, document (payables: business unit, profit centre, supplier, document), with the part older than the review threshold.
+  - **Supplier payment window:** unpaid invoices of micro and small suppliers beyond 45 days (S-24, ₹38,90,000) with a follow-up per invoice.
 
 ### 6.17 Audit Readiness · `/audit-readiness` · Working
 - **Purpose:** prepare for statutory audit and quarterly limited review.
@@ -749,7 +774,7 @@ A workspace defines:
 - **Activity:**
   - Monthly per profit centre, January 2025–September 2026: billing, collections, purchases, payments, payroll with statutory deposits, expenses, depreciation, warranty provision, month-end accruals with reversals.
   - Company-level: interest, gratuity, ECL, GST settlement, income tax with advance tax, and treasury funding.
-  - Current-year revenue is about ₹10,000 cr, profit after tax about ₹1,470 cr, DSO including unbilled revenue and retention about 69 days.
+  - Current-year revenue is about ₹10,000 cr, profit after tax to September about ₹1,410 cr, DSO including unbilled revenue and retention about 62 days.
 - **Reference data:**
   - About 1,790 purchase-order lines (status, last GR, last invoice; from legacy MM).
   - About 115 bank guarantees (issued and received).
@@ -758,10 +783,16 @@ A workspace defines:
 - **Extended by later increments on the same foundation:**
   - bank statement lines (I4 / I5);
   - customer statements and confirmations (I4);
-  - budget by profit centre and copper-linked PO prices (I8);
   - GSTR-2B, intercompany confirmations and forward contracts (I9);
   - close checklist (I7);
   - controls register and PBC list (I6 / I9).
+- **Added in I8 (`src/data/generator/{pricing,projects}.ts`, workspace data in `src/data/workspace/{pricing,budget}.ts`):**
+  - **Priced receipts:** 245 vendor invoices for five material families (copper winding wire, structural steel, aluminium castings, power cable, control electronics), January to September 2026. Each is an ordinary KR document against a purchase order, paid on its due date once that has passed, with the standard price and the invoiced price kept beside it; copper follows its commodity.
+  - **Exchange differences:** one settlement a month, corporate (exchange loss and gain accounts).
+  - **Project controlling:** cost to date and estimate at completion at each of the last six month ends for the projects under way in the project businesses.
+  - **Budget:** not stored; derived from the first-half 2026 ledger ratios on the planned revenue of the specification and its seasonality, less the plan savings (D-47). Exists for 2026 only.
+  - **Price list:** percent actions by business unit and effective date (`PRICE_ACTIONS`).
+  - **Planting without disturbing the world:** quantities, dates and drift come from a hash of the record (`unit()`), never from the generator's random stream, and the receipts are posted before the monthly activity so that material summaries are sized around them. The ledger of earlier increments is unchanged, and every earlier scenario test still passes.
 - **Determinism:** a seeded generator (seed 20261006), so every rehearsal sees the same data. Amounts are not round, except where roundness is the point. Load time in the browser is about 0.6 s.
 
 ### 9.3 Story threads (what makes the product cohesive in the demo)
@@ -807,7 +838,8 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 
 **Planting:**
 - **In the I1 dataset, each asserted by a scenario test** (`src/data/world.test.ts`): S-01 to S-16, the ledger side of S-18, S-20, S-21 and S-24.
-- **Added with their modules:** S-22 (I8) and S-23 (I9).
+- **Added with their modules:** S-23 (I9).
+- **Added in I8, asserted in `src/data/world.test.ts` and `src/engine/variance.test.ts`:** S-22 (40,000 kg-eq of copper at ₹890 against a standard of ₹780 is ₹44,00,000 over standard on one traction project; the August receipt of the same project is at standard; the project's estimate at completion rises by the same amount in September; the receipt is among the largest transactions of the traction profit centre's bridge, and Motion's September margin falls below August). S-24 is shown in Working Capital (`src/engine/workingCapital.test.ts`).
 - **Added in I6 (Journals), asserted in `src/engine/journalReview.test.ts`:** the journal reviewer's flags on S-12 (round amount, entered at 11:42 PM), S-14 (first posting on the account in 14 months) and S-15 (the unusual account pair); the demo starts with these three journals open and part of the other flagged journals accepted.
 - **Added in I5 (Cash Application and TDS), asserted in `src/engine/cashapp.test.ts`:** the two invoices of S-11 and the customer's history, and S-17 (the customer's history of 1% deductions, two other open invoices, and the receipt with no remittance advice; L3 match, confidence 0.70).
 - **Added in I4 (Reconciliations), asserted in `src/engine/recs.test.ts`:** S-19 and S-25 in the ledger, and the customer's reply for S-18 (received, not yet applied: applying it makes the reconciler find the four items).
@@ -976,6 +1008,13 @@ These anchor the threads. All other records are evaluated by the same rules (no 
 | D-43 | A record belongs to a business unit by its profit centre; a counterparty to the unit most of its postings are in; a statement reconciliation to its counterparty's unit; any other reconciliation, and a journal with no line that has a unit, to corporate | Agreed (I7) |
 | D-44 | The queue in My Work is the role's, because the workflow lets any person with the role act. It never offers what the role cannot do: matches only for receivables, and no sign-off the acting person prepared | Agreed (I7) |
 | D-45 | A derived task with nothing to do does not finish ahead of what it follows: it completes only once its predecessors are complete. The projection never lets a task finish ahead of a predecessor | Agreed (I7) |
+| D-46 | The operating result is revenue plus exchange gains and one-off income, less material, employee, depreciation, other expenses, exchange losses and one-off expenses. Interest and tax are below it. One-offs are liquidated damages, bad debts and liabilities written back; exchange differences are their own accounts. Variance, Management Reporting and Working Capital all read this definition from one place (`src/engine/pl.ts`) | Agreed (I8) |
+| D-47 | The budget is derived, not stored: planned revenue is the specification's revenue by profit centre and season; cost ratios are the first-half 2026 ledger ratios of that profit centre, less a plan saving on material and on other expenses; corporate carries its costs as a monthly amount. It exists for 2026 only, and the budget comparator is unavailable outside it | Agreed (I8) |
+| D-48 | The price effect is the change in the list price level (compounded actions of the business unit) times the volume sold, on revenue from list-priced products (products and exports, not projects or services). The volume effect is the rest of the revenue change at the comparator's material ratio. The budget comparator uses the price level the plan assumed (no action after the year before the budget year). All components are computed per profit centre and sum exactly to the change (FR-VAR-01) | Agreed (I8) |
+| D-49 | Material price is the purchase price variance of the priced receipts only (S-22 and the routine receipts of the five material families); material cost without a price reference is part of usage and mix. The component is the change in the variance, not the variance itself, and the tile shows the variance | Agreed (I8) |
+| D-50 | The working capital trend starts at the previous quarter end, and the balance sheet comparative is the previous quarter end: the demo ledger carries the open items still open today and those settled since the last review, so balances before that are incomplete. P-02 parks the backfill | Agreed (I8) |
+| D-51 | Days of inventory are shown for the company only: the opening inventory balances sit with corporate, so a business unit's inventory (and its cash cycle) would be a figure of the data and not of the unit | Agreed (I8) |
+| D-52 | Commentary on a variance is a template over the bridge, saved by a person (permission `report-commentary`) and logged; it is a proposal for the analyst to edit, never published on its own. An explanation is asked of the buyer or the project manager through the existing follow-up, which the reporting analyst may also request | Agreed (I8) |
 
 ## 13. Build plan
 
@@ -991,7 +1030,7 @@ One increment per prompt, each ending with §10.6.
 | **I5** | Cash Application (matcher with deduction inference) and TDS | ✔ Working |
 | **I6** | Journals (proposals outbox, review, accruals) and Audit Readiness (schedules, PBC, evidence) | ✔ Working |
 | **I7** | Home, My Work, Close Cockpit | ✔ Working |
-| **I8** | Working Capital, Variance Analysis; Management Reporting and Financial Statements | Working / Overview |
+| **I8** | Working Capital, Variance Analysis; Management Reporting and Financial Statements | ✔ Working / Overview |
 | **I9** | Bank Guarantees (working); FX Exposure, GST, Intercompany, Controls (overview) | Working / Overview |
 | **I10** | Agents, Ask LedgerAlpha, Explain, global search | Working |
 | **I11** | Workspace calibration to the client's answers; masked data import if approved; full dry run | - |
@@ -1005,6 +1044,7 @@ One increment per prompt, each ending with §10.6.
 | ID | Item | Why | Shape |
 |---|---|---|---|
 | P-01 | **Rule sets for every module, not only Balance Sheet Review.** Rules & Policies lists all rules, with a module selector (dropdown) in the page header; hits, parameters and the change log work the same way for every module | Other modules already need deterministic rules that a controller wants to tune | Reconciliations (tolerances, auto-certify thresholds, reconciling-item classification), Cash Application (match levels, tolerance, deduction tables: withholding rates, GST TDS, retention, LD, bank charges), Journals (pre-posting and anomaly checks), TDS and GST (matching tolerances, credit-at-risk windows), Close Cockpit (slippage and escalation), Controls (test frequency). The engine already carries a `module` on every rule (`RuleModule`), `PRODUCT_RULES` is a registry, and evaluators are registered per rule set. Add per-module ID prefixes (REC-, CAP-, JNL-, TDS-, GST-) and move BSR-17 and BSR-18 (payables and indirect tax) to the modules they belong to. Each module's own page also shows its rules in context |
+| P-02 | **Settled open-item history, so earlier comparatives are real.** The demo ledger carries the open items still open today and those settled since the last review, so working capital balances and the balance sheet before the previous quarter end are incomplete (D-50) | A balance sheet comparative at the previous year end and a twelve-month working capital trend are what a finance reader expects, and the prior-year profit and loss lines of several expense accounts are lighter than the current year's | Extend the generator to post, and settle, the receivable, payable, GR/IR, advance, retention and unbilled items of earlier quarters so that every account's month-end balance is complete from the migration date, then restore the year-end comparative and the twelve-month trend (`reliableFrom` and the comparative date become the first month and the previous year end) and re-calibrate the prior-year expense accounts. The change moves the world, so it needs a pass over the scenario tests |
 
 ## Appendix A: Glossary
 

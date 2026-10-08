@@ -18,6 +18,8 @@ import { generateSettled } from "@/data/generator/settled";
 import { postMigration, postMonthlyActivity, postSettlements } from "@/data/generator/activity";
 import { buildBankGuarantees, buildFxRates, buildPurchaseOrders, buildTaxCredits } from "@/data/generator/reference";
 import { generateReconciliations } from "@/data/generator/recs";
+import { postExchangeDifferences, postPricedPurchases } from "@/data/generator/pricing";
+import { buildProjectEstimates } from "@/data/generator/projects";
 
 export function generateWorld(): World {
   const rng = makeRng(S.seed);
@@ -35,6 +37,10 @@ export function generateWorld(): World {
   generatePopulation(ctx);
   generateSettled(ctx);
   plantScenarios(ctx, refs);
+  // priced purchases and exchange differences are posted before the monthly activity, which sizes its material
+  // purchases around what is already posted; none of it draws on the random stream
+  const pricedReceipts = postPricedPurchases(ctx, refs.projects.S11);
+  postExchangeDifferences(ctx);
   postMonthlyActivity(ctx);
   postSettlements(ctx);
 
@@ -63,6 +69,8 @@ export function generateWorld(): World {
       lines, gls: glAccounts, parties: masters.parties, fxRates, anchors: ctx.anchors,
       asOf: S.asOf, seed: S.seed + 11, fyStartMonth: TENANT.fiscalYear.startMonth,
     }),
+    pricedReceipts,
+    projectEstimates: buildProjectEstimates(masters.projects, refs.projects.S11),
     anchors: ctx.anchors,
   };
 }

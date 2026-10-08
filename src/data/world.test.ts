@@ -203,6 +203,76 @@ describe("planted scenarios", () => {
     expect([l.docCurrency, l.amountDoc, l.amount]).toEqual(["EUR", -5_00_000, -4_80_00_000]);
   });
 
+  it("S-22 copper-linked purchase orders of one project: 40,000 kg-eq at 890 against a standard of 780 is ₹44,00,000 over standard", () => {
+    const [sep, aug] = anchored("S-22");
+    const receipt = (l: LineItem) => world.pricedReceipts.find((r) => r.lineKey === l.key)!;
+    expect([sep.gl, sep.amount, aug.gl, aug.amount]).toEqual(["510100", 3_56_00_000, "510100", 2_80_80_000]);
+    const s = receipt(sep);
+    const a = receipt(aug);
+    expect([s.material, s.quantity, s.invoicePrice, s.standardPrice]).toEqual(["Copper winding wire", 40_000, 890, 780]);
+    expect(s.linkedTo).toBe("Copper");
+    expect(s.quantity * (s.invoicePrice - s.standardPrice)).toBe(44_00_000);
+    // the month before the price moved, the same project bought at the standard
+    expect(a.quantity * (a.invoicePrice - a.standardPrice)).toBe(0);
+    expect(s.wbs).toBeDefined();
+    expect(s.wbs).toBe(a.wbs);
+    expect(project(s.wbs!).profitCentreId).toBe(s.profitCentreId);
+    expect([sep.wbs, aug.wbs]).toEqual([s.wbs, s.wbs]);
+    for (const r of [s, a]) {
+      expect(po(r.po).status, r.po).toBe("Closed");
+      expect(lineByKey.get(r.lineKey)!.po?.number).toBe(r.po);
+    }
+  });
+
+  it("every priced receipt is a vendor invoice line on a purchase order, at the quantity times the invoiced price", () => {
+    expect(world.pricedReceipts).toHaveLength(245);
+    const poNumbers = new Set(world.purchaseOrders.map((p) => p.po));
+    for (const r of world.pricedReceipts) {
+      const l = lineByKey.get(r.lineKey);
+      expect(l, r.lineKey).toBeDefined();
+      expect(l!.gl).toBe("510100");
+      expect(l!.amount).toBe(Math.round(r.quantity * r.invoicePrice));
+      expect(l!.postingDate).toBe(r.postingDate);
+      expect(l!.profitCentre).toBe(r.profitCentreId);
+      expect(l!.po?.number).toBe(r.po);
+      expect(`${l!.fiscalYear}-${l!.docNo}`).toBe(r.docKey);
+      expect(poNumbers.has(r.po), r.po).toBe(true);
+    }
+    expect(new Set(world.pricedReceipts.map((r) => r.lineKey)).size).toBe(world.pricedReceipts.length);
+  });
+
+  it("the copper price follows the commodity: steady until September, then 890", () => {
+    const copper = world.pricedReceipts.filter((r) => r.linkedTo === "Copper");
+    expect(copper.length).toBeGreaterThan(50);
+    for (const r of copper) {
+      if (r.postingDate >= "2026-09-01") expect(r.invoicePrice, r.lineKey).toBe(890);
+      else expect(r.invoicePrice, r.lineKey).toBeLessThanOrEqual(783);
+    }
+    // the materials with no commodity link stay within 2 percent of standard
+    for (const r of world.pricedReceipts.filter((x) => !x.linkedTo)) expect(Math.abs(r.invoicePrice / r.standardPrice - 1), r.lineKey).toBeLessThan(0.02);
+  });
+
+  it("project estimates: six month ends per project under way, and the S-22 project's estimate rises by the copper effect in September", () => {
+    const wbs = world.pricedReceipts.find((r) => r.lineKey === anchored("S-22")[0].key)!.wbs!;
+    const byProject = new Map<string, typeof world.projectEstimates>();
+    for (const e of world.projectEstimates) byProject.set(e.wbs, [...(byProject.get(e.wbs) ?? []), e]);
+    expect(byProject.size).toBeGreaterThan(80);
+    for (const [id, list] of byProject) {
+      expect(list, id).toHaveLength(6);
+      expect(["Execution", "Commissioned"], id).toContain(project(id).stage);
+      for (const e of list) expect(e.costToDate, `${id} ${e.monthEnd}`).toBeLessThanOrEqual(e.estimateAtCompletion);
+    }
+    const mine = [...byProject.get(wbs)!].sort((x, y) => x.monthEnd.localeCompare(y.monthEnd));
+    expect(mine.map((e) => e.monthEnd).at(-1)).toBe("2026-09-30");
+    expect(mine[5].estimateAtCompletion - mine[4].estimateAtCompletion).toBe(44_00_000);
+    // every other project drifts by less than that in a month
+    for (const [id, list] of byProject) {
+      if (id === wbs) continue;
+      const sorted = [...list].sort((x, y) => x.monthEnd.localeCompare(y.monthEnd));
+      expect(Math.abs(sorted[5].estimateAtCompletion - sorted[4].estimateAtCompletion), id).toBeLessThan(44_00_000);
+    }
+  });
+
   it("S-24 MSME invoices beyond 45 days total ₹38,90,000 - and are the only ones", () => {
     const planted = anchored("S-24");
     expect(planted.reduce((s, l) => s - l.amount, 0)).toBe(38_90_000);

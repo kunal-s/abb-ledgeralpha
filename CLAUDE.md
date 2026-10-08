@@ -60,7 +60,8 @@ workspace (currently set up for an ABB India workshop, week of 12-Oct-2026).
   `ctx.anchors` for tests.
 - `src/data/world.test.ts` must stay green: every load check at zero exceptions, the independent
   closing-balance recomputation equal to the trial balance, and every planted scenario exact.
-  Adding data shifts the random stream; that is fine as long as these tests pass.
+  Adding data through `ctx.rng` shifts the random stream; that is fine as long as these tests pass, but prefer
+  hash-based quantities (see Reporting, I8) when the rest of the world should stay as it is.
 
 ## Platform core (I2)
 - Rules live in `src/engine/rules/` as a definition (data) plus a deterministic evaluator; register new
@@ -156,6 +157,26 @@ workspace (currently set up for an ABB India workshop, week of 12-Oct-2026).
   must never offer an action the acting role cannot take (see the rules in `buildWork`).
 - Every model has a pure builder (`buildReview`, `buildRecRows`, `buildJournals`, `buildCashApp`): hooks only
   memoise them.
+
+## Reporting (I8)
+- The report lines are one cube, `src/engine/pl.ts` (`plMonth`, `plRange`, `operatingResult`, scope by company,
+  business unit or profit centre). Variance (`variance.ts`), Management Reporting (`management.ts`) and Working
+  Capital (`workingCapital.ts`) read it; the statements (`financials.ts`) read the trial balance. The two routes
+  are tested against each other. Never compute a figure in a page: add it to an engine and test it.
+- The operating result is defined once (FRD D-46). The variance bridge sums exactly to the change (FR-VAR-01,
+  `bridge().residual`); a new component must keep it at zero for every scope, month and comparator.
+- The budget is derived (`budget.ts`, D-47), not stored, and exists for the budget year only; check `hasBudget` /
+  `canCompare` before offering it.
+- New data that must not move the rest of the world is planted with `unit()` (a hash of the record,
+  `src/data/generator/pricing.ts`), never with `ctx.rng`, and before `postMonthlyActivity` when the monthly
+  summaries must be sized around it. Priced receipts, project estimates and exchange differences work this way.
+- Working capital balances and the balance sheet comparative are limited to the previous quarter end (D-50,
+  parked item P-02); days of inventory are the company's only (D-51).
+- Charts: waterfalls are `components/reporting/Waterfall.tsx` (floating bars, sign in the tooltip and the table
+  beside it); statements are `StatementTable.tsx`. A truncated chart label must show its full text in the
+  tooltip (`labelFormatter`).
+- Variance commentary and explanation requests go through the workflow store (`saveVarianceNote`,
+  `discardVarianceNote`, `requestFollowUp`), each checking `can()` and logging an event.
 
 ## Harvesting
 Design system and components come from LedgerAlpha (`/app/app-ledger-alpha`); matching-engine ideas may

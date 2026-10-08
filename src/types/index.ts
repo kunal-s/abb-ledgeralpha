@@ -437,6 +437,15 @@ export interface CloseTaskDef {
   link: CloseLink;
 }
 
+/** The commentary an analyst saved on a variance, keyed by scope, month and comparator. */
+export interface VarianceNote {
+  text: string;
+  /** true once a person has edited the drafted text */
+  edited: boolean;
+  personId: string;
+  at: string;
+}
+
 /** The session's changes to a close task. */
 export interface CloseTaskWork {
   ownerId?: string;
@@ -596,6 +605,40 @@ export interface Reconciliation {
   reply?: { balance: Amount; receivedAt: string; via: string };
 }
 
+/**
+ * A material receipt that carries a price reference: what the item master
+ * says the material costs (standard) against what was invoiced. The ledger
+ * line holds `quantity x invoicePrice`; the purchase price variance is the
+ * difference to standard.
+ */
+export interface PricedReceipt {
+  /** the cost of materials line it is posted to */
+  lineKey: string;
+  /** `${fiscalYear}-${docNo}` */
+  docKey: string;
+  po: string;
+  item: number;
+  vendorId: string;
+  material: string;
+  /** commodity the price follows, when it is linked to one */
+  linkedTo?: string;
+  unit: string;
+  quantity: number;
+  standardPrice: number;
+  invoicePrice: number;
+  postingDate: IsoDate;
+  profitCentreId: string;
+  wbs?: string;
+}
+
+/** Project controlling snapshot at a month end: cost booked to date and the estimate at completion. */
+export interface ProjectEstimate {
+  wbs: string;
+  monthEnd: IsoDate;
+  costToDate: Amount;
+  estimateAtCompletion: Amount;
+}
+
 export interface World {
   asOf: IsoDate;
   extractedAt: string;
@@ -611,6 +654,8 @@ export interface World {
   taxCredits: TaxCreditStatementLine[];
   fxRates: FxRate[];
   reconciliations: Reconciliation[];
+  pricedReceipts: PricedReceipt[];
+  projectEstimates: ProjectEstimate[];
   /**
    * Internal test hook: planted demo scenarios → the line keys that carry them.
    * Never rendered; used by scenario tests and later by rule tests.

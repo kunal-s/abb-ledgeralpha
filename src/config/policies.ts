@@ -70,6 +70,17 @@ export const JOURNAL_REVIEW_POLICY = {
   dormantDays: 180,
 } as const;
 
+/**
+ * Working capital: balances are read over the trailing months of activity,
+ * and a micro or small supplier's invoice is paid within the statutory window
+ * (days from the invoice).
+ */
+export const WORKING_CAPITAL_POLICY = {
+  daysBasisMonths: 3,
+  trendMonths: 12,
+  msmePaymentDays: 45,
+} as const;
+
 /** Items at or above this need a written justification before a decision is proposed. */
 export const MATERIALITY_POLICY = {
   documentedActionAmount: 1_00_000,
