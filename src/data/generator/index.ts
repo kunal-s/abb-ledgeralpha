@@ -18,6 +18,7 @@ import { generateSettled } from "@/data/generator/settled";
 import { postMigration, postMonthlyActivity, postSettlements } from "@/data/generator/activity";
 import { buildBankGuarantees, buildFxRates, buildPurchaseOrders, buildTaxCredits } from "@/data/generator/reference";
 import { generateReconciliations } from "@/data/generator/recs";
+import { alignProjects } from "@/data/generator/projects";
 
 export function generateWorld(): World {
   const rng = makeRng(S.seed);
@@ -37,6 +38,7 @@ export function generateWorld(): World {
   plantScenarios(ctx, refs);
   postMonthlyActivity(ctx);
   postSettlements(ctx);
+  alignProjects(ctx, builder.lines, S.seed + 13);
 
   const lines = builder.lines.sort((a, b) =>
     a.postingDate === b.postingDate ? a.key.localeCompare(b.key) : a.postingDate.localeCompare(b.postingDate)
