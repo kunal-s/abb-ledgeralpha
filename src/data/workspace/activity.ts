@@ -133,7 +133,8 @@ export function seededSignOffs(): Record<string, AccountSignOff> {
       gl: g.gl,
       periodEnd: WORLD.asOf,
       commentary: `${g.description} agrees to the supporting schedule at ${fmtDate(WORLD.asOf)}; no reconciling items outstanding.`,
-      commentaryEdited: true,
+      // one owner in four had reworded the narrator's draft
+      commentaryEdited: i % 4 === 0,
       preparer: { personId: g.ownerId, at: `2026-10-0${day}T${String(10 + (i % 6)).padStart(2, "0")}:${String((i * 7) % 60).padStart(2, "0")}` },
     };
     if (mode <= 2) so.reviewer = { personId: g.reviewerId, at: `2026-10-05T${String(14 + (i % 4)).padStart(2, "0")}:${String((i * 11) % 60).padStart(2, "0")}` };

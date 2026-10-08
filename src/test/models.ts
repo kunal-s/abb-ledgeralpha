@@ -12,6 +12,8 @@ import { auditInputsOf } from "@/state/auditHooks";
 import { buildCashApp } from "@/state/cashAppHooks";
 import { buildCloseModel } from "@/state/closeModel";
 import { buildHome } from "@/state/homeModel";
+import { buildAgentStats } from "@/engine/agentStats";
+import { seededHistory } from "@/engine/history";
 import { buildReview, getRun, latestDecisions, latestFollowUps } from "@/state/hooks";
 import { buildJournals } from "@/state/journalHooks";
 import { buildRecRows } from "@/state/recHooks";
@@ -41,6 +43,10 @@ export function modelsAt(opts: { wd?: number; today?: string } = {}) {
   return {
     review, recRows, journals, receipts, pbc, close, today,
     work: (role: RoleId) => buildWork({ role, today, review, recRows, receipts, journals, decisions: s.decisions, followUps: s.followUps, pbc, close }),
+    agents: () => buildAgentStats({
+      decisions: Object.values(s.decisions), review, recRows, receipts, journals, close, signOffs: s.signOffs,
+      followUps: Object.values(s.followUps), journalReviews: s.journalReviews, events: [...seededHistory(), ...s.events],
+    }),
     home: (role: RoleId) => buildHome({ role, today, review, recRows, journals, receipts, decisions: s.decisions, pbc, close }),
   };
 }
