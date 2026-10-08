@@ -157,6 +157,17 @@ workspace (currently set up for an ABB India workshop, week of 12-Oct-2026).
 - Every model has a pure builder (`buildReview`, `buildRecRows`, `buildJournals`, `buildCashApp`): hooks only
   memoise them.
 
+## Workshop plan, W1 to W7 (FRD §13, D-46 to D-65)
+- **Every module in the registry has a built page** (`src/lib/modules.test.ts` guards it). `ModulePage` is only a fallback; do not add a module without its page.
+- **Visual language (D-47):** warm paper, ink, one petrol accent; the one ageing ramp is `--age-1..4`; IBM Plex is bundled in `src`'s dependencies (no network). Charts share primitives in `src/components/charts` (`Waterfall`, `AgeingStack`) and `src/components/reporting`; use `anim-rise` / `anim-grow-x` for motion (they respect reduced motion). Colour means state only; never hard-code slate/gray text colours.
+- **Pure engines, tested against the ledger:** `reviewStory`, `recOverview`, `recDrill`, `ruleStudio`, `workingCapital`, `pnl`, `statements`, `agentStats`, `controls`, `bg`, `fx`, `gst`, `intercompany`, `variance`. Pages format and drill; each engine test asserts a tie (to the trial balance, an account, or an independent recomputation).
+- **Definitions are tooltips** (`KpiTile hint`), never page text. Data a workspace configures lives in `src/data/workspace/` (`controls.ts`, `threads.ts`, bank limits in `spec.ts`) or `src/config/policies.ts` (`STATEMENT_POLICY`, `CONTROL_POLICY`, `ESCALATION_POLICY`).
+- **Rule Studio:** a workspace rule is `CUS-nn`, registered with `registerRule` and persisted in `studioRules`; it ranks after specific product rules and before age alone (`priorityOf`). Never call a model: the parser is deterministic.
+- **Walkthrough threads** reach records through `WORLD.anchors`, not line keys; a test asserts every step resolves. Add a thread step only with its screen.
+- **Items that are not ledger lines** use a prefixed key (`BG::`, `REC-..::`); give `objectOfItem` and `workModel` a branch so My Work links to the screen, not the drawer.
+- **Demo-data caveat (D-58):** balances before the last quarter hold only items still open today, so comparisons use the previous quarter end and the working capital trend covers four months. Do not widen them without changing the generator.
+- Generator additions are deterministic and use their own seeded stream (`seed + n`), so earlier data does not shift: projects (`projects.ts`), forwards, GST statement and returns (`reference.ts`).
+
 ## Harvesting
 Design system and components come from LedgerAlpha (`/app/app-ledger-alpha`); matching-engine ideas may
 come from Recon-Alpha (`/app/app-recon-alpha`). **Copy, never import across repos, never modify either

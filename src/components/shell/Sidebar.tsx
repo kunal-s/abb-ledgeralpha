@@ -16,7 +16,7 @@ function NavRow({ module }: { module: ModuleDef }) {
           "group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors",
           isActive
             ? "bg-primary/10 font-medium text-primary"
-            : "text-slate-600 hover:bg-accent hover:text-foreground"
+            : "text-foreground/75 hover:bg-accent hover:text-foreground"
         )
       }
     >
@@ -25,7 +25,7 @@ function NavRow({ module }: { module: ModuleDef }) {
           <Icon
             className={cn(
               "h-4 w-4 shrink-0",
-              isActive ? "text-primary" : "text-slate-400 group-hover:text-slate-600"
+              isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
             )}
           />
           <span className="flex-1 truncate">{module.label}</span>
@@ -43,7 +43,7 @@ function Group({ group, modules }: { group: ModuleGroup; modules: ModuleDef[] })
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-2.5 pb-1 text-2xs font-semibold uppercase tracking-wider text-slate-400 hover:text-slate-600"
+        className="flex w-full items-center justify-between px-2.5 pb-1 text-2xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
         aria-expanded={open}
       >
         {group}
