@@ -186,11 +186,18 @@
     from { background-color: hsl(var(--primary) / 0.14); }
     to { background-color: transparent; }
   }
+  /* KPI tiles settle in one after another */
+  .kpi-tile { animation: la-rise 260ms ease-out both; }
+  .kpi-tile:nth-child(2) { animation-delay: 40ms; }
+  .kpi-tile:nth-child(3) { animation-delay: 80ms; }
+  .kpi-tile:nth-child(4) { animation-delay: 120ms; }
+  .kpi-tile:nth-child(5) { animation-delay: 160ms; }
+  .kpi-tile:nth-child(6) { animation-delay: 200ms; }
   .anim-rise { animation: la-rise 220ms ease-out both; }
   .anim-grow-x { transform-origin: left center; animation: la-grow-x 420ms cubic-bezier(.2,.7,.2,1) both; }
   .anim-grow-y { transform-origin: center bottom; animation: la-grow-y 420ms cubic-bezier(.2,.7,.2,1) both; }
   .anim-flash { animation: la-flash 1100ms ease-out both; }
   @media (prefers-reduced-motion: reduce) {
-    .anim-rise, .anim-grow-x, .anim-grow-y, .anim-flash { animation: none; }
+    .anim-rise, .anim-grow-x, .anim-grow-y, .anim-flash, .kpi-tile { animation: none; }
   }
 }

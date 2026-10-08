@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Building2, CalendarClock, Check, ChevronDown, Search } from "lucide-react";
 import { CommandPalette } from "@/components/shell/CommandPalette";
+import { StoryMenu } from "@/components/shell/StoryMenu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,6 +94,7 @@ export function TopBar() {
         <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-2xs font-medium xl:inline">Ctrl K</kbd>
       </button>
       <CommandPalette open={searchOpen} onOpenChange={setSearchOpen} />
+      {TENANT.dataMode !== "live" && <StoryMenu />}
 
       <div className="flex-1" />
 

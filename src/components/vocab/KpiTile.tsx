@@ -55,7 +55,7 @@ export function KpiTile({
     <Card
       onClick={onClick}
       className={cn(
-        "relative overflow-hidden px-4 py-3.5",
+        "kpi-tile relative overflow-hidden px-4 py-3.5",
         onClick && "cursor-pointer transition-colors hover:border-primary/40 hover:bg-accent/40",
         className
       )}
