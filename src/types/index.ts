@@ -529,7 +529,7 @@ export interface DataQualityCheck {
 // ---------------------------------------------------------------------------
 // Reconciliations (docs/FRD.md §6.7)
 // ---------------------------------------------------------------------------
-export type ReconType = "Bank" | "Sub-ledger" | "Schedule-supported" | "Tax account" | "Intercompany" | "Customer statement" | "Vendor statement";
+export type ReconType = "Bank" | "Sub-ledger" | "GR/IR" | "Schedule-supported" | "Tax account" | "Intercompany" | "Customer statement" | "Vendor statement";
 
 /** What has to happen to a reconciling item. */
 export type ReconTreatment = "timing" | "classification" | "adjust-books" | "adjust-source" | "dispute" | "investigate";

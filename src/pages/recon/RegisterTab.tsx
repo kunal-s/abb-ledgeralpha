@@ -124,7 +124,7 @@ export function RegisterTab() {
             <TableHead className="text-right">Per books</TableHead>
             <TableHead className="text-right">Difference</TableHead>
             <TableHead className="text-right">Unexplained</TableHead>
-            <TableHead className="text-right">Items</TableHead>
+            <TableHead>Explained</TableHead>
             <TableHead>Due</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
@@ -146,7 +146,23 @@ export function RegisterTab() {
               <TableCell className="whitespace-nowrap text-right tnum">
                 {r.view.unexplained === null || r.view.unexplained === 0 ? "-" : <span className={r.view.withinTolerance ? "" : "text-danger-foreground"}>{fmtDrCr(r.view.unexplained, true)}</span>}
               </TableCell>
-              <TableCell className="text-right tnum">{r.view.items.length ? fmtInt(r.view.items.length) : "-"}</TableCell>
+              <TableCell className="w-32">
+                {r.view.difference === null || r.view.difference === 0 ? (
+                  <span className="text-xs text-muted-foreground">{r.view.difference === 0 ? "Agrees" : "Awaiting"}</span>
+                ) : (
+                  (() => {
+                    const share = Math.max(0, Math.min(1, 1 - Math.abs(r.view.unexplained ?? 0) / Math.abs(r.view.difference)));
+                    return (
+                      <div title={`${fmtInt(r.view.items.length)} reconciling items`}>
+                        <div className="h-1.5 w-24 rounded-full bg-secondary">
+                          <div className={r.view.withinTolerance ? "h-full rounded-full bg-ok" : "h-full rounded-full bg-primary"} style={{ width: `${share * 100}%` }} />
+                        </div>
+                        <div className="mt-0.5 text-2xs text-muted-foreground tnum">{Math.round(share * 100)}% · {fmtInt(r.view.items.length)} items</div>
+                      </div>
+                    );
+                  })()
+                )}
+              </TableCell>
               <TableCell className="whitespace-nowrap text-xs tnum">{fmtDate(r.rec.dueDate)}</TableCell>
               <TableCell>
                 <StatusChip status={r.status} />

@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { BALANCES, LINE_BY_KEY, PERSON_BY_ID, REC_BY_ID, WORLD, balanceAt, statementItems } from "@/data";
 import { seededSignOffs } from "@/data/workspace/activity";
 import { seededHistory } from "@/engine/history";
-import { adjustmentJournal, documentedItems, effectiveRec, needsAction, recItemKey, signOffBlockers } from "@/engine/recs";
+import { adjustmentJournal, bridgeOf, documentedItems, effectiveRec, itemAgeing, needsAction, recItemKey, signOffBlockers } from "@/engine/recs";
 import { diagnoseCustomer } from "@/engine/diagnose";
 import { exportRows } from "@/engine/journals";
 import { RECON_CLASSES, RECON_TYPES } from "@/engine/recClasses";
+import { grirByPo, rollforward, subLedgerByPartner } from "@/engine/recDrill";
+import { previousQuarterEnd } from "@/engine/context";
+import { preparerWorkload, reconcilerSummary, typeDifferences } from "@/engine/recOverview";
 import { RECON_POLICY } from "@/config/policies";
 import { can } from "@/config/roles";
 import { useWorkflow } from "@/state/workflow";
@@ -35,7 +38,7 @@ describe("reconciliations in the world", () => {
     expect(by("Customer statement")).toBe(15);
     expect(by("Vendor statement")).toBe(6);
     expect(new Set(recs.map((r) => r.id)).size).toBe(recs.length);
-    expect(RECON_TYPES).toHaveLength(7);
+    expect(RECON_TYPES).toHaveLength(8);
   });
 
   it("account-based reconciliations start from the trial balance", () => {
@@ -277,5 +280,117 @@ describe("seeded history", () => {
     expect(ev.some((e) => e.action === "Reconciliation prepared" && e.actorKind === "Agent")).toBe(true);
     expect(ev.some((e) => e.action === "Confirmation requested")).toBe(true);
     expect(ev.some((e) => e.action === "Reply received")).toBe(true);
+  });
+});
+
+describe("the bridge and ageing of reconciling items", () => {
+  const views = () => WORLD.reconciliations.map((r) => effectiveRec(r, undefined, WORLD.asOf));
+
+  it("walks the difference down to exactly the unexplained amount, for every reconciliation", () => {
+    let checked = 0;
+    for (const v of views()) {
+      const b = bridgeOf(v);
+      if (v.difference === null) {
+        expect(b).toBeUndefined();
+        continue;
+      }
+      checked += 1;
+      expect(b!.start).toBe(v.difference);
+      expect(b!.residual).toBeCloseTo(v.unexplained!, 2);
+      expect(b!.steps.reduce((s, x) => s + x.effect, 0)).toBeCloseTo(v.explained, 2);
+      for (const [i, step] of b!.steps.entries()) {
+        expect(step.to).toBeCloseTo(step.from - step.effect, 2);
+        if (i > 0) expect(step.from).toBeCloseTo(b!.steps[i - 1].to, 2);
+      }
+      expect(b!.min).toBeLessThanOrEqual(0);
+      expect(b!.max).toBeGreaterThanOrEqual(0);
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it("places every reconciling item in exactly one age bucket", () => {
+    const vs = views();
+    const slices = itemAgeing(vs);
+    expect(slices.reduce((s, x) => s + x.count, 0)).toBe(vs.reduce((s, v) => s + v.items.length, 0));
+    expect(slices.reduce((s, x) => s + x.amount, 0)).toBeCloseTo(vs.reduce((s, v) => s + v.items.reduce((t, i) => t + Math.abs(i.amount), 0), 0), 2);
+  });
+});
+
+describe("overview figures", () => {
+  const rows = () => WORLD.reconciliations.map((r) => ({ rec: r, view: effectiveRec(r, undefined, WORLD.asOf), status: "in-review" as const }));
+
+  it("counts every reconciliation once by type and never explains more than the difference", () => {
+    const t = typeDifferences(rows(), RECON_TYPES);
+    expect(t.reduce((s, x) => s + x.total, 0)).toBe(WORLD.reconciliations.length);
+    for (const x of t) {
+      expect(x.explained + x.unexplained).toBeCloseTo(x.difference, 2);
+      expect(x.unexplained).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("splits the items between the reconciler and a person without losing any", () => {
+    const s = reconcilerSummary(rows());
+    expect(s.classified + s.needPerson).toBe(s.items);
+    expect(s.byReconciler).toBeLessThanOrEqual(s.classified);
+    expect(s.confidence).toBeGreaterThanOrEqual(0);
+    expect(s.confidence).toBeLessThanOrEqual(1);
+  });
+
+  it("lists every preparer once, with the largest open value first", () => {
+    const p = preparerWorkload(rows());
+    expect(p.reduce((s, x) => s + x.total, 0)).toBe(WORLD.reconciliations.length);
+    expect(new Set(p.map((x) => x.preparerId)).size).toBe(p.length);
+    const v = p.map((x) => x.unexplained);
+    expect(v).toEqual([...v].sort((a, b) => b - a));
+  });
+});
+
+describe("what stands behind the balances", () => {
+  it("ties the sub-ledger by partner to the balance per sub-ledger of every sub-ledger reconciliation", () => {
+    const subs = WORLD.reconciliations.filter((r) => r.type === "Sub-ledger");
+    expect(subs.length).toBeGreaterThan(0);
+    for (const r of subs) {
+      const v = subLedgerByPartner(r.gl!);
+      expect(v.total).toBeCloseTo(r.sourceBalance!, 2);
+      expect(v.total + v.direct.total).toBeCloseTo(r.booksBalance, 2);
+    }
+  });
+
+  it("rolls every supporting schedule account forward from the opening balance to the books", () => {
+    const schedules = WORLD.reconciliations.filter((r) => r.type === "Schedule-supported");
+    expect(schedules.length).toBeGreaterThan(0);
+    for (const r of schedules) {
+      const f = rollforward(r.gl!, previousQuarterEnd(WORLD.asOf));
+      expect(f.closing).toBeCloseTo(r.booksBalance, 2);
+    }
+  });
+});
+
+describe("GR/IR reconciliation", () => {
+  const grir = () => WORLD.reconciliations.filter((r) => r.type === "GR/IR");
+
+  it("covers every GR/IR account and ties the purchase order view to the books", () => {
+    expect(grir().map((r) => r.gl).sort()).toEqual(WORLD.glAccounts.filter((g) => g.category === "grir").map((g) => g.gl).sort());
+    for (const r of grir()) {
+      const v = grirByPo(r.gl!);
+      expect(v.total).toBeCloseTo(r.booksBalance, 2);
+      expect(r.sourceBalance! + r.items.reduce((s, i) => s + (i.side === "books" ? i.amount : -i.amount), 0)).toBeCloseTo(r.booksBalance, 2);
+    }
+  });
+
+  it("explains every difference with a real ledger line, and leaves nothing unexplained", () => {
+    for (const r of grir()) {
+      const v = effectiveRec(r, undefined, WORLD.asOf);
+      expect(v.unexplained).toBeCloseTo(0, 2);
+      expect(v.withinTolerance).toBe(true);
+      for (const i of r.items) {
+        expect(i.lineKey && LINE_BY_KEY.has(i.lineKey)).toBe(true);
+        expect(["gr-cutoff", "po-closed-open"]).toContain(i.suggestedClass);
+      }
+    }
+  });
+
+  it("classifies closed-order lines without asking anybody for an entry", () => {
+    for (const r of grir()) for (const i of effectiveRec(r, undefined, WORLD.asOf).items) expect(needsAction(i)).toBe(false);
   });
 });

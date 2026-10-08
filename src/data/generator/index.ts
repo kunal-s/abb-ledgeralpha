@@ -44,6 +44,7 @@ export function generateWorld(): World {
 
   const glAccounts = buildChartOfAccounts();
   const fxRates = buildFxRates();
+  const purchaseOrders = buildPurchaseOrders(ctx);
 
   return {
     asOf: S.asOf,
@@ -55,12 +56,12 @@ export function generateWorld(): World {
     parties: masters.parties,
     glAccounts,
     lines,
-    purchaseOrders: buildPurchaseOrders(ctx),
+    purchaseOrders,
     bankGuarantees: buildBankGuarantees(ctx),
     taxCredits: buildTaxCredits(ctx),
     fxRates,
     reconciliations: generateReconciliations({
-      lines, gls: glAccounts, parties: masters.parties, fxRates, anchors: ctx.anchors,
+      lines, gls: glAccounts, parties: masters.parties, purchaseOrders, fxRates, anchors: ctx.anchors,
       asOf: S.asOf, seed: S.seed + 11, fyStartMonth: TENANT.fiscalYear.startMonth,
     }),
     anchors: ctx.anchors,

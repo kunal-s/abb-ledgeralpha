@@ -1,15 +1,19 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { KpiTile, Panel, StatusChip } from "@/components/vocab";
+import { KpiTile, MethodBadge, Panel, StatusChip } from "@/components/vocab";
+import { AgeingStack } from "@/components/charts/AgeingStack";
+import { TypeDifferences } from "@/components/recon/TypeDifferences";
+import { itemAgeing } from "@/engine/recs";
+import { preparerWorkload, reconcilerSummary, typeDifferences } from "@/engine/recOverview";
+import { PERSON_BY_ID } from "@/data";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { StatusBars, statusGroupOf } from "@/components/review/StatusBars";
 import { useRecRows, type RecRow } from "@/state/recHooks";
 import { useQueryParams } from "@/lib/useQueryParams";
 import { RECON_TYPES, TREATMENT_LABELS } from "@/engine/recClasses";
 import { RECON_POLICY } from "@/config/policies";
 import { needsAction } from "@/engine/recs";
 import { fmtINR, fmtINRCompact, fmtInt } from "@/lib/format";
-import type { ReconClass, ReconType } from "@/types";
+import type { ReconClass } from "@/types";
 
 /** Why a reconciliation needs somebody's attention, most pressing first. */
 function attention(r: RecRow): { score: number; reason: string } | undefined {
@@ -46,15 +50,6 @@ export function OverviewTab() {
     };
   }, [rows]);
 
-  const chart = useMemo(() => {
-    const data = Object.fromEntries(RECON_TYPES.map((t) => [t, {} as Record<string, number>])) as Record<ReconType, Record<string, number>>;
-    for (const r of rows) {
-      const g = statusGroupOf(r.status);
-      data[r.rec.type][g] = (data[r.rec.type][g] ?? 0) + 1;
-    }
-    return data;
-  }, [rows]);
-
   const needs = useMemo(
     () =>
       rows
@@ -81,6 +76,11 @@ export function OverviewTab() {
     return order.filter((k) => m.has(k)).map((k) => ({ key: k, label: k === "none" ? "Not classified" : TREATMENT_LABELS[k], ...m.get(k)! }));
   }, [rows]);
 
+  const diffs = useMemo(() => typeDifferences(rows, RECON_TYPES), [rows]);
+  const ageing = useMemo(() => itemAgeing(rows.map((r) => r.view)), [rows]);
+  const reconciler = useMemo(() => reconcilerSummary(rows), [rows]);
+  const load = useMemo(() => preparerWorkload(rows), [rows]);
+
   const toRegister = (extra: Record<string, string | null>) => setParams({ tab: "register", ...extra }, { replace: false });
 
   return (
@@ -95,21 +95,31 @@ export function OverviewTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="Reconciliations by type and status" className="xl:col-span-2">
-          <StatusBars
-            data={chart}
-            rows={RECON_TYPES.map((t) => ({ key: t, label: t }))}
-            unit="reconciliations"
-            labelWidth="9.5rem"
-            onSelect={(t, g) => toRegister({ type: t, rstatus: g })}
-          />
+        <Panel title="Difference by type" className="xl:col-span-2" actions={<span className="text-xs text-muted-foreground tnum">{fmtINRCompact(stats.unexplained)} unexplained</span>}>
+          <TypeDifferences rows={diffs} onSelect={(t) => toRegister({ type: t, rstatus: null })} />
         </Panel>
+        <div className="space-y-3">
+          <Panel title="Reconciling items by age">
+            <AgeingStack slices={ageing.map((a, i) => ({ ...a, fill: `hsl(var(--age-${i + 1}))` }))} />
+          </Panel>
+          <Panel title="The reconciler" actions={<MethodBadge method="judgement" showConfidence={false} />}>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-medium tnum">{reconciler.items ? Math.round((reconciler.classified / reconciler.items) * 100) : 0}%</span>
+              <span className="text-sm text-muted-foreground tnum">{fmtInt(reconciler.classified)} of {fmtInt(reconciler.items)} items classified</span>
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground tnum">
+              {fmtInt(reconciler.byReconciler)} by the reconciler at {reconciler.confidence.toFixed(2)} average confidence, {fmtInt(reconciler.needPerson)} need a person
+            </div>
+          </Panel>
+        </div>
+      </div>
 
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <Panel title="Needs attention" bodyClassName="p-0">
           {needs.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing needs attention</div>
           ) : (
-            <ul className="divide-y divide-border/70">
+            <ul className="divide-y divide-border">
               {needs.map(({ r, a }) => (
                 <li key={r.rec.id}>
                   <Link to={`/reconciliations/${r.rec.id}`} className="block px-4 py-2.5 hover:bg-accent/50">
@@ -125,6 +135,29 @@ export function OverviewTab() {
               ))}
             </ul>
           )}
+        </Panel>
+
+        <Panel title="Who holds what" bodyClassName="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Preparer</TableHead>
+                <TableHead className="text-right">Reconciliations</TableHead>
+                <TableHead className="text-right">Certified</TableHead>
+                <TableHead className="text-right">Unexplained</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {load.map((p) => (
+                <TableRow key={p.preparerId} className="cursor-pointer" onClick={() => toRegister({ rowner: p.preparerId, type: null, rstatus: null })}>
+                  <TableCell>{PERSON_BY_ID.get(p.preparerId)?.name ?? p.preparerId}</TableCell>
+                  <TableCell className="text-right tnum">{fmtInt(p.total)}</TableCell>
+                  <TableCell className="text-right tnum">{fmtInt(p.signed)}</TableCell>
+                  <TableCell className="text-right tnum">{p.unexplained ? fmtINRCompact(p.unexplained) : "-"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Panel>
       </div>
 

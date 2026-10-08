@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
+import { AgeingStack } from "@/components/charts/AgeingStack";
 import { KpiTile, Panel } from "@/components/vocab";
 import { StatusBars, type BarGroup } from "@/components/review/StatusBars";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -55,7 +56,6 @@ export function OverviewTab() {
     const rs = stats.open.filter((r) => bucketOfAge(r.age) === b.id);
     return { ...b, count: rs.length, value: stats.sum(rs) };
   }), [stats]);
-  const maxAge = Math.max(1, ...ageing.map((a) => a.value));
 
   const customers = useMemo(() => {
     const m = new Map<string, { name: string; count: number; value: number }>();
@@ -106,25 +106,8 @@ export function OverviewTab() {
           />
         </Panel>
 
-        <Panel title="Unapplied credits by age" bodyClassName="p-4">
-          <ul className="space-y-3">
-            {ageing.map((a) => (
-              <li key={a.id}>
-                <button type="button" className="block w-full text-left" onClick={() => go({ cage: a.id })}>
-                  <div className="flex items-baseline justify-between text-sm">
-                    <span>{a.label}</span>
-                    <span className="flex gap-3 text-xs tnum">
-                      <span className="text-muted-foreground">{fmtInt(a.count)}</span>
-                      <span className="w-20 text-right">{fmtINRCompact(a.value)}</span>
-                    </span>
-                  </div>
-                  <div className="mt-1 h-1.5 rounded-sm bg-muted">
-                    <div className="h-1.5 rounded-sm bg-primary" style={{ width: `${a.value ? Math.max(1.5, (a.value / maxAge) * 100) : 0}%` }} />
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
+        <Panel title="Unapplied credits by age">
+          <AgeingStack slices={ageing.map((a, i) => ({ id: a.id, label: a.label, count: a.count, amount: a.value, fill: `hsl(var(--age-${Math.min(i + 1, 4)}))` }))} onSelect={(id) => go({ cage: id })} />
         </Panel>
       </div>
 

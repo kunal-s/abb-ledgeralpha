@@ -80,6 +80,88 @@ export function effectiveRec(rec: Reconciliation, work: RecWork | undefined, asO
 }
 
 // ---------------------------------------------------------------------------
+// The bridge: the difference between books and source, walked down to what is
+// left unexplained. Each step is the effect of one reconciling class.
+// ---------------------------------------------------------------------------
+export interface BridgeStep {
+  key: string;
+  label: string;
+  count: number;
+  effect: number;
+  /** running level of (books - source) before and after the step */
+  from: number;
+  to: number;
+}
+
+export interface Bridge {
+  start: number;
+  steps: BridgeStep[];
+  /** what is left after every classified step: the unexplained difference */
+  residual: number;
+  tolerance: number;
+  /** the range the picture has to cover, always including zero and the tolerance band */
+  min: number;
+  max: number;
+  unclassified: { count: number; effect: number };
+}
+
+export function bridgeOf(view: RecView): Bridge | undefined {
+  if (view.difference === null) return undefined;
+  const groups = new Map<string, { label: string; count: number; effect: number }>();
+  let unclassified = { count: 0, effect: 0 };
+  for (const i of view.items) {
+    if (!i.cls) {
+      unclassified = { count: unclassified.count + 1, effect: unclassified.effect + i.effect };
+      continue;
+    }
+    const g = groups.get(i.cls.id) ?? { label: i.cls.label, count: 0, effect: 0 };
+    g.count += 1;
+    g.effect += i.effect;
+    groups.set(i.cls.id, g);
+  }
+  const ordered = [...groups.entries()].sort((a, b) => Math.abs(b[1].effect) - Math.abs(a[1].effect));
+  let level = view.difference;
+  const steps: BridgeStep[] = ordered.map(([key, g]) => {
+    const step = { key, label: g.label, count: g.count, effect: g.effect, from: level, to: level - g.effect };
+    level = step.to;
+    return step;
+  });
+  const tolerance = RECON_POLICY.tolerance[view.rec.type];
+  const levels = [view.difference, ...steps.map((s) => s.to), 0, tolerance, -tolerance];
+  return { start: view.difference, steps, residual: level, tolerance, min: Math.min(...levels), max: Math.max(...levels), unclassified };
+}
+
+// ---------------------------------------------------------------------------
+// Ageing of reconciling items: how long each has been waiting
+// ---------------------------------------------------------------------------
+export const REC_AGE_BUCKETS = [
+  { id: "0-30", label: "0-30 days", max: 30 },
+  { id: "31-60", label: "31-60 days", max: 60 },
+  { id: "61-90", label: "61-90 days", max: 90 },
+  { id: "90+", label: "90+ days", max: Infinity },
+] as const;
+
+export interface RecAgeSlice {
+  id: string;
+  label: string;
+  count: number;
+  amount: number;
+}
+
+/** Gross value of reconciling items by how long they have waited. */
+export function itemAgeing(views: RecView[]): RecAgeSlice[] {
+  const out: RecAgeSlice[] = REC_AGE_BUCKETS.map((b) => ({ id: b.id, label: b.label, count: 0, amount: 0 }));
+  for (const v of views) {
+    for (const i of v.items) {
+      const k = REC_AGE_BUCKETS.findIndex((b) => i.ageDays <= b.max);
+      out[k].count += 1;
+      out[k].amount += Math.abs(i.amount);
+    }
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Keys: a reconciling item is addressed as `${reconciliationId}::${itemId}` so
 // decisions, follow-ups and activity can refer to it like a ledger line.
 // ---------------------------------------------------------------------------

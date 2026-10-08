@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AddItemDialog } from "@/components/recon/AddItemDialog";
 import { ConfirmationPanel } from "@/components/recon/ConfirmationPanel";
-import { DifferenceBars } from "@/components/recon/DifferenceBars";
+import { BalanceDrill } from "@/components/recon/BalanceDrill";
+import { ReconBridge } from "@/components/recon/ReconBridge";
 import { RecItemsTable } from "@/components/recon/RecItemsTable";
 import { RecSignOffPanel } from "@/components/recon/RecSignOffPanel";
 import { GL_BY_ID, PARTY_BY_ID, PERSON_BY_ID } from "@/data";
@@ -122,8 +123,8 @@ export function ReconciliationDetail() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="Difference explained" className="xl:col-span-2">
-          <DifferenceBars view={view} />
+        <Panel title="From the difference to the unexplained" className="xl:col-span-2">
+          <ReconBridge view={view} />
         </Panel>
         <div className="space-y-3">
           {rec.confirmation && <ConfirmationPanel row={row} />}
@@ -132,6 +133,8 @@ export function ReconciliationDetail() {
           </Panel>
         </div>
       </div>
+
+      <BalanceDrill rec={rec} />
 
       <Panel
         title="Reconciling items"

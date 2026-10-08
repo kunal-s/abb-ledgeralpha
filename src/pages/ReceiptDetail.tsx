@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ReceiptFlow } from "@/components/cash/ReceiptFlow";
 import { Factors, MatchArithmetic, levelText } from "@/components/cash/MatchParts";
 import { DecisionApproval, FollowUpBody } from "@/components/review/drawerParts";
 import { GL_BY_ID, PARTY_BY_ID, PERSON_BY_ID, WORLD } from "@/data";
@@ -60,6 +61,7 @@ export function ReceiptDetail() {
   const draft = draftRemittanceRequest(receipt, customer?.name);
   const deducted = shown ? shown.deductions.reduce((s, d) => s + d.amount, 0) : 0;
   const lineAccount = GL_BY_ID.get("171200")?.description;
+  const statementRec = row.customerId ? WORLD.reconciliations.find((r) => r.type === "Customer statement" && r.partyId === row.customerId) : undefined;
 
   return (
     <div className="space-y-4">
@@ -79,6 +81,11 @@ export function ReceiptDetail() {
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <div className="space-y-3 xl:col-span-2">
+          {shown && (
+            <Panel title="From the receipt to the invoices" bodyClassName="pb-2">
+              <ReceiptFlow proposal={shown} />
+            </Panel>
+          )}
           {shown ? (
             <Panel
               title={best ? "How the receipt is explained" : "Closest explanation, below the confidence needed"}
@@ -279,6 +286,7 @@ export function ReceiptDetail() {
                 ["Posted", `${fmtDate(receipt.date)} · ${receiptAge(receipt, WORLD.asOf)} days ago`],
                 ["Customer", customer ? `${customer.name}` : "Not identified"],
                 ...(shown ? ([["Identified by", shown.customerBasis]] as [string, string][]) : match.customers[0] ? ([["Closest name", match.customers[0].basis]] as [string, string][]) : []),
+                ...(statementRec ? ([["Customer statement", <Link key="st" to={`/reconciliations/${statementRec.id}`} className="font-medium text-primary hover:underline">{statementRec.id}</Link>]] as [string, React.ReactNode][]) : []),
                 ...(row.rejected ? ([["Rejected matches", String(row.rejected)]] as [string, string][]) : []),
               ]}
             />

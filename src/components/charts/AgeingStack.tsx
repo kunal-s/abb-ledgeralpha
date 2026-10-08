@@ -7,6 +7,8 @@ export interface AgeingSlice {
   label: string;
   amount: number;
   count: number;
+  /** colour override; the ageing ramp by bucket id when omitted */
+  fill?: string;
 }
 
 interface AgeingStackProps {
@@ -29,19 +31,19 @@ export function AgeingStack({ slices, onSelect, className }: AgeingStackProps) {
               type="button"
               disabled={!onSelect}
               onClick={() => onSelect?.(s.id)}
-              style={{ width: `${Math.max(pct, s.amount > 0 ? 1.5 : 0)}%`, background: AGEING_FILL[s.id], animationDelay: `${i * 70}ms` }}
+              style={{ width: `${Math.max(pct, s.amount > 0 ? 1.5 : 0)}%`, background: s.fill ?? AGEING_FILL[s.id], animationDelay: `${i * 70}ms` }}
               className="anim-grow-x h-full min-w-0 transition-opacity hover:opacity-85 disabled:cursor-default"
               aria-label={`${s.label}: ${fmtINRCompact(s.amount)}, ${s.count} items`}
             />
           );
         })}
       </div>
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${slices.length}, minmax(0, 1fr))` }}>
         {slices.map((s) => (
           <div key={s.id} className="min-w-0">
-            <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
-              <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: AGEING_FILL[s.id] }} />
-              <span className="truncate">{s.label}</span>
+            <div className="flex items-start gap-1.5 text-2xs text-muted-foreground">
+              <span className="mt-[3px] h-2 w-2 shrink-0 rounded-[2px]" style={{ background: s.fill ?? AGEING_FILL[s.id] }} />
+              <span className="leading-tight">{s.label}</span>
             </div>
             <div className="mt-0.5 text-sm font-medium tnum">{fmtINRCompact(s.amount)}</div>
             <div className="text-2xs text-muted-foreground tnum">{s.count} items</div>

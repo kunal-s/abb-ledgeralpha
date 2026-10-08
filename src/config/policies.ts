@@ -24,6 +24,7 @@ export const RECON_POLICY = {
   tolerance: {
     Bank: 100,
     "Sub-ledger": 0,
+    "GR/IR": 0,
     "Schedule-supported": 1_000,
     "Tax account": 100,
     Intercompany: 1_000,

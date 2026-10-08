@@ -53,7 +53,7 @@ export const CLOSE_TASKS: CloseTaskDef[] = [
   // C: reconciliations
   t("C1", "C", "Receipts in clearing applied or parked", "P06", 1, 4, ["B1"], { kind: "receipts-handled" }),
   t("C2", "C", "Bank reconciliations signed off", "P08", 1, 3, ["B1", "B2"], { kind: "recs", types: ["Bank"] }),
-  t("C3", "C", "Sub-ledger, schedule and tax account reconciliations signed off", "P01", 2, 4, ["B1", "B2", "B3"], { kind: "recs", types: ["Sub-ledger", "Schedule-supported", "Tax account"] }),
+  t("C3", "C", "Sub-ledger, GR/IR, schedule and tax account reconciliations signed off", "P01", 2, 4, ["B1", "B2", "B3"], { kind: "recs", types: ["Sub-ledger", "GR/IR", "Schedule-supported", "Tax account"] }),
   t("C4", "C", "Customer statement reconciliations signed off", "P06", 2, 5, ["C1"], { kind: "recs", types: ["Customer statement"] }),
   t("C5", "C", "Vendor statement reconciliations signed off", "P02", 2, 5, ["B3"], { kind: "recs", types: ["Vendor statement"] }),
   t("C6", "C", "Intercompany reconciliations signed off", "P04", 2, 5, ["B5"], { kind: "recs", types: ["Intercompany"] }),

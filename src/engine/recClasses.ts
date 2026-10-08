@@ -19,6 +19,11 @@ export const RECON_CLASSES: Record<ReconType, ReconClass[]> = {
     c("direct-posting", "Posting direct to control account", "adjust-books", "Posted to the control account without a business partner"),
     c("subledger-timing", "Posting in transit between ledgers", "timing", "Will reach the sub-ledger in the next run"),
   ],
+  "GR/IR": [
+    c("gr-cutoff", "Goods received at the period end", "timing", "Posted in the last days of the period; the purchase order history shows it in the next run"),
+    c("po-closed-open", "Order closed, GR/IR line still open", "classification", "Carried separately: the action (write back, clear or follow up) is taken in Balance Sheet Review"),
+    c("grir-difference", "Difference to explain", "investigate", "Needs the buyer's explanation"),
+  ],
   "Schedule-supported": [
     c("journal-not-posted", "Schedule movement not yet journalised", "adjust-books", "The schedule moved; the journal has not been posted"),
     c("schedule-not-updated", "Posting not yet in the schedule", "adjust-source", "The books moved; the schedule has not been updated"),

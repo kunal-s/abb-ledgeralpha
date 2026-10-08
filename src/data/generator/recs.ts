@@ -5,7 +5,7 @@
 // group balances) plus the planted items (S-18, S-19, S-25); counterparty
 // replies are generated so the reconciler agent can explain them.
 
-import type { FxRate, GlAccount, IsoDate, LineItem, Party, ReconItem, Reconciliation, RiskTier } from "@/types";
+import type { FxRate, GlAccount, IsoDate, LineItem, Party, PurchaseOrderStatus, ReconItem, Reconciliation, RiskTier } from "@/types";
 import { makeRng, type Rng } from "@/data/rng";
 import { closingFromLines } from "@/data/balances";
 import { isOpenAt } from "@/data/quality";
@@ -17,6 +17,7 @@ interface Input {
   lines: LineItem[];
   gls: GlAccount[];
   parties: Party[];
+  purchaseOrders: PurchaseOrderStatus[];
   fxRates: FxRate[];
   anchors: Record<string, string[]>;
   asOf: IsoDate;
@@ -99,6 +100,35 @@ export function generateReconciliations(inp: Input): Reconciliation[] {
       id: `REC-SUB-${gl}`, type: "Sub-ledger", name: glById.get(gl)!.description, gl,
       booksLabel: "Balance per control account", sourceLabel: "Balance per sub-ledger", sourceDetail: `Sum of open items by business partner at ${fmtDate(asOf)}`,
       booksBalance: books, sourceBalance: sourceFrom(books, list), items: list, riskTier: risk, dueDate: "2026-10-07", preparerId: preparer,
+    });
+  }
+
+  // ---- GR/IR clearing --------------------------------------------------------------------
+  // The source is the purchase order history: it shows an order's open goods receipts and
+  // invoices, so it leaves out goods posted in the last days of the period (cut-off) and
+  // lines whose order is already closed or flagged for deletion. Both are real ledger lines.
+  const poStatus = new Map(inp.purchaseOrders.map((p) => [`${p.po}/${p.item}`, p.status]));
+  const cutoffFrom = addDays(asOf, -3);
+  for (const gl of inp.gls.filter((g) => g.category === "grir").map((g) => g.gl)) {
+    const mk = items("G");
+    const open = openByGl(gl);
+    const list: ReconItem[] = [];
+    for (const l of open) {
+      const st = l.po ? poStatus.get(`${l.po.number}/${l.po.item}`) : undefined;
+      if (l.postingDate >= cutoffFrom && l.docType === "WE") {
+        list.push(mk({ side: "books", amount: l.amount, date: l.postingDate, reference: l.po?.number, narration: `Goods receipt ${l.docNo} on PO ${l.po?.number}, posted at the period end`, lineKey: l.key, suggestedClass: "gr-cutoff", confidence: 0.96 }));
+      } else if (st === "Closed" || st === "Deletion flagged") {
+        list.push(mk({ side: "books", amount: l.amount, date: l.postingDate, reference: l.po?.number, narration: `${l.docType === "WE" ? "Goods receipt" : "Invoice receipt"} ${l.docNo} on PO ${l.po?.number}, order ${st === "Closed" ? "closed" : "flagged for deletion"}`, lineKey: l.key, suggestedClass: "po-closed-open", confidence: 0.94 }));
+      }
+    }
+    const books = bal(gl);
+    const keys = new Set(list.map((i) => i.lineKey));
+    const matched = open.filter((l) => !keys.has(l.key));
+    add({
+      id: `REC-GRI-${gl}`, type: "GR/IR", name: glById.get(gl)!.description, gl,
+      booksLabel: "Balance per GR/IR account", sourceLabel: "Balance per purchase order history", sourceDetail: `Goods receipts and invoice receipts by purchase order at ${fmtDate(asOf)}`,
+      booksBalance: books, sourceBalance: sourceFrom(books, list), items: list, riskTier: "Medium", dueDate: "2026-10-07", preparerId: "P02",
+      matched: { count: matched.length, value: sum(matched.map((l) => Math.abs(l.amount))) },
     });
   }
 
