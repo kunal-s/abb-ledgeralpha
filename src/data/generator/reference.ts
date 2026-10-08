@@ -2,9 +2,10 @@
 // legacy purchasing module), the bank-guarantee register, the tax credit
 // statement (Form 26AS) and month-end FX rates.
 
-import type { BankGuarantee, FxRate, IsoDate, PurchaseOrderStatus, TaxCreditStatementLine } from "@/types";
+import type { BankGuarantee, ForwardContract, FxRate, IsoDate, PurchaseOrderStatus, TaxCreditStatementLine } from "@/types";
 import { addDays, daysBetween, fiscalQuarterLabel, monthEnd } from "@/lib/dates";
 import { makeRng } from "@/data/rng";
+import { isOpenAt } from "@/data/quality";
 import { WORLD_SPEC as S } from "@/data/workspace/spec";
 import type { Ctx } from "@/data/generator/context";
 
@@ -102,6 +103,49 @@ export function buildBankGuarantees(ctx: Ctx): BankGuarantee[] {
     if (bg.direction === "Issued" && !bg.acceptance) bg.acceptance = bg.issueDate > addDays(ctx.asOf, -60) ? "Pending" : "Accepted";
   }
   return all.sort((a, b) => a.validTo.localeCompare(b.validTo));
+}
+
+/** Monetary accounts whose foreign-currency balances are revalued: receivables, group receivables, payables, group payables. */
+export const FX_MONETARY_GLS = new Set(["140200", "140300", "164100", "210200", "210300", "251100"]);
+
+/**
+ * Forward contracts covering part of what falls due in the next ninety days, bought for a net payable and sold
+ * for a net receivable, a bucket at a time. The planted EUR payable has its own forward (S-21).
+ */
+export function buildForwards(ctx: Ctx, fxRates: FxRate[]): ForwardContract[] {
+  const rng = makeRng(S.seed + 17);
+  const spot = new Map(fxRates.filter((r) => r.periodEnd === ctx.asOf).map((r) => [r.currency, r.closing]));
+  const net = new Map<string, number[]>();
+  for (const l of ctx.b.lines) {
+    if (l.docCurrency === "INR" || !FX_MONETARY_GLS.has(l.gl) || !isOpenAt(l, ctx.asOf) || !l.dueDate) continue;
+    const d = daysBetween(ctx.asOf, l.dueDate);
+    if (d < 0 || d > 90) continue;
+    const arr = net.get(l.docCurrency) ?? [0, 0, 0];
+    arr[d <= 30 ? 0 : d <= 60 ? 1 : 2] += l.amountDoc;
+    net.set(l.docCurrency, arr);
+  }
+  const banks = S.banks.slice(0, 4);
+  const out: ForwardContract[] = [];
+  let n = 0;
+  const push = (currency: string, direction: "Buy" | "Sell", amountFx: number, rate: number, maturity: IsoDate, tradeDate: IsoDate) => {
+    const bank = rng.pick(banks);
+    out.push({ id: `FWD-${tradeDate.slice(0, 4)}-${String(++n).padStart(3, "0")}`, bank, currency, direction, amountFx, rate, tradeDate, maturity });
+  };
+  for (const [ccy, buckets] of [...net.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const s = spot.get(ccy);
+    if (!s) continue;
+    buckets.forEach((v, k) => {
+      if (Math.abs(v) < 1000) return;
+      const cover = rng.range(0.55, 0.85);
+      const premium = ccy === "USD" || ccy === "CNY" ? rng.range(0.003, 0.009) : rng.range(-0.004, 0.004);
+      const amount = Math.round((Math.abs(v) * cover) / 1000) * 1000;
+      const maturity = addDays(ctx.asOf, (k + 1) * 30 - rng.int(0, 8));
+      push(ccy, v > 0 ? "Sell" : "Buy", amount, Math.round(s * (1 + premium) * 100) / 100, maturity, addDays(ctx.asOf, -rng.int(20, 120)));
+    });
+  }
+  // S-21: EUR 5,00,000 payable booked at 96.00 and covered by a forward bought at 96.40
+  push("EUR", "Buy", 5_00_000, 96.4, "2026-10-30", "2026-08-03");
+  return out.sort((a, b) => a.maturity.localeCompare(b.maturity) || a.id.localeCompare(b.id));
 }
 
 /** Quarter end (Indian tax year quarters end Jun, Sep, Dec, Mar). */

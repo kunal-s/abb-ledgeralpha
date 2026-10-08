@@ -190,6 +190,21 @@ export interface BankGuarantee {
   acceptance?: "Pending" | "Accepted";
 }
 
+/** A forward contract with a bank, bought or sold to cover foreign-currency receivables or payables. */
+export interface ForwardContract {
+  id: string;
+  bank: string;
+  currency: string;
+  /** buy the currency to pay a payable, sell it to cover a receivable */
+  direction: "Buy" | "Sell";
+  /** amount in the foreign currency */
+  amountFx: number;
+  /** INR per unit of the currency */
+  rate: number;
+  tradeDate: IsoDate;
+  maturity: IsoDate;
+}
+
 /** One withholding-tax credit line from the tax authority statement (Form 26AS / AIS). */
 export interface TaxCreditStatementLine {
   id: string;
@@ -613,6 +628,7 @@ export interface World {
   lines: LineItem[];
   purchaseOrders: PurchaseOrderStatus[];
   bankGuarantees: BankGuarantee[];
+  forwards: ForwardContract[];
   taxCredits: TaxCreditStatementLine[];
   fxRates: FxRate[];
   reconciliations: Reconciliation[];

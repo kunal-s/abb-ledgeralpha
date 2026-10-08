@@ -20,6 +20,7 @@ export function describeDatasets(world: World): SourceDataset[] {
     { id: "po", name: "Purchase order status", sourceSystem: legacy, format: "EKKO / EKPO / EKBE extract", records: world.purchaseOrders.length, coverageTo: world.asOf, extractedAt: at },
     { id: "projects", name: "Projects and WBS status", sourceSystem: legacy, format: "PROJ / PRPS extract", records: world.projects.length, coverageTo: world.asOf, extractedAt: at },
     { id: "fx", name: "Month-end FX rates", sourceSystem: lake, format: "Group rate table", records: world.fxRates.length, coverageFrom: "2025-12-31", coverageTo: world.asOf, extractedAt: at },
+    { id: "fwd", name: "Forward contracts", sourceSystem: "Treasury register", format: "Excel register", records: world.forwards.length, coverageTo: world.asOf, extractedAt: at },
     { id: "bg", name: "Bank guarantee register", sourceSystem: "Treasury register", format: "Excel register", records: world.bankGuarantees.length, coverageTo: world.asOf, extractedAt: at },
     { id: "26as", name: "Tax credit statement (Form 26AS)", sourceSystem: "Income-tax portal", format: "Form 26AS text export", records: world.taxCredits.length, coverageTo: world.asOf, extractedAt: S.extractedAt },
   ];

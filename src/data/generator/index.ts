@@ -16,7 +16,7 @@ import { createContext } from "@/data/generator/context";
 import { generatePopulation } from "@/data/generator/population";
 import { generateSettled } from "@/data/generator/settled";
 import { postMigration, postMonthlyActivity, postSettlements } from "@/data/generator/activity";
-import { buildBankGuarantees, buildFxRates, buildPurchaseOrders, buildTaxCredits } from "@/data/generator/reference";
+import { buildBankGuarantees, buildForwards, buildFxRates, buildPurchaseOrders, buildTaxCredits } from "@/data/generator/reference";
 import { generateReconciliations } from "@/data/generator/recs";
 import { alignProjects } from "@/data/generator/projects";
 
@@ -60,6 +60,7 @@ export function generateWorld(): World {
     lines,
     purchaseOrders,
     bankGuarantees: buildBankGuarantees(ctx),
+    forwards: buildForwards(ctx, fxRates),
     taxCredits: buildTaxCredits(ctx),
     fxRates,
     reconciliations: generateReconciliations({
