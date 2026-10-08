@@ -186,6 +186,8 @@ export interface BankGuarantee {
   linkedPo?: string;
   linkedWbs?: string;
   status: "Active" | "In claim period" | "Expired - original awaited" | "Released" | "Invoked";
+  /** a guarantee issued to a customer: whether the customer has accepted it; not applicable to one received */
+  acceptance?: "Pending" | "Accepted";
 }
 
 /** One withholding-tax credit line from the tax authority statement (Form 26AS / AIS). */

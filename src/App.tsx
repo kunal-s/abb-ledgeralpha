@@ -26,6 +26,8 @@ import { ManagementReporting } from "@/pages/ManagementReporting";
 import { FinancialStatements } from "@/pages/FinancialStatements";
 import { Agents } from "@/pages/Agents";
 import { Controls } from "@/pages/Controls";
+import { BankGuarantees } from "@/pages/BankGuarantees";
+import { BankGuaranteeDetail } from "@/pages/BankGuaranteeDetail";
 
 // Routes come from the module registry (src/lib/modules.ts), filtered by the
 // workspace's enabled modules. As a module is built, map its path to the real
@@ -53,6 +55,8 @@ const BUILT: Record<string, ReactNode> = {
   "/reporting/financial-statements": <FinancialStatements />,
   "/agents": <Agents />,
   "/controls": <Controls />,
+  "/bank-guarantees": <BankGuarantees />,
+  "/bank-guarantees/:id": <BankGuaranteeDetail />,
 };
 
 const router = createBrowserRouter([

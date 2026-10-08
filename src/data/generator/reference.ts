@@ -98,6 +98,8 @@ export function buildBankGuarantees(ctx: Ctx): BankGuarantee[] {
     if (bg.validTo >= ctx.asOf) bg.status = "Active";
     else if (bg.claimExpiry && bg.claimExpiry >= ctx.asOf) bg.status = "In claim period";
     else bg.status = rng.chance(0.3) ? "Expired - original awaited" : "Released";
+    // a guarantee issued in the last two months has not yet been accepted by the customer; planted ones keep theirs
+    if (bg.direction === "Issued" && !bg.acceptance) bg.acceptance = bg.issueDate > addDays(ctx.asOf, -60) ? "Pending" : "Accepted";
   }
   return all.sort((a, b) => a.validTo.localeCompare(b.validTo));
 }

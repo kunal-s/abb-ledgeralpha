@@ -298,6 +298,7 @@ export function plantScenarios(ctx: Ctx, r: ScenarioRefs): void {
     claimExpiry: addDays(ctx.asOf, 135),
     linkedWbs: P.S20.wbs,
     status: "Active",
+    acceptance: "Pending",
   });
   anchor(ctx, "S-20", "SBI/BG/2023/04127");
 

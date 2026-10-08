@@ -147,6 +147,16 @@ export const WORLD_SPEC = {
   ],
 
   banks: ["HDFC Bank", "ICICI Bank", "State Bank of India", "Axis Bank", "Citibank N.A.", "Deutsche Bank AG", "HSBC"],
+  /** guarantee limits sanctioned by each bank, and the commission it charges a year on what is outstanding */
+  bankLimits: {
+    "HDFC Bank": { limit: 60_00_00_000, commissionPct: 1.1 },
+    "ICICI Bank": { limit: 40_00_00_000, commissionPct: 1.2 },
+    "State Bank of India": { limit: 50_00_00_000, commissionPct: 0.9 },
+    "Axis Bank": { limit: 40_00_00_000, commissionPct: 1.25 },
+    "Citibank N.A.": { limit: 30_00_00_000, commissionPct: 1.4 },
+    "Deutsche Bank AG": { limit: 20_00_00_000, commissionPct: 1.5 },
+    HSBC: { limit: 15_00_00_000, commissionPct: 1.35 },
+  } as Record<string, { limit: number; commissionPct: number }>,
 
   projects: { count: 190 },
 

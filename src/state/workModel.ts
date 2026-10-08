@@ -4,6 +4,7 @@
 // person in the roster, and the workflow lets any of them act, so the queue is
 // the role's; each row still names the person it is with.
 
+import { bgNoOfKey, isBgItemKey } from "@/engine/bg";
 import type { Decision, FollowUp, IsoDate, RoleId } from "@/types";
 import { LINE_BY_KEY, PERSON_BY_ID, WORLD } from "@/data";
 import { can } from "@/config/roles";
@@ -200,7 +201,8 @@ export function buildWork(i: WorkInput): WorkItem[] {
     out.push({
       id: `followup:${f.id}`, kind: "follow-up", module: f.module, title: clip(f.message, 90),
       detail: f.status === "responded" ? `Answered by ${f.response ? PERSON_BY_ID.get(f.response.by)?.name : f.owner}; close it` : `Asked of ${f.owner}`,
-      ownerId: f.createdBy, due: f.dueDate, overdue, itemKey: f.itemKey, followUpId: f.id,
+      ownerId: f.createdBy, due: f.dueDate, overdue, followUpId: f.id,
+      ...(isBgItemKey(f.itemKey) ? { link: `/bank-guarantees/${encodeURIComponent(bgNoOfKey(f.itemKey))}` } : { itemKey: f.itemKey }),
     });
   }
 

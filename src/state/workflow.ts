@@ -18,6 +18,7 @@ import { CASH_APP_POLICY, MATERIALITY_POLICY, bandFor, escalatedBandFor } from "
 import { fmtINR } from "@/lib/format";
 import { addDays, fmtDate } from "@/lib/dates";
 import { effectiveRules, registerRule, runRules, unregisterRule, type RuleOverride, type RuleOverrides } from "@/engine/run";
+import { bgItemKey, bgNoOfKey, isBgItemKey, type BgWork } from "@/engine/bg";
 import { definitionOf, evaluatorOf, nextStudioId, type StudioRule } from "@/engine/ruleStudio";
 import { diagnoseCustomer } from "@/engine/diagnose";
 import { receiptByKey, unappliedFor } from "@/engine/cashappData";
@@ -94,6 +95,8 @@ interface WorkflowData {
   pbcRaised: PbcRequest[];
   /** the work done on close tasks, by task id */
   closeWork: Record<string, CloseTaskWork>;
+  /** what has been done about each bank guarantee, by guarantee number */
+  bgWork: Record<string, BgWork>;
   events: ActivityEvent[];
   seq: number;
 }
@@ -140,6 +143,12 @@ interface WorkflowActions {
   /** Record that schedules or an index were exported. */
   recordExport: (what: string, details: Record<string, string | number>) => void;
 
+  // bank guarantees
+  /** Ask the bank for an extension or a release: a follow-up to the relationship manager, and a mark on the guarantee. */
+  requestBgAction: (bgNo: string, kind: "extension" | "release", message: string, dueDate: IsoDate) => Result<{ id: string }>;
+  /** The bank returned the original of an expired guarantee: it is released. */
+  recordOriginalReturned: (bgNo: string) => Result;
+
   // close
   /** Complete a task the owner does by hand, with the reference of what was done. A task tied to records completes with them. */
   completeCloseTask: (id: string, evidence: string) => Result;
@@ -183,6 +192,7 @@ const INITIAL: WorkflowData = {
   pbc: {},
   pbcRaised: [],
   closeWork: SEEDED_CLOSE_WORK,
+  bgWork: {},
   events: [],
   seq: 0,
 };
@@ -221,6 +231,7 @@ const ownerOfItem = (itemKey: string) => {
 
 /** The thing an activity event is about: a ledger line, a reconciling item or a journal. */
 function objectOfItem(itemKey: string): ActivityEvent["object"] {
+  if (isBgItemKey(itemKey)) return { type: "bank-guarantee", id: bgNoOfKey(itemKey), label: bgNoOfKey(itemKey) };
   const p = parseRecItemKey(itemKey);
   if (!p && LINES_BY_DOC.has(itemKey)) return { type: "journal", id: itemKey, label: itemKey.split("-").slice(1).join("-") };
   if (!p) return { type: "item", id: itemKey };
@@ -656,6 +667,37 @@ export const useWorkflow = create<WorkflowState>()(
           set((s) => ({ followUps: { ...s.followUps, [id]: fu } }));
           personEvent(person, { module: input.module, object: objectOfItem(input.itemKey), itemKeys: [input.itemKey], action: "Follow-up requested", after: `${input.owner} · due ${input.dueDate}`, details: { followUp: id } });
           return { ok: true, id };
+        },
+
+        requestBgAction: (bgNo, kind, message, dueDate) => {
+          const { role, person } = actor();
+          if (!can(role, "follow-up")) return fail(denied("follow-up", role));
+          const bg = WORLD.bankGuarantees.find((b) => b.bgNo === bgNo);
+          if (!bg) return fail("Guarantee not found");
+          if (!message.trim()) return fail("A message is required");
+          const at = nowLocal();
+          const id = nextId("FUP");
+          const key = bgItemKey(bgNo);
+          const fu: FollowUp = { id, itemKey: key, module: "bank-guarantees", owner: `${bg.bank}, relationship manager`, dueDate, message: message.trim(), createdBy: person.id, createdAt: at, status: "open" };
+          set((s) => ({
+            followUps: { ...s.followUps, [id]: fu },
+            bgWork: { ...s.bgWork, [bgNo]: { ...s.bgWork[bgNo], ...(kind === "extension" ? { extensionRequestedAt: at } : { releaseRequestedAt: at }) } },
+          }));
+          personEvent(person, { module: "bank-guarantees", object: objectOfItem(key), itemKeys: [key], action: kind === "extension" ? "Extension requested" : "Release requested", after: `${fu.owner}, due ${dueDate}`, details: { followUp: id } });
+          return { ok: true, id };
+        },
+
+        recordOriginalReturned: (bgNo) => {
+          const { role, person } = actor();
+          if (!can(role, "follow-up")) return fail(denied("follow-up", role));
+          const bg = WORLD.bankGuarantees.find((b) => b.bgNo === bgNo);
+          if (!bg) return fail("Guarantee not found");
+          if (bg.status !== "Expired - original awaited") return fail("The original is not awaited for this guarantee");
+          if (get().bgWork[bgNo]?.originalReturned) return fail("The original is already recorded as returned");
+          const at = nowLocal();
+          set((s) => ({ bgWork: { ...s.bgWork, [bgNo]: { ...s.bgWork[bgNo], originalReturned: { at, by: person.id } } } }));
+          personEvent(person, { module: "bank-guarantees", object: objectOfItem(bgItemKey(bgNo)), itemKeys: [bgItemKey(bgNo)], action: "Original returned", before: "Expired - original awaited", after: "Released" });
+          return { ok: true };
         },
 
         requestFollowUps: (inputs) => {
@@ -1204,6 +1246,7 @@ export const useWorkflow = create<WorkflowState>()(
         pbc: s.pbc,
         pbcRaised: s.pbcRaised,
         closeWork: s.closeWork,
+        bgWork: s.bgWork,
         events: s.events,
         seq: s.seq,
       }),
