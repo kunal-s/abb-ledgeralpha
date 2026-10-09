@@ -11,9 +11,28 @@ interface RoleState {
   setRole: (role: RoleId) => void;
 }
 
+// The acting role survives a reload, so a walkthrough does not fall back to the controller midway.
+const ROLE_KEY = "ledgeralpha.actingRole";
+const ROLE_IDS: RoleId[] = ["cfo", "head-of-finance", "controller", "gl-accountant", "ar-specialist", "treasury-analyst", "tax-specialist", "reporting-analyst", "controls-lead", "external-auditor"];
+function savedRole(): RoleId {
+  try {
+    const r = localStorage.getItem(ROLE_KEY) as RoleId | null;
+    return r && ROLE_IDS.includes(r) ? r : "controller";
+  } catch {
+    return "controller";
+  }
+}
+
 export const useRoleStore = create<RoleState>((set) => ({
-  role: "controller",
-  setRole: (role) => set({ role }),
+  role: savedRole(),
+  setRole: (role) => {
+    try {
+      localStorage.setItem(ROLE_KEY, role);
+    } catch {
+      // storage unavailable: the role lasts for the session
+    }
+    set({ role });
+  },
 }));
 
 // ----------------------------------------------------------------------------

@@ -90,7 +90,8 @@ export function AccountScrutiny() {
   }
 
   const s = acct.summary;
-  const change = s.closing - s.prior;
+  // change in size, whichever side the balance sits on: a credit balance that falls shows a minus
+  const change = Math.abs(s.closing) - Math.abs(s.prior);
   const flagged = rows.filter((r) => r.flagged);
   const periodLines = !account.openItemManaged ? postings : [];
 

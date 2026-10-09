@@ -96,13 +96,21 @@ export function Findings({ row }: { row: ItemRow }) {
 }
 
 // ---------------------------------------------------------------------------
-export function Decision({ row }: { row: ItemRow }) {
+/** What to do once the evidence is in, when the recommendation was to ask first: a counter-item clears, anything else is kept until decided. */
+function actionAfterEvidence(row: ItemRow): ActionKind {
+  if (row.rec && row.rec.action !== "Follow up") return row.rec.action;
+  return row.hits.some((h) => h.ruleId === "BSR-03" || h.ruleId === "BSR-04") ? "Clear" : "Retain";
+}
+
+export function Decision({ row, onAsk }: { row: ItemRow; onAsk?: () => void }) {
   const review = useReview();
   const role = useRoleStore((s) => s.role);
   const { proposeDecision } = useWorkflow.getState();
   const d = row.decision;
   const rec = row.rec;
-  const [action, setAction] = useState<ActionKind>(rec && rec.action !== "Follow up" ? rec.action : "Retain");
+  const fu = row.followUp;
+  const answered = !!fu && fu.status !== "open";
+  const [action, setAction] = useState<ActionKind>(actionAfterEvidence(row));
   const [justification, setJustification] = useState("");
   const run = (r: { ok: boolean; error?: string }, ok: string) => (r.ok ? toast(ok, { tone: "ok" }) : toast(r.error ?? "Not allowed", { tone: "danger" }));
   const amount = Math.abs(row.item.amount);
@@ -160,13 +168,26 @@ export function Decision({ row }: { row: ItemRow }) {
             {d.action} rejected{d.rejection ? ` by ${PERSON_BY_ID.get(d.rejection.personId)?.name} - ${d.rejection.reason}` : ""}
           </div>
         )}
-        {rec?.action === "Follow up" && !d ? (
+        {answered && (
+          <div className="mb-3 rounded-md border border-ok/30 bg-ok-subtle px-3 py-2 text-sm text-ok-foreground">
+            <div className="text-2xs">
+              {fu.response ? `Answer from ${fu.owner}, recorded by ${PERSON_BY_ID.get(fu.response.by)?.name}, ${fmtDate(fu.response.at.slice(0, 10))}` : `Follow-up to ${fu.owner} closed without an answer`}
+            </div>
+            {fu.response?.text}
+          </div>
+        )}
+        {rec?.action === "Follow up" && !d && !answered ? (
           <details>
-            <summary className="cursor-pointer text-xs text-primary">Propose an action instead of following up</summary>
+            <summary className="cursor-pointer text-xs text-primary">Propose an action without asking first</summary>
             <div className="mt-3">{proposeForm}</div>
           </details>
         ) : (
           proposeForm
+        )}
+        {!fu && !d && onAsk && rec?.action !== "Follow up" && (
+          <button type="button" onClick={onAsk} className="mt-3 text-xs text-primary hover:underline">
+            Not sure? Ask the buyer or the counterparty first
+          </button>
         )}
       </Section>
     );

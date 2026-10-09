@@ -7,25 +7,50 @@ import { Fields } from "@/components/vocab/Fields";
 import { DecisionApproval, History, Section } from "@/components/review/drawerParts";
 import { Decision, DocumentFields, Findings, FollowUp, Recommendation, Related } from "@/components/review/itemParts";
 import { ItemTimeline } from "@/components/review/ItemTimeline";
+import { ItemsTable } from "@/components/review/ItemsTable";
 import { ProcessRail } from "@/components/review/ProcessRail";
-import { DATASETS, GL_BY_ID, PERSON_BY_ID, QUALITY, WORLD } from "@/data";
-import { useReview, useItemRow } from "@/state/ReviewContext";
+import { SignOffPanel } from "@/components/review/SignOffPanel";
+import { RollforwardTable, type MovementId } from "@/components/recon/BalanceDrill";
+import { DATASETS, GL_BY_ID, LINE_BY_KEY, PERSON_BY_ID, QUALITY, WORLD } from "@/data";
+import { useReview, useItemRow, rowFor } from "@/state/ReviewContext";
 import type { ItemRow, Review } from "@/state/hooks";
+import { useWorkflow } from "@/state/workflow";
 import { inScope } from "@/engine/review";
 import { rollforward, type Rollforward } from "@/engine/recDrill";
 import { currentStage, itemStages, itemTimeline, type ItemStage, type StageId } from "@/engine/reviewStory";
 import { buildProposal } from "@/engine/journals";
+import { ROLES, can } from "@/config/roles";
+import { useRoleStore } from "@/lib/stores";
 import { fmtDate, fmtDateTime } from "@/lib/dates";
 import { fmtDrCr, fmtINRCompact, fmtInt } from "@/lib/format";
 import { DOC_TYPE_LABELS } from "@/lib/labels";
+import { toast } from "@/lib/toast";
 
 const LIVE = new Set(["proposed", "approved", "exported", "closed-in-erp"]);
-const firstName = (personId: string) => PERSON_BY_ID.get(personId)?.name ?? personId;
+const nameOf = (personId: string) => PERSON_BY_ID.get(personId)?.name ?? personId;
+const run = (r: { ok: boolean; error?: string }, ok: string) => (r.ok ? toast(ok, { tone: "ok" }) : toast(r.error ?? "Not allowed", { tone: "danger" }));
 
-/** How the movements of a quarter read in a tile: the largest kinds with their counts. */
+/** How the movements of a period read in a tile: the largest kinds with their counts. */
 function movementLine(rows: Rollforward["additions"]): string {
   if (!rows.length) return "No postings";
   return rows.slice(0, 2).map((r) => `${r.label} ${fmtInt(r.count)}`).join(" · ");
+}
+
+/** When the stage waits on someone else, say who, and let the presenter act as them. */
+function Handoff({ stage }: { stage: ItemStage }) {
+  const role = useRoleStore((s) => s.role);
+  const setRole = useRoleStore((s) => s.setRole);
+  if (!stage.role || !stage.personId || role === stage.role || (stage.state !== "current" && stage.state !== "optional")) return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-warn-subtle/60 px-4 py-2 text-xs text-warn-foreground">
+      <span>
+        This step is with <span className="font-medium">{nameOf(stage.personId)}</span> ({ROLES[stage.role].label}). You are acting as {ROLES[role].label}.
+      </span>
+      <Button size="sm" variant="outline" className="h-7 bg-card" onClick={() => setRole(stage.role!)}>
+        Act as {nameOf(stage.personId)}
+      </Button>
+    </div>
+  );
 }
 
 function DataIn({ row }: { row: ItemRow }) {
@@ -64,7 +89,10 @@ function Approval({ row, stage }: { row: ItemRow; stage: ItemStage }) {
   );
 }
 
+/** The entry the decision makes, and the two steps that close it: export to the proposal file, then the posting coming back from the ERP. */
 function Posting({ row, stage }: { row: ItemRow; stage: ItemStage }) {
+  const role = useRoleStore((s) => s.role);
+  const { exportDecisions, markPosted } = useWorkflow.getState();
   const d = row.decision && LIVE.has(row.decision.status) ? row.decision : undefined;
   const p = d ? buildProposal(d) : undefined;
   if (!d || !p) return <Section title="Entry"><p className="text-sm text-muted-foreground">{stage.detail}</p></Section>;
@@ -76,36 +104,44 @@ function Posting({ row, stage }: { row: ItemRow; stage: ItemStage }) {
           <Fields compact rows={p.lines.map((l, i) => [`${l.side} ${l.gl || "to confirm"}`, <span key={i} className="flex justify-between gap-3"><span className="truncate">{l.glDescription}</span><span className="tnum">{fmtDrCr(l.side === "Dr" ? l.amount : -l.amount)}</span></span>])} />
         </div>
       )}
-      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{stage.detail}</span>
-        <Link to="/journals?tab=proposed" className="font-medium text-primary hover:underline">Open proposed journals</Link>
+        <div className="flex items-center gap-2">
+          {d.status === "approved" && (
+            <Button size="sm" disabled={!can(role, "export")} title={can(role, "export") ? "Writes the proposal file; nothing is posted from here" : `${ROLES[role].label} cannot export`} onClick={() => run(exportDecisions([d.id]), "Exported to the proposal file")}>
+              Export to the proposal file
+            </Button>
+          )}
+          {d.status === "exported" && d.exportBatchId && (
+            <Button size="sm" title="The next data load shows the entry posted and the item cleared" onClick={() => run(markPosted(d.exportBatchId!), "Posted in the ERP")}>
+              Mark as posted in the ERP
+            </Button>
+          )}
+          <Link to="/journals?tab=proposed" className="font-medium text-primary hover:underline">Proposed journals</Link>
+        </div>
       </div>
     </Section>
   );
 }
 
-function AccountStage({ row, review }: { row: ItemRow; review: Review }) {
+function AccountFacts({ row, review }: { row: ItemRow; review: Review }) {
   const gl = GL_BY_ID.get(row.item.gl)!;
   const acct = review.accountByGl.get(gl.gl);
   const so = acct?.signOff;
   return (
-    <Section title="Account sign-off" aside={acct ? <StatusChip status={acct.status} /> : undefined}>
-      <div className="-mx-4">
-        <Fields
-          compact
-          rows={[
-            ["Account", <Link key="a" to={`/balance-sheet-review/${gl.gl}`} className="text-primary hover:underline">{`${gl.gl} · ${gl.description}`}</Link>],
-            ["Preparer", so?.preparer ? `${firstName(so.preparer.personId)}, ${fmtDateTime(so.preparer.at)}` : `${firstName(gl.ownerId)}, not signed`],
-            ["Reviewer", so?.reviewer ? `${firstName(so.reviewer.personId)}, ${fmtDateTime(so.reviewer.at)}` : `${firstName(gl.reviewerId)}, not signed`],
-            ["Auditor schedule", <Link key="s" to={`/audit-readiness?tab=schedules&sched=${gl.gl}`} className="text-primary hover:underline">Open the schedule for {gl.gl}</Link>],
-          ]}
-        />
-      </div>
-    </Section>
+    <Fields
+      compact
+      rows={[
+        ["Account", <Link key="a" to={`/balance-sheet-review/${gl.gl}`} className="text-primary hover:underline">{`${gl.gl} · ${gl.description}`}</Link>],
+        ["Preparer", so?.preparer ? `${nameOf(so.preparer.personId)}, ${fmtDateTime(so.preparer.at)}` : `${nameOf(gl.ownerId)}, not signed`],
+        ["Reviewer", so?.reviewer ? `${nameOf(so.reviewer.personId)}, ${fmtDateTime(so.reviewer.at)}` : `${nameOf(gl.reviewerId)}, not signed`],
+        ["Auditor schedule", <Link key="s" to={`/audit-readiness?tab=schedules&sched=${gl.gl}`} className="text-primary hover:underline">Open the schedule for {gl.gl}</Link>],
+      ]}
+    />
   );
 }
 
-function StageWork({ id, row, stage, review }: { id: StageId; row: ItemRow; stage: ItemStage; review: Review }) {
+function StageWork({ id, row, stage, review, onAsk }: { id: StageId; row: ItemRow; stage: ItemStage; review: Review; onAsk: () => void }) {
   switch (id) {
     case "source":
       return <DataIn row={row} />;
@@ -124,14 +160,31 @@ function StageWork({ id, row, stage, review }: { id: StageId; row: ItemRow; stag
       }
       return <FollowUp key={`f-${row.key}-${row.followUp?.id ?? "none"}-${row.followUp?.status ?? ""}`} row={row} />;
     case "propose":
-      return <Decision key={`d-${row.key}-${row.decision?.id ?? "none"}-${row.decision?.status ?? ""}`} row={row} />;
+      return <Decision key={`d-${row.key}-${row.decision?.id ?? "none"}-${row.decision?.status ?? ""}-${row.followUp?.status ?? ""}`} row={row} onAsk={onAsk} />;
     case "approve":
       return <Approval row={row} stage={stage} />;
     case "post":
       return <Posting row={row} stage={stage} />;
     case "account":
-      return <AccountStage row={row} review={review} />;
+      return <AccountFacts row={row} review={review} />;
   }
+}
+
+/** What moved the account in the period: each kind of addition and reduction, and the postings behind the one chosen. */
+function Movements({ roll, review, gl, selected, onSelect, onClose }: { roll: Rollforward; review: Review; gl: string; selected: MovementId; onSelect: (id: MovementId) => void; onClose: () => void }) {
+  const [side, key] = selected.split(":") as ["add" | "red", string];
+  const move = (side === "add" ? roll.additions : roll.reductions).find((m) => m.key === key);
+  const rows = useMemo(() => (move ? move.lineKeys.map((k) => rowFor(review, LINE_BY_KEY.get(k)!)) : []), [move, review]);
+  return (
+    <div className="grid gap-4 lg:grid-cols-[26rem_minmax(0,1fr)]">
+      <Panel title={`Account ${gl}: what moved it`} actions={<Button variant="ghost" size="sm" className="h-7" onClick={onClose}>Close</Button>} bodyClassName="p-0">
+        <RollforwardTable f={roll} prior={review.priorDate} asOf={review.asOf} selected={selected} onSelect={onSelect} />
+      </Panel>
+      <Panel title={move ? `${move.label} · ${fmtInt(move.count)} postings · ${fmtDrCr(move.amount, true)}` : "Postings"} bodyClassName="p-0">
+        <ItemsTable rows={rows} pageSize={8} empty="No postings" />
+      </Panel>
+    </div>
+  );
 }
 
 export function ItemDetail() {
@@ -149,8 +202,10 @@ export function ItemDetail() {
   }, [row, acct]);
   const current = stages.length ? currentStage(stages) : undefined;
   const [chosen, setChosen] = useState<StageId>();
+  const [movement, setMovement] = useState<MovementId>();
   // when the work moves on, follow it
   useEffect(() => setChosen(undefined), [current?.id, current?.state]);
+  useEffect(() => setMovement(undefined), [key]);
 
   if (!row || !gl || !roll || !current) {
     return (
@@ -164,17 +219,20 @@ export function ItemDetail() {
   }
 
   const it = row.item;
+  const docLabel = DOC_TYPE_LABELS[it.docType] ?? it.docType;
   const selected = stages.find((s) => s.id === (chosen ?? current.id)) ?? current;
   const share = roll.closing !== 0 ? Math.abs(it.amount / roll.closing) : 0;
   const broughtForward = it.postingDate <= review.priorDate;
-  const owner = PERSON_BY_ID.get(gl.ownerId)?.name ?? gl.ownerId;
-  const reviewer = PERSON_BY_ID.get(gl.reviewerId)?.name ?? gl.reviewerId;
   const waiting = stages.find((s) => s.state === "current");
+  const open = (side: "add" | "red") => {
+    const first = (side === "add" ? roll.additions : roll.reductions)[0];
+    if (first) setMovement(`${side}:${first.key}`);
+  };
 
   return (
     <div className="space-y-4">
       <PageHeader
-        title={`${DOC_TYPE_LABELS[it.docType] ?? it.docType} ${it.docNo}`}
+        title={`${docLabel} ${it.docNo}`}
         breadcrumbs={[{ label: "Balance Sheet Review", to: "/balance-sheet-review" }, { label: "Accounts", to: "/balance-sheet-review?tab=accounts" }, { label: gl.gl, to: `/balance-sheet-review/${gl.gl}` }, { label: it.docNo }]}
         badge={<StatusChip status={row.status} />}
         actions={
@@ -185,27 +243,33 @@ export function ItemDetail() {
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <KpiTile label={`Opening ${fmtDate(review.priorDate)}`} hint="The account's balance at the start of the review period" value={fmtDrCr(roll.opening, true)} sublabel={gl.description} />
-        <KpiTile label="Additions" hint="Postings that moved the balance away from nil" value={`+${fmtINRCompact(Math.abs(roll.added))}`} sublabel={movementLine(roll.additions)} />
-        <KpiTile label="Reductions" hint="Postings that moved the balance towards nil" value={`−${fmtINRCompact(Math.abs(roll.reduced))}`} sublabel={movementLine(roll.reductions)} />
-        <KpiTile label={`Closing ${fmtDate(review.asOf)}`} hint="Opening plus additions less reductions; ties to the trial balance" value={fmtDrCr(roll.closing, true)} sublabel={`${owner} · reviewer ${reviewer}`} />
+        <KpiTile label={`Account opening ${fmtDate(review.priorDate)}`} hint={`Balance of ${gl.gl} ${gl.description} at the start of the period. Click for what moved it`} value={fmtDrCr(roll.opening, true)} sublabel={`${gl.gl} · ${gl.description}`} onClick={() => open("add")} />
+        <KpiTile label="Account additions" hint="Postings that moved the account's balance away from nil. Click for each kind and its documents" value={`+${fmtINRCompact(Math.abs(roll.added))}`} sublabel={movementLine(roll.additions)} onClick={() => open("add")} />
+        <KpiTile label="Account reductions" hint="Postings that moved the account's balance towards nil. Click for each kind and its documents" value={`−${fmtINRCompact(Math.abs(roll.reduced))}`} sublabel={movementLine(roll.reductions)} onClick={() => open("red")} />
+        <KpiTile label={`Account closing ${fmtDate(review.asOf)}`} hint="Opening plus additions less reductions; ties to the trial balance" value={fmtDrCr(roll.closing, true)} sublabel={`Owner ${nameOf(gl.ownerId)}`} onClick={() => open("red")} />
         <KpiTile
-          label="This item"
-          hint="The item's share of the closing balance, and whether it was already in the opening balance"
+          label={`This ${docLabel.toLowerCase()}`}
+          hint="This document's share of the account's closing balance, and whether it was already in the opening balance"
           value={fmtDrCr(it.amount, true)}
-          sublabel={`${fmtInt(row.age)} days · ${(share * 100).toFixed(1)}% of closing · ${broughtForward ? "brought forward" : "added in the period"}`}
+          sublabel={`${fmtInt(row.age)} days · ${(share * 100).toFixed(1)}% of closing · ${broughtForward ? "in the opening balance" : "one of the additions"}`}
           accent={row.flagged ? "danger" : "none"}
         />
       </div>
+
+      {movement && <Movements roll={roll} review={review} gl={gl.gl} selected={movement} onSelect={setMovement} onClose={() => setMovement(undefined)} />}
 
       <Panel title="Process" actions={waiting ? <span className="text-xs text-muted-foreground">Waiting on <span className="font-medium text-foreground">{waiting.who}</span></span> : <StatusChip status={row.status} />} bodyClassName="px-2 py-2">
         <ProcessRail stages={stages} selected={selected.id} onSelect={setChosen} />
       </Panel>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
-        <Panel title={`${selected.label} · ${selected.who || selected.detail}`} bodyClassName="p-0 [&>section:first-child]:border-t-0">
-          <StageWork id={selected.id} row={row} stage={selected} review={review} />
-        </Panel>
+        <div className="min-w-0 space-y-4">
+          <Panel title={`${selected.label} · ${selected.who || selected.detail}`} bodyClassName="p-0 [&>section:first-of-type]:border-t-0">
+            <Handoff stage={selected} />
+            <StageWork id={selected.id} row={row} stage={selected} review={review} onAsk={() => setChosen("evidence")} />
+          </Panel>
+          {selected.id === "account" && acct && <SignOffPanel key={`${gl.gl}-${acct.status}`} acct={acct} review={review} rows={review.rows.filter((r) => r.item.gl === gl.gl)} />}
+        </div>
         <div className="space-y-4">
           <Panel title="Item" bodyClassName="p-0 [&>section:first-child]:border-t-0">
             <Related row={row} />

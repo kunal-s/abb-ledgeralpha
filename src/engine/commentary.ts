@@ -27,10 +27,11 @@ const plural = (n: number, one: string, many = `${one}s`) => `${fmtInt(n)} ${n =
 
 export function draftCommentary(f: CommentaryFacts): string {
   const parts: string[] = [];
-  const movement = f.closing - f.prior;
-  parts.push(
-    `${fmtDrCr(f.closing, true)} is carried on ${f.gl.description} at ${fmtDate(f.asOf)}, ${movement === 0 ? "unchanged" : `${movement > 0 ? "up" : "down"} ${fmtINRCompact(Math.abs(movement))}`} since ${fmtDate(f.priorDate)}.`
-  );
+  // up or down in size, whichever side the balance sits on: a credit balance that falls is "down"
+  const sameSide = f.prior === 0 || f.closing === 0 || Math.sign(f.prior) === Math.sign(f.closing);
+  const change = Math.abs(f.closing) - Math.abs(f.prior);
+  const moved = f.closing === f.prior ? "unchanged" : !sameSide ? `from ${fmtDrCr(f.prior, true)}` : `${change > 0 ? "up" : "down"} ${fmtINRCompact(Math.abs(change))}`;
+  parts.push(`${fmtDrCr(f.closing, true)} is carried on ${f.gl.description} at ${fmtDate(f.asOf)}, ${moved} since ${fmtDate(f.priorDate)}.`);
   if (!f.openItemManaged) {
     parts.push("The account is not open-item managed; the balance is reviewed against the supporting schedule.");
     return parts.join(" ");

@@ -2,11 +2,12 @@ import { Link } from "react-router-dom";
 import { Panel } from "@/components/vocab";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { previousQuarterEnd } from "@/engine/context";
-import { grirByPo, rollforward, subLedgerByPartner } from "@/engine/recDrill";
+import { grirByPo, rollforward, subLedgerByPartner, type Rollforward } from "@/engine/recDrill";
 import { WORLD } from "@/data";
 import { fmtDate } from "@/lib/dates";
 import { fmtDrCr, fmtInt } from "@/lib/format";
-import type { Reconciliation } from "@/types";
+import { cn } from "@/lib/utils";
+import type { IsoDate, Reconciliation } from "@/types";
 
 const SHOWN = 8;
 
@@ -70,49 +71,67 @@ function SubLedger({ rec }: { rec: Reconciliation }) {
   );
 }
 
-/** A supporting schedule's account rolled forward: opening balance, additions, reductions, closing balance. */
-function Rollforward({ rec }: { rec: Reconciliation }) {
-  const prior = previousQuarterEnd(WORLD.asOf);
-  const f = rollforward(rec.gl!, prior);
-  const group = (title: string, rows: typeof f.additions, total: number) => (
+/** Movement id in a roll-forward: which side and which kind, "add:WE". */
+export type MovementId = `${"add" | "red"}:${string}`;
+
+/**
+ * Opening balance, additions and reductions by kind (each with what it is), closing balance.
+ * With `onSelect`, a movement row opens its postings.
+ */
+export function RollforwardTable({ f, prior, asOf, selected, onSelect }: { f: Rollforward; prior: IsoDate; asOf: IsoDate; selected?: MovementId; onSelect?: (id: MovementId) => void }) {
+  const group = (side: "add" | "red", title: string, rows: Rollforward["additions"], total: number) => (
     <>
       <TableRow className="bg-secondary/40">
         <TableCell className="text-xs font-medium text-muted-foreground">{title}</TableCell>
         <TableCell />
         <TableCell className="text-right tnum text-xs font-medium text-muted-foreground">{rows.length ? fmtDrCr(total, true) : "Nil"}</TableCell>
       </TableRow>
-      {rows.map((l) => (
-        <TableRow key={`${title}-${l.key}`}>
-          <TableCell className="pl-8">{l.label}</TableCell>
-          <TableCell className="text-right tnum">{fmtInt(l.count)}</TableCell>
-          <TableCell className="text-right tnum">{fmtDrCr(l.amount, true)}</TableCell>
-        </TableRow>
-      ))}
+      {rows.map((l) => {
+        const id: MovementId = `${side}:${l.key}`;
+        return (
+          <TableRow key={id} className={cn(onSelect && "cursor-pointer", selected === id && "bg-primary/[0.07]")} onClick={onSelect ? () => onSelect(id) : undefined}>
+            <TableCell className="pl-8">
+              <div className={cn(onSelect && "font-medium text-primary")}>{l.label}</div>
+              <div className="text-2xs text-muted-foreground">{l.explain}</div>
+            </TableCell>
+            <TableCell className="text-right tnum">{fmtInt(l.count)}</TableCell>
+            <TableCell className="text-right tnum">{fmtDrCr(l.amount, true)}</TableCell>
+          </TableRow>
+        );
+      })}
     </>
   );
   return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Movement</TableHead>
+          <TableHead className="text-right">Postings</TableHead>
+          <TableHead className="text-right">Amount</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        <TableRow className="font-medium">
+          <TableCell colSpan={2}>Opening balance at {fmtDate(prior)}</TableCell>
+          <TableCell className="text-right tnum">{fmtDrCr(f.opening, true)}</TableCell>
+        </TableRow>
+        {group("add", "Additions", f.additions, f.added)}
+        {group("red", "Reductions", f.reductions, f.reduced)}
+        <TableRow className="border-t-2 border-border font-medium">
+          <TableCell colSpan={2}>Closing balance per books at {fmtDate(asOf)}</TableCell>
+          <TableCell className="text-right tnum">{fmtDrCr(f.closing, true)}</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  );
+}
+
+/** A supporting schedule's account rolled forward: opening balance, additions, reductions, closing balance. */
+function ScheduleRollforward({ rec }: { rec: Reconciliation }) {
+  const prior = previousQuarterEnd(WORLD.asOf);
+  return (
     <Panel title="Roll-forward of the account" bodyClassName="p-0">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Movement</TableHead>
-            <TableHead className="text-right">Postings</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow className="font-medium">
-            <TableCell colSpan={2}>Opening balance at {fmtDate(prior)}</TableCell>
-            <TableCell className="text-right tnum">{fmtDrCr(f.opening, true)}</TableCell>
-          </TableRow>
-          {group("Additions", f.additions, f.added)}
-          {group("Reductions", f.reductions, f.reduced)}
-          <TableRow className="border-t-2 border-border font-medium">
-            <TableCell colSpan={2}>Closing balance per books at {fmtDate(WORLD.asOf)}</TableCell>
-            <TableCell className="text-right tnum">{fmtDrCr(f.closing, true)}</TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+      <RollforwardTable f={rollforward(rec.gl!, prior)} prior={prior} asOf={WORLD.asOf} />
     </Panel>
   );
 }
@@ -169,6 +188,6 @@ export function BalanceDrill({ rec }: { rec: Reconciliation }) {
   if (!rec.gl) return null;
   if (rec.type === "Sub-ledger") return <SubLedger rec={rec} />;
   if (rec.type === "GR/IR") return <GrirByPo rec={rec} />;
-  if (rec.type === "Schedule-supported") return <Rollforward rec={rec} />;
+  if (rec.type === "Schedule-supported") return <ScheduleRollforward rec={rec} />;
   return null;
 }

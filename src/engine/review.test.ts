@@ -134,6 +134,13 @@ describe("commentary and follow-up drafts", () => {
     expect(text).toContain("12 items");
     expect(text).toContain("5000412873");
     expect(text).toContain("4 follow-ups open");
+    // a credit balance that grew is "up", one that fell is "down"
+    expect(text).toContain("up ₹2.50 cr");
+    const fell = draftCommentary({
+      gl: g, asOf: AS_OF, closing: -52_52_00_000, prior: -70_05_00_000, priorDate: PRIOR, openItemManaged: true,
+      overCount: 0, overAmount: 0, flaggedCount: 0, byAction: {}, decisions: { proposed: 0, approved: 0, exported: 0 }, openFollowUps: 0,
+    });
+    expect(fell).toContain("down ₹17.53 cr");
   });
 
   it("drafts a vendor follow-up that cites the guarantee", () => {

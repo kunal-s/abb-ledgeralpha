@@ -49,9 +49,13 @@ export function subLedgerByPartner(gl: string, asOf: IsoDate = WORLD.asOf): SubL
 export interface RollforwardLine {
   key: string;
   label: string;
+  /** what this kind of movement is, in a sentence */
+  explain: string;
   /** signed as the ledger holds it (debit positive) */
   amount: number;
   count: number;
+  /** the ledger lines behind it, for the drill-down */
+  lineKeys: string[];
 }
 
 /**
@@ -74,6 +78,26 @@ export interface Rollforward {
 const DOC_LABEL: Record<string, string> = {
   SA: "Journals", KR: "Vendor invoices", KZ: "Vendor payments", KA: "Vendor documents", DR: "Customer invoices", DZ: "Customer receipts",
   WE: "Goods receipts", RE: "Invoice receipts", AB: "Clearing and adjustments", ZP: "Payments", DG: "Customer credit notes", KG: "Vendor credit notes",
+};
+
+/** What each kind of movement is, so a reader can tell what an addition or a reduction stands for. */
+const EXPLAIN: Record<string, string> = {
+  WE: "Goods received against purchase orders; each waits here until the vendor's invoice is booked",
+  RE: "Vendor invoices booked against purchase orders; each takes out the goods received that it bills",
+  KZ: "Payments made to vendors",
+  KR: "Vendor invoices booked",
+  KA: "Other vendor documents",
+  KG: "Credit notes received from vendors",
+  DR: "Invoices raised on customers",
+  DZ: "Receipts from customers",
+  DG: "Credit notes issued to customers",
+  AB: "Open items settled against each other: advances against invoices, receipts against invoices",
+  SA: "Journals posted by the system",
+  ZP: "Statutory deposits and other payments",
+  manual: "Journals entered by hand",
+  reversal: "Month-end accruals reversed on the first day of the next month",
+  depreciation: "The monthly depreciation run",
+  capitalisation: "Assets put to use, moved out of capital work in progress",
 };
 
 /** A movement's name as a schedule would show it. */
@@ -102,9 +126,10 @@ export function rollforward(gl: string, priorDate: IsoDate, asOf: IsoDate = WORL
   for (const m of moves) {
     const adds = side === "Cr" ? m.line.amount < 0 : m.line.amount >= 0;
     const into = adds ? additions : reductions;
-    const row = into.get(m.key) ?? { key: m.key, label: m.label, amount: 0, count: 0 };
+    const row = into.get(m.key) ?? { key: m.key, label: m.label, explain: EXPLAIN[m.key] ?? m.label, amount: 0, count: 0, lineKeys: [] };
     row.amount += m.line.amount;
     row.count += 1;
+    row.lineKeys.push(m.line.key);
     into.set(m.key, row);
   }
   const sorted = (rows: Map<string, RollforwardLine>) => [...rows.values()].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));

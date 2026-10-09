@@ -216,6 +216,9 @@ export interface ItemStage {
   /** when it moved, local ISO date-time */
   when?: string;
   detail: string;
+  /** the person inside the company who takes the stage's next step, and their role (absent when nobody has to) */
+  personId?: string;
+  role?: RoleId;
 }
 
 export interface StageInputs {
@@ -244,6 +247,8 @@ export function itemStages({ row, accountStatus, signOff, extractedAt, dataset }
   const gl = GL_BY_ID.get(row.item.gl)!;
   const owner = nameOf(gl.ownerId);
   const reviewer = nameOf(gl.reviewerId);
+  const byOwner = { personId: gl.ownerId, role: PERSON_BY_ID.get(gl.ownerId)?.roleId };
+  const byReviewer = { personId: gl.reviewerId, role: PERSON_BY_ID.get(gl.reviewerId)?.roleId };
   const d = row.decision && LIVE.has(row.decision.status) ? row.decision : undefined;
   const turnedDown = row.decision && !LIVE.has(row.decision.status) ? row.decision : undefined;
   const fu = row.followUp;
@@ -263,16 +268,18 @@ export function itemStages({ row, accountStatus, signOff, extractedAt, dataset }
 
     // evidence: asked, answered, or not needed
     const askFirst = rec?.action === "Follow up";
-    if (fu && fu.status === "open") stages.push({ id: "evidence", label: "Evidence", state: "current", who: fu.owner, when: fu.createdAt, detail: `Asked by ${nameOf(fu.createdBy)}, due ${fmtDate(fu.dueDate)}` });
+    // the person who asked records the answer
+    const asker = fu ? { personId: fu.createdBy, role: PERSON_BY_ID.get(fu.createdBy)?.roleId } : byOwner;
+    if (fu && fu.status === "open") stages.push({ id: "evidence", label: "Evidence", state: "current", who: fu.owner, when: fu.createdAt, detail: `Asked by ${nameOf(fu.createdBy)}, due ${fmtDate(fu.dueDate)}`, ...asker });
     else if (fu) stages.push({ id: "evidence", label: "Evidence", state: "done", who: fu.response ? nameOf(fu.response.by) : nameOf(fu.createdBy), when: fu.response?.at ?? fu.createdAt, detail: fu.response ? `Answered by ${fu.owner}` : "Closed without an answer" });
     else if (d) stages.push({ id: "evidence", label: "Evidence", state: "skipped", who: "", detail: "Not requested" });
-    else stages.push({ id: "evidence", label: "Evidence", state: askFirst ? "current" : "optional", who: owner, detail: askFirst ? "Ask before deciding" : "Ask the buyer or the counterparty if in doubt" });
+    else stages.push({ id: "evidence", label: "Evidence", state: askFirst ? "current" : "optional", who: owner, detail: askFirst ? "Ask before deciding" : "Ask the buyer or the counterparty if in doubt", ...byOwner });
 
     // maker
     const waitingOnEvidence = fu?.status === "open" || (askFirst && !fu);
     if (d) stages.push({ id: "propose", label: "Decision", state: "done", who: nameOf(d.proposedBy), when: d.proposedAt, detail: `${d.action} ${fmtINRCompact(Math.abs(d.amount))}` });
-    else if (turnedDown?.status === "rejected") stages.push({ id: "propose", label: "Decision", state: "current", who: owner, when: turnedDown.rejection?.at, detail: `Rejected by ${nameOf(turnedDown.rejection?.personId)}: propose again` });
-    else stages.push({ id: "propose", label: "Decision", state: waitingOnEvidence ? "upcoming" : "current", who: owner, detail: rec && rec.action !== "Follow up" ? `${rec.action} recommended` : "Choose the action" });
+    else if (turnedDown?.status === "rejected") stages.push({ id: "propose", label: "Decision", state: "current", who: owner, when: turnedDown.rejection?.at, detail: `Rejected by ${nameOf(turnedDown.rejection?.personId)}: propose again`, ...byOwner });
+    else stages.push({ id: "propose", label: "Decision", state: waitingOnEvidence ? "upcoming" : "current", who: owner, detail: fu?.response ? "Decide on the answer" : rec && rec.action !== "Follow up" ? `${rec.action} recommended` : "Choose the action", ...byOwner });
 
     // checker
     const band = d ? APPROVAL_BANDS.find((b) => b.id === d.approvalBandId) ?? bandFor(row.item.amount) : bandFor(row.item.amount);
@@ -286,7 +293,7 @@ export function itemStages({ row, accountStatus, signOff, extractedAt, dataset }
       const taxPending = d.taxReviewRequired && !d.taxReview;
       const who = next ? holder(next, gl.reviewerId) : holder("tax-specialist");
       const steps = `${d.approvals.length} of ${d.chain.length} approvals${taxPending ? ", tax review pending" : ""}`;
-      stages.push({ id: "approve", label: "Approval", state: "current", who: `${who.name}, ${ROLES[who.roleId].label}`, when: d.approvals[d.approvals.length - 1]?.at, detail: steps });
+      stages.push({ id: "approve", label: "Approval", state: "current", who: `${who.name}, ${ROLES[who.roleId].label}`, when: d.approvals[d.approvals.length - 1]?.at, detail: steps, personId: who.id, role: who.roleId });
     } else {
       stages.push({ id: "approve", label: "Approval", state: "upcoming", who: chainLabel, detail: `Band ${band.id}${rec?.requiresTaxReview ? ", tax review" : ""}` });
     }
@@ -295,16 +302,16 @@ export function itemStages({ row, accountStatus, signOff, extractedAt, dataset }
     const action = d?.action ?? (rec && rec.action !== "Follow up" ? rec.action : undefined);
     if (action && NO_ENTRY.has(action)) stages.push({ id: "post", label: "Posting", state: "skipped", who: "", detail: "No entry needed" });
     else if (d?.status === "closed-in-erp") stages.push({ id: "post", label: "Posting", state: "done", who: "ERP", detail: d.exportBatchId ? `Batch ${d.exportBatchId} posted` : "Posted" });
-    else if (d?.status === "exported") stages.push({ id: "post", label: "Posting", state: "current", who: owner, detail: `In batch ${d.exportBatchId}, waiting to be posted` });
-    else if (d?.status === "approved") stages.push({ id: "post", label: "Posting", state: "current", who: owner, detail: "Export to the proposal file" });
+    else if (d?.status === "exported") stages.push({ id: "post", label: "Posting", state: "current", who: owner, detail: `In batch ${d.exportBatchId}, waiting to be posted`, ...byOwner });
+    else if (d?.status === "approved") stages.push({ id: "post", label: "Posting", state: "current", who: owner, detail: "Export to the proposal file", ...byOwner });
     else stages.push({ id: "post", label: "Posting", state: "upcoming", who: owner, detail: action === "Clear" ? "Clearing instruction" : "Journal proposal" });
   }
 
   // the account the item sits in
   if (!accountStatus) stages.push({ id: "account", label: "Sign-off", state: "skipped", who: "", detail: "Account not in the review" });
   else if (accountStatus === "reviewer-signed") stages.push({ id: "account", label: "Sign-off", state: "done", who: nameOf(signOff?.reviewer?.personId) || reviewer, when: signOff?.reviewer?.at, detail: `${gl.gl} signed off` });
-  else if (accountStatus === "preparer-signed") stages.push({ id: "account", label: "Sign-off", state: "current", who: reviewer, when: signOff?.preparer?.at, detail: `Preparer signed, reviewer to sign` });
-  else stages.push({ id: "account", label: "Sign-off", state: accountStatus === "ready-for-signoff" ? "current" : "upcoming", who: `${owner}, then ${reviewer}`, detail: `${gl.gl} ${statusLabel(accountStatus).toLowerCase()}` });
+  else if (accountStatus === "preparer-signed") stages.push({ id: "account", label: "Sign-off", state: "current", who: reviewer, when: signOff?.preparer?.at, detail: `Preparer signed, reviewer to sign`, ...byReviewer });
+  else stages.push({ id: "account", label: "Sign-off", state: accountStatus === "ready-for-signoff" ? "current" : "upcoming", who: `${owner}, then ${reviewer}`, detail: `${gl.gl} ${statusLabel(accountStatus).toLowerCase()}`, ...byOwner });
 
   return stages;
 }
