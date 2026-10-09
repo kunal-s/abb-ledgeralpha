@@ -172,8 +172,8 @@ function LeaderHome() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-5">
-        <div className="xl:col-span-3"><BalanceAtRisk risk={risk} /></div>
-        <div className="xl:col-span-2"><ReconHealth rows={recHealth} /></div>
+        <div className="xl:col-span-3 [&>*]:h-full"><BalanceAtRisk risk={risk} /></div>
+        <div className="xl:col-span-2 [&>*]:h-full"><ReconHealth rows={recHealth} /></div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
