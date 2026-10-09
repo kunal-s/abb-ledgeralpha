@@ -2,11 +2,48 @@ import { describe, expect, it } from "vitest";
 import { WORLD } from "@/data";
 import { buildContext } from "@/engine/context";
 import { BSR_EVALUATORS } from "@/engine/rules/bsr";
-import { GST_POLICY, bookInvoices, byPeriod, creditAtRisk, gstTdsCredits, reconcile, returnsTracker } from "@/engine/gst";
+import { GST_POLICY, bookInvoices, byPeriod, creditAtRisk, gstMonths, gstTdsCredits, reconcile, returnsTracker, unusedGstTds } from "@/engine/gst";
+import { PC_BY_ID } from "@/data";
+import { fiscalYearStartDate } from "@/lib/dates";
+import { TENANT } from "@/config/tenant";
 
 const asOf = WORLD.asOf;
 const books = bookInvoices(asOf);
 const matches = reconcile(asOf);
+
+describe("the monthly return, from the ledger", () => {
+  const months = gstMonths(asOf, (pc) => PC_BY_ID.get(pc)?.businessUnitId ?? "CORP");
+
+  it("settles each filed month exactly: the output tax is set off, all the credit used, the rest paid in cash", () => {
+    const settled = months.filter((m) => m.settlement);
+    expect(settled.length).toBeGreaterThan(5);
+    for (const m of settled) {
+      expect(m.settlement!.outputSetOff, m.period).toBeCloseTo(m.output.total, 2);
+      expect(m.settlement!.creditUsed, m.period).toBeCloseTo(m.input.total, 2);
+      expect(m.settlement!.cash, m.period).toBeCloseTo(m.output.total - m.input.total, 2);
+    }
+  });
+
+  it("adds up to the output and input accounts, and splits by tax head and by business unit without losing anything", () => {
+    const from = fiscalYearStartDate(asOf, TENANT.fiscalYear.startMonth);
+    const ledger = (gls: string[], sign: number) =>
+      WORLD.lines.filter((l) => gls.includes(l.gl) && l.postingDate >= from && l.postingDate <= asOf && !/^GST settlement - /.test(l.text ?? "")).reduce((s, l) => s + sign * l.amount, 0);
+    expect(months.reduce((s, m) => s + m.output.total, 0)).toBeCloseTo(ledger(["241400", "241500", "241600"], -1), 0);
+    expect(months.reduce((s, m) => s + m.input.total, 0)).toBeCloseTo(ledger(["162100", "162200", "162300"], 1), 0);
+    for (const m of months) {
+      expect(m.output.cgst + m.output.sgst + m.output.igst).toBeCloseTo(m.output.total, 2);
+      expect(m.byUnit.reduce((s, u) => s + u.output, 0)).toBeCloseTo(m.output.total, 2);
+    }
+  });
+
+  it("leaves the open month due, with the return's date, and reports tax deducted by government customers as unused credit", () => {
+    const open = months.find((m) => !m.settlement)!;
+    expect(open.period).toBe(asOf.slice(0, 7));
+    expect(["due", "overdue"]).toContain(open.status);
+    expect(open.dueDate).toBeDefined();
+    expect(unusedGstTds(asOf)).toBeGreaterThan(0);
+  });
+});
 
 describe("matching the books to the statement", () => {
   it("classifies every supplier invoice of the year once, and every statement line once", () => {

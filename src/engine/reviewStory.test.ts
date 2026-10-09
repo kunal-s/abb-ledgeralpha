@@ -143,6 +143,16 @@ describe("item process", () => {
     expect(st.find((s) => s.id === "propose")!.state).toBe("upcoming");
   });
 
+  it("runs an item raised in another module through the same stages, from its own starting point", () => {
+    const r = modelsAt().review.rows.find((x) => !x.flagged && x.item.gl === "210100" && x.item.amount < 0)!;
+    useRoleStore.setState({ role: "gl-accountant" });
+    expect(useWorkflow.getState().requestFollowUp({ itemKey: r.key, module: "indirect-tax", owner: "Supplier", dueDate: "2026-10-20", message: "Please report the invoice" }).ok).toBe(true);
+    const st = stagesOf(r.key);
+    expect(st.find((s) => s.id === "flagged")!.label).toBe("Raised");
+    expect(st.find((s) => s.id === "flagged")!.who).toBe("GST");
+    expect(currentStage(st).id).toBe("evidence");
+  });
+
   it("leaves nothing to do for an item within policy", () => {
     const r = modelsAt().review.rows.find((x) => !x.flagged && x.isOpen)!;
     const st = stagesOf(r.key);

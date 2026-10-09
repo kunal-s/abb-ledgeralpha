@@ -170,6 +170,110 @@ export function creditAtRisk(asOf: IsoDate = WORLD.asOf): RiskItem[] {
   return out.sort((a, b) => b.tax - a.tax);
 }
 
+// ---------------------------------------------------------------------------
+// The monthly return as the ledger carries it (D-71): output tax on sales, input
+// credit on purchases, tax deducted by government customers, and the settlement
+// journal that sets the credit off against the output tax and pays the rest.
+// ---------------------------------------------------------------------------
+const OUTPUT = { cgst: "241400", sgst: "241500", igst: "241600" } as const;
+const INPUT = { cgst: "162100", sgst: "162200", igst: "162300" } as const;
+const GST_TDS = "162400";
+
+export interface TaxHeads {
+  cgst: number;
+  sgst: number;
+  igst: number;
+  total: number;
+}
+
+export interface GstMonth {
+  period: string;
+  /** tax charged on sales in the month (positive) */
+  output: TaxHeads;
+  /** input credit booked on purchases in the month */
+  input: TaxHeads;
+  /** tax deducted by government customers in the month, credited to the company's cash ledger */
+  gstTds: number;
+  byUnit: { unitId: string; output: number; input: number }[];
+  /** the settlement journal for the month, once posted */
+  settlement?: { lineKey: string; docNo: string; postedOn: IsoDate; outputSetOff: number; creditUsed: number; cash: number };
+  dueDate?: IsoDate;
+  filedOn?: IsoDate;
+  status: ReturnRow["status"] | "open";
+  daysLate: number;
+}
+
+const isSettlement = (l: LineItem) => /^GST settlement - /.test(l.text ?? "");
+const heads = (): TaxHeads => ({ cgst: 0, sgst: 0, igst: 0, total: 0 });
+
+/** Month by month: what was charged, what credit was booked, what the settlement used and paid, and the return. */
+export function gstMonths(asOf: IsoDate = WORLD.asOf, unitOf: (pc: string) => string = () => "all"): GstMonth[] {
+  const from = fiscalYearStartDate(asOf, TENANT.fiscalYear.startMonth);
+  const months = new Map<string, GstMonth>();
+  const month = (p: string) => {
+    let m = months.get(p);
+    if (!m) {
+      m = { period: p, output: heads(), input: heads(), gstTds: 0, byUnit: [], status: "open", daysLate: 0 };
+      months.set(p, m);
+    }
+    return m;
+  };
+  const units = new Map<string, Map<string, { output: number; input: number }>>();
+  const outputHead = new Map<string, keyof typeof OUTPUT>(Object.entries(OUTPUT).map(([h, gl]) => [gl, h as keyof typeof OUTPUT]));
+  const inputHead = new Map<string, keyof typeof INPUT>(Object.entries(INPUT).map(([h, gl]) => [gl, h as keyof typeof INPUT]));
+  for (const l of WORLD.lines) {
+    if (l.postingDate < from || l.postingDate > asOf) continue;
+    if (isSettlement(l)) {
+      const p = (l.text ?? "").slice(-7);
+      if (p < from.slice(0, 7)) continue;
+      const m = month(p);
+      const doc = LINES_BY_DOC.get(`${l.fiscalYear}-${l.docNo}`) ?? [];
+      if (!m.settlement) {
+        m.settlement = {
+          lineKey: l.key, docNo: l.docNo, postedOn: l.postingDate,
+          outputSetOff: doc.filter((x) => outputHead.has(x.gl)).reduce((s, x) => s + x.amount, 0),
+          creditUsed: -doc.filter((x) => inputHead.has(x.gl)).reduce((s, x) => s + x.amount, 0),
+          cash: -doc.filter((x) => x.gl.startsWith("181")).reduce((s, x) => s + x.amount, 0),
+        };
+      }
+      continue;
+    }
+    const oh = outputHead.get(l.gl);
+    const ih = inputHead.get(l.gl);
+    if (!oh && !ih && l.gl !== GST_TDS) continue;
+    const m = month(l.postingDate.slice(0, 7));
+    const u = unitOf(l.profitCentre);
+    const um = units.get(m.period) ?? new Map();
+    const ue = um.get(u) ?? { output: 0, input: 0 };
+    if (oh) {
+      m.output[oh] -= l.amount;
+      m.output.total -= l.amount;
+      ue.output -= l.amount;
+    } else if (ih) {
+      m.input[ih] += l.amount;
+      m.input.total += l.amount;
+      ue.input += l.amount;
+    } else if (l.amount > 0) m.gstTds += l.amount;
+    um.set(u, ue);
+    units.set(m.period, um);
+  }
+  const returns = new Map(WORLD.gstReturns.map((r) => [r.period, r]));
+  return [...months.values()]
+    .map((m) => {
+      const r = returns.get(m.period);
+      const late = r?.filedOn ? Math.max(0, daysBetween(r.dueDate, r.filedOn)) : 0;
+      const status: GstMonth["status"] = !r ? "open" : r.filedOn ? (late > 0 ? "late" : "on-time") : r.dueDate < asOf ? "overdue" : "due";
+      const byUnit = [...(units.get(m.period) ?? new Map()).entries()].map(([unitId, v]) => ({ unitId, ...v })).sort((a, b) => b.output - a.output);
+      return { ...m, byUnit, dueDate: r?.dueDate, filedOn: r?.filedOn, status, daysLate: late };
+    })
+    .sort((a, b) => a.period.localeCompare(b.period));
+}
+
+/** Tax deducted by government customers and credited to the cash ledger, not yet used to pay a return. */
+export function unusedGstTds(asOf: IsoDate = WORLD.asOf): number {
+  return WORLD.lines.filter((l) => l.gl === GST_TDS && l.postingDate <= asOf).reduce((s, l) => s + l.amount, 0);
+}
+
 export interface TdsCredit {
   customerId: string;
   name: string;

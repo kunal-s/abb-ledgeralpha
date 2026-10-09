@@ -134,6 +134,11 @@ function StageWork({ id, row, stage, review, onAsk }: { id: StageId; row: ItemRo
           <Findings row={row} />
           <Recommendation row={row} />
         </>
+      ) : row.decision || row.followUp ? (
+        <Section title="Raised">
+          <p className="text-sm">{row.followUp?.message ?? row.decision?.justification}</p>
+          <p className="mt-1 text-xs text-muted-foreground">No review rule applies; the question came from {stage.who}.</p>
+        </Section>
       ) : (
         <Section title="Rule findings"><p className="text-sm text-muted-foreground">No rule applies: the item is within policy.</p></Section>
       );

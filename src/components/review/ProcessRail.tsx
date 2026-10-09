@@ -1,7 +1,10 @@
 import { Check, Clock, Minus } from "lucide-react";
-import type { ItemStage, StageId } from "@/engine/reviewStory";
+import type { ItemStage } from "@/engine/reviewStory";
 import { fmtDateTime } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+
+/** Any process told as stages: an item's review, a supplier case. */
+export type RailStage = Pick<ItemStage, "label" | "state" | "who" | "when" | "detail"> & { id: string };
 
 const STATE_LABEL: Record<ItemStage["state"], string> = {
   done: "Done",
@@ -15,7 +18,7 @@ const STATE_LABEL: Record<ItemStage["state"], string> = {
  * An item's way from the source to the signed account, one stage per column: what state it is in,
  * who holds it and when it moved. Choosing a stage opens its work below.
  */
-export function ProcessRail({ stages, selected, onSelect }: { stages: ItemStage[]; selected: StageId; onSelect: (id: StageId) => void }) {
+export function ProcessRail<S extends RailStage>({ stages, selected, onSelect }: { stages: S[]; selected: S["id"]; onSelect: (id: S["id"]) => void }) {
   return (
     <ol className="flex items-stretch" aria-label="Process">
       {stages.map((s, i) => {

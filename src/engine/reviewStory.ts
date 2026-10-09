@@ -11,6 +11,7 @@ import { fmtDate } from "@/lib/dates";
 import { fmtINRCompact, fmtInt } from "@/lib/format";
 import { CATEGORY_LABELS } from "@/lib/labels";
 import { statusLabel } from "@/lib/status";
+import { MODULES } from "@/lib/modules";
 import type { ItemRow } from "@/state/hooks";
 
 /** The balance sheet areas that take most manual effort, in the order a reviewer thinks of them. */
@@ -257,14 +258,19 @@ export function itemStages({ row, accountStatus, signOff, extractedAt, dataset }
 
   stages.push({ id: "source", label: "Data in", state: "done", who: row.item.sourceSystem, when: extractedAt, detail: dataset ?? "Line item extract" });
 
-  if (!row.flagged) {
+  // a finding can also come from another module (an indirect tax mismatch, a journal review): the item is then in process too
+  const raisedBy = !row.flagged ? (row.decision ?? row.followUp)?.module : undefined;
+  if (!row.flagged && !raisedBy) {
     stages.push({ id: "flagged", label: "Checked", state: "done", who: "Scrutiny agent", when: extractedAt, detail: "Within policy" });
     for (const [id, label] of [["evidence", "Evidence"], ["propose", "Decision"], ["approve", "Approval"], ["post", "Posting"]] as const) {
       stages.push({ id, label, state: "skipped", who: "", detail: "Nothing to do" });
     }
   } else {
     const rules = row.hits.map((h) => h.ruleId).slice(0, 3).join(", ");
-    stages.push({ id: "flagged", label: "Flagged", state: "done", who: "Scrutiny agent", when: extractedAt, detail: rec ? `${rules} · ${rec.action} recommended` : rules });
+    if (raisedBy) {
+      const first = [row.followUp?.createdAt, row.decision?.proposedAt].filter((x): x is string => !!x).sort()[0];
+      stages.push({ id: "flagged", label: "Raised", state: "done", who: MODULES.find((m) => m.id === raisedBy)?.label ?? raisedBy, when: first, detail: "Raised outside the review rules" });
+    } else stages.push({ id: "flagged", label: "Flagged", state: "done", who: "Scrutiny agent", when: extractedAt, detail: rec ? `${rules} · ${rec.action} recommended` : rules });
 
     // evidence: asked, answered, or not needed
     const askFirst = rec?.action === "Follow up";

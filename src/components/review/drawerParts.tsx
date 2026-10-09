@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Fields } from "@/components/vocab/Fields";
 import { PERSON_BY_ID } from "@/data";
 import { useItemHistory } from "@/state/hooks";
-import { useWorkflow } from "@/state/workflow";
+import { personForRole, useWorkflow } from "@/state/workflow";
 import { useRoleStore } from "@/lib/stores";
 import { ROLES, can } from "@/config/roles";
 import { addDays, fmtDate, fmtDateTime } from "@/lib/dates";
@@ -41,10 +41,21 @@ export function DecisionApproval({ d }: { d: Decision }) {
   const next = d.chain[d.approvals.length];
   const taxPending = d.taxReviewRequired && !d.taxReview;
   const canApprove = d.status === "proposed" && role === next;
-  const canTax = d.status === "proposed" && taxPending && can(role, "tax-review");
   const proposerRole = PERSON_BY_ID.get(d.proposedBy)?.roleId;
+  // four-eyes: the person who proposed cannot also clear the tax review
+  const ownProposal = role === proposerRole && personForRole(role, d.proposedBy).id === d.proposedBy;
+  const canTax = d.status === "proposed" && taxPending && can(role, "tax-review") && !ownProposal;
   const canWithdraw = d.status === "proposed" && role === proposerRole;
-  const waiting = d.status === "proposed" ? (next ? `Waiting for ${ROLES[next].label}` : taxPending ? "Waiting for tax review" : "") : "";
+  const waiting =
+    d.status === "proposed"
+      ? next
+        ? `Waiting for ${ROLES[next].label}`
+        : taxPending
+          ? can(role, "tax-review") && ownProposal
+            ? "Waiting for tax review by someone other than the proposer"
+            : "Waiting for tax review"
+          : ""
+      : "";
 
   return (
     <>

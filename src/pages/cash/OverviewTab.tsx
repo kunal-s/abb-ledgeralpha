@@ -28,6 +28,14 @@ export const AGE_BUCKETS = [
 export const bucketOfAge = (age: number) => AGE_BUCKETS.find((b) => age >= b.min && age <= b.max)!.id;
 
 const LEVELS: (MatchLevel | "none")[] = ["L1", "L2", "L3", "L4", "none"];
+
+/** Each kind of deduction a customer takes from a payment, and where it is followed through. */
+const DEDUCTION_FLOW = [
+  ["tds", "Withholding tax", "Credit checked against the tax credit statement (TDS)", "/tax/withholding?tab=expected"],
+  ["gst-tds", "GST TDS (government customers)", "Credited to the GST cash ledger, used in the return", "/tax/indirect?gtab=tds"],
+  ["bank-charges", "Bank charges", "Expensed to bank charges (531100)", undefined],
+  ["small-difference", "Small differences", "Written off within the small-difference policy", undefined],
+] as const;
 const levelOf = (r: ReceiptRow) => r.best?.level ?? "none";
 
 export function OverviewTab() {
@@ -133,30 +141,33 @@ export function OverviewTab() {
           </Table>
         </Panel>
 
-        <Panel title="Deductions the matcher inferred" bodyClassName="p-0">
+        <Panel title="Deductions on customer receipts" bodyClassName="p-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Deduction</TableHead>
                 <TableHead className="text-right">Receipts</TableHead>
                 <TableHead className="text-right">Value</TableHead>
+                <TableHead>Goes to</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {([["tds", "Withholding tax"], ["gst-tds", "GST TDS"], ["bank-charges", "Bank charges"], ["small-difference", "Small differences"]] as const).map(([k, label]) => (
+              {DEDUCTION_FLOW.map(([k, label, goes, to]) => (
                 <TableRow key={k}>
                   <TableCell>{label}</TableCell>
                   <TableCell className="text-right tnum">{deductions[k].n ? fmtInt(deductions[k].n) : "-"}</TableCell>
                   <TableCell className="text-right tnum">{deductions[k].v ? fmtINRCompact(deductions[k].v) : "-"}</TableCell>
+                  <TableCell className="text-xs">
+                    {to ? (
+                      <Link to={to} className="font-medium text-primary hover:underline">{goes}</Link>
+                    ) : (
+                      <span className="text-muted-foreground">{goes}</span>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
-          <div className="border-t border-border/70 px-4 py-2 text-xs">
-            <Link to="/tax/withholding?tab=expected" className="font-medium text-primary hover:underline">
-              See the expected credits in TDS
-            </Link>
-          </div>
         </Panel>
       </div>
     </div>
