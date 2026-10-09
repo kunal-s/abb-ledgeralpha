@@ -375,7 +375,7 @@ function grir(ctx: Ctx): void {
   ]);
   for (let i = 0; i < N.grirCredits; i++) {
     const vendor = rng.pick(vendors);
-    const date = dateForAge(ctx, pickAge(ctx, PROFILES.moderate));
+    const date = dateForAge(ctx, pickAge(ctx, PROFILES.grir));
     postGoodsReceipt(ctx, vendor, date, rng.money(2_80_000, 1.2, 2_000, 2_50_00_000), ctx.nextPo(), 10 * rng.int(1, 4), account());
   }
   for (let i = 0; i < N.grirDebits; i++) {
@@ -383,8 +383,8 @@ function grir(ctx: Ctx): void {
     const date = dateForAge(ctx, pickAge(ctx, PROFILES.recent, 300));
     postInvoiceReceipt(ctx, vendor, date, rng.money(2_40_000, 1.1, 5_000, 80_00_000), ctx.nextPo(), 10, account());
   }
-  // GR and invoice both posted but never cleared against each other
-  for (let i = 0; i < 20; i++) {
+  // GR and invoice both posted but never cleared against each other: a few the clearing run missed
+  for (let i = 0; i < 5; i++) {
     const vendor = rng.pick(vendors);
     const grDate = dateForAge(ctx, pickAge(ctx, PROFILES.moderate));
     const invDate = addDays(grDate, rng.int(3, 40));

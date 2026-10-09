@@ -8,14 +8,22 @@ import type { LedgerBuilder, Leg } from "@/data/generator/builder";
 import type { Masters } from "@/data/generator/masters";
 import { WORLD_SPEC as S, type ProfitCentreSpec } from "@/data/workspace/spec";
 
-/** Weights for the 0–90 / 91–180 / 181–365 / over-365-day buckets. */
-export type AgeProfile = readonly [number, number, number, number];
+/**
+ * Weights for the 0–90 / 91–180 / 181–365 / over-365-day buckets, then how far back (in days) the
+ * over-a-year tail reaches. A company with a year-end audit and a working review clears most items
+ * before their second year end, so only a thin tail survives; the stories that are older on purpose
+ * are planted (src/data/workspace/scenarios.ts). Withholding tax credits age by tax year and keep
+ * a longer tail.
+ */
+export type AgeProfile = readonly [number, number, number, number, number];
 
 export const PROFILES = {
-  recent: [0.74, 0.14, 0.08, 0.04],
-  moderate: [0.66, 0.17, 0.1, 0.07],
-  aged: [0.38, 0.2, 0.22, 0.2],
-  tds: [0.33, 0.27, 0.25, 0.15],
+  recent: [0.82, 0.12, 0.05, 0.01, 450],
+  moderate: [0.76, 0.15, 0.08, 0.01, 500],
+  aged: [0.56, 0.22, 0.17, 0.05, 640],
+  tds: [0.38, 0.28, 0.25, 0.09, 1100],
+  /** goods receipts: most are invoiced within weeks; what waits longer is the review's work */
+  grir: [0.92, 0.06, 0.017, 0.003, 420],
 } as const satisfies Record<string, AgeProfile>;
 
 const BANK_CODES: Record<string, string> = {
@@ -122,16 +130,16 @@ export function createContext(rng: Rng, b: LedgerBuilder, m: Masters, reserved: 
   };
 }
 
-/** Age in days drawn from a profile; the over-365 tail thins out towards the history start. */
+/** Age in days drawn from a profile; the over-365 tail thins out towards the profile's reach. */
 export function pickAge(ctx: Ctx, profile: AgeProfile, cap?: number): number {
   const { rng } = ctx;
   const max = Math.min(cap ?? ctx.maxAge, ctx.maxAge);
-  const bucket = rng.weighted(profile.map((w, i) => ({ value: i, weight: w })));
+  const bucket = rng.weighted(profile.slice(0, 4).map((w, i) => ({ value: i, weight: w })));
   const ranges: [number, number][] = [
     [0, 90],
     [91, 180],
     [181, 365],
-    [366, ctx.maxAge],
+    [366, Math.min(profile[4], ctx.maxAge)],
   ];
   const [lo, hi] = ranges[bucket];
   const span = hi - lo;

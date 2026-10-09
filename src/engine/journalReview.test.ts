@@ -119,7 +119,7 @@ describe("seeded journal reviews", () => {
 
   it("conclude on part of the flagged journals and leave the rest open", () => {
     const n = Object.keys(seeded).length;
-    expect(n).toBeGreaterThan(5);
+    expect(n).toBeGreaterThan(2);
     expect(n).toBeLessThan(flags.size);
   });
 

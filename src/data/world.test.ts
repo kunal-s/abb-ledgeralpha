@@ -87,11 +87,22 @@ describe("planted scenarios", () => {
     expect(party(l.partner!.id).status).toBe("Inactive");
   });
 
-  it("S-02 uncleared GR/IR pair split across legacy and Central Finance", () => {
+  it("S-02 goods receipt and invoice on the same PO line, missed by the clearing run", () => {
     const [gr, inv] = anchored("S-02");
     expect(gr.amount + inv.amount).toBe(0);
-    expect(gr.sourceSystem).not.toBe(inv.sourceSystem);
     expect(gr.po).toEqual(inv.po);
+    expect([age(gr), age(inv)]).toEqual([163, 141]);
+    expect(isOpenAt(gr, world.asOf) && isOpenAt(inv, world.asOf)).toBe(true);
+  });
+
+  it("keeps the over-a-year tail thin: outside tax credits and retention, only planted stories are older than 18 months", () => {
+    const planted = new Set(Object.values(world.anchors).flat());
+    const gls = new Map(world.glAccounts.map((g) => [g.gl, g]));
+    const stale = world.lines.filter((l) => {
+      const g = gls.get(l.gl);
+      return !!g?.openItemManaged && !["tds-recv", "gst", "retention"].includes(g.category) && isOpenAt(l, world.asOf) && age(l) > 548 && !planted.has(l.key);
+    });
+    expect(stale.length).toBeLessThanOrEqual(5);
   });
 
   it("S-03 invoice without goods receipt, 128 days", () => {

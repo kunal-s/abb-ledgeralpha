@@ -173,7 +173,7 @@ export const WORLD_SPEC = {
     apImport: 220,
     apGroup: 90,
     grirCredits: 1280,
-    grirDebits: 170,
+    grirDebits: 60,
     vendorAdvances: 320,
     employeeAdvances: 230,
     deposits: 110,

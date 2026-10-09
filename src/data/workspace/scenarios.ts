@@ -126,10 +126,11 @@ export function plantScenarios(ctx: Ctx, r: ScenarioRefs): void {
   trackPo(ctx, "4500187321", 10, V.S01.id, { status: "Closed" });
   anchor(ctx, "S-01", s01.key);
 
-  // S-02 GR/IR: GR in the legacy ERP, invoice in Central Finance, never cleared
-  const s02gr = postGoodsReceipt(ctx, V.S02, "2023-11-20", 7_42_180, "4500203318", 10, "211300", { pcId: "PC-EL-01" });
-  const s02 = postInvoiceReceipt(ctx, V.S02, "2024-02-12", 7_42_180, "4500203318", 10, "211300", { pcId: "PC-EL-01" });
-  payVendor(ctx, s02.apLine, "2024-03-28");
+  // S-02 GR/IR: goods receipt and invoice for the same PO line and value, both posted, missed by the
+  // automatic clearing run (the invoice was booked against a split delivery); the vendor has been paid
+  const s02gr = postGoodsReceipt(ctx, V.S02, addDays(ctx.asOf, -163), 7_42_180, "4500203318", 10, "211300", { pcId: "PC-EL-01" });
+  const s02 = postInvoiceReceipt(ctx, V.S02, addDays(ctx.asOf, -141), 7_42_180, "4500203318", 10, "211300", { pcId: "PC-EL-01" });
+  payVendor(ctx, s02.apLine, addDays(ctx.asOf, -96));
   trackPo(ctx, "4500203318", 10, V.S02.id, { status: "Closed" });
   anchor(ctx, "S-02", s02gr.key, s02.grirLine.key);
 
