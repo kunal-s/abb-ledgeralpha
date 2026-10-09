@@ -7,6 +7,7 @@ import { SEEDED_RULE_OVERRIDES } from "@/data/workspace/activity";
 import { useWorkflow } from "@/state/workflow";
 import { useRoleStore } from "@/lib/stores";
 import type { RoleId } from "@/types";
+import { daysBetween } from "@/lib/dates";
 
 const AS_OF = WORLD.asOf;
 const anchor = (id: string, i = 0) => WORLD.anchors[id][i];
@@ -27,6 +28,14 @@ describe("rule engine", () => {
   it("flags a plausible share of open items", () => {
     expect(base.items.size).toBeGreaterThan(500);
     expect(base.items.size).toBeLessThan(base.ctx.open.length);
+  });
+
+  it("leaves retention to its own rule: age alone does not flag it (BSR-01), the defect liability period does (BSR-09)", () => {
+    const old = base.ctx.open.filter((l) => l.gl === "142100" && l.amount > 0 && daysBetween(l.postingDate, base.asOf) > 180);
+    expect(old.length).toBeGreaterThan(0);
+    const aged = hitIds(base, "BSR-01");
+    for (const l of old) expect(aged.has(l.key)).toBe(false);
+    expect(hitIds(base, "BSR-09").has(anchor("S-09"))).toBe(true);
   });
 
   it("starts from the workspace's configuration (BSR-10 tightened to 30 days)", () => {

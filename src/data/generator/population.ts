@@ -87,6 +87,19 @@ export function postCustomerInvoice(
   return { line: ar, customerId: customer.id, taxable, gross, date, reference };
 }
 
+/**
+ * Age of an open receivable, read from its payment terms: about two thirds are not yet due, most of the
+ * rest are up to two months overdue, and a thin tail is long overdue (what collections works on).
+ */
+function receivableAge(ctx: Ctx, terms: number): number {
+  const { rng } = ctx;
+  const r = rng.next();
+  if (r < 0.68) return rng.int(0, terms);
+  if (r < 0.92) return terms + rng.int(1, 60);
+  if (r < 0.98) return terms + rng.int(61, 150);
+  return Math.min(terms + rng.int(151, 360), 450);
+}
+
 function receivables(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
   const { rng } = ctx;
   const customers = domesticCustomers(ctx);
@@ -94,16 +107,17 @@ function receivables(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
   for (let i = 0; i < N.arDomestic; i++) {
     const customer = rng.pick(customers);
     const project = rng.chance(0.55) ? projectFor(ctx, customer, ["Execution", "Commissioned", "In DLP"]) : undefined;
-    const date = dateForAge(ctx, pickAge(ctx, PROFILES.moderate));
+    const terms = rng.pick([30, 45, 60, 60, 90]);
+    const date = dateForAge(ctx, receivableAge(ctx, terms));
     const taxable = rng.money(project ? 1_15_00_000 : 34_00_000, 1.05, 25_000, 24_00_00_000);
-    openInvoices.push(postCustomerInvoice(ctx, customer, date, taxable, { project }));
+    openInvoices.push(postCustomerInvoice(ctx, customer, date, taxable, { project, dueDays: terms }));
   }
 
   const exportCustomers = ctx.m.customers.filter((c) => c.country !== "IN");
   for (let i = 0; i < N.arExport; i++) {
     const customer = rng.pick(exportCustomers);
     const pc = pickPc(ctx, (p) => p.revenue.some((r) => r.gl === "410400"));
-    const date = dateForAge(ctx, pickAge(ctx, PROFILES.moderate));
+    const date = dateForAge(ctx, receivableAge(ctx, 90));
     const amount = rng.money(42_00_000, 0.9, 1_00_000, 8_00_00_000);
     const reference = ctx.nextInvoiceRef(pc.id, date);
     ctx.b.post({ docType: "DR", postingDate: date, enteredBy: U.billing, reference, entryTime: bizTime(ctx) }, [
@@ -125,7 +139,7 @@ function receivables(ctx: Ctx, openInvoices: CustomerInvoice[]): void {
   for (let i = 0; i < N.arGroup; i++) {
     const gc = rng.pick(ctx.m.groupCompanies);
     const pc = pickPc(ctx);
-    const date = dateForAge(ctx, pickAge(ctx, PROFILES.moderate));
+    const date = dateForAge(ctx, receivableAge(ctx, 60));
     const amount = rng.money(28_00_000, 1.0, 50_000, 6_00_00_000);
     const reference = ctx.nextInvoiceRef(pc.id, date);
     ctx.b.post({ docType: "DR", postingDate: date, enteredBy: U.billing, reference, entryTime: bizTime(ctx) }, [

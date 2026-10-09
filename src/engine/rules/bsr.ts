@@ -29,7 +29,7 @@ function make(ruleId: string, l: LineItem, reason: string, facts: Record<string,
 export const BSR_RULES: RuleDefinition[] = [
   {
     id: "BSR-01", module: "balance-sheet-review", name: "Aged beyond review threshold",
-    scope: "Open items on open-item-managed accounts",
+    scope: "Open items on open-item-managed accounts, except retention (judged against its defect liability period, BSR-09)",
     logic: "Open longer than the review threshold",
     categories: "all", severity: "medium", candidateAction: "Follow up", enabledByDefault: true,
     params: [
@@ -214,7 +214,8 @@ const ONE_SIDED = new Set(BSR_RULES.find((r) => r.id === "BSR-11")!.categories a
 export const BSR_EVALUATORS: Record<string, Evaluator> = {
   "BSR-01": (ctx, p) =>
     ctx.open
-      .filter((l) => age(ctx, l) > p.ageDays && Math.abs(l.amount) >= p.minAmount)
+      // retention is held until the defect liability period ends, so its age alone is not a finding
+      .filter((l) => cat(ctx, l) !== "retention" && age(ctx, l) > p.ageDays && Math.abs(l.amount) >= p.minAmount)
       .map((l) => make("BSR-01", l, `Open ${age(ctx, l)} days since ${fmtDate(l.postingDate)}`, { ageDays: age(ctx, l) })),
 
   "BSR-02": (ctx, p) => {
