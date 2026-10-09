@@ -638,9 +638,43 @@ export interface Reconciliation {
   reply?: { balance: Amount; receivedAt: string; via: string };
 }
 
+/**
+ * One asset in the fixed asset register (the sub-ledger behind the fixed asset accounts), for the review
+ * period: cost and accumulated depreciation at the start, what the period added, and the facts a reviewer
+ * checks (title, use, physical verification). Amounts are positive; the register ties to the accounts.
+ */
+export interface FixedAsset {
+  id: string;
+  /** cost account */
+  gl: string;
+  /** accumulated depreciation or amortisation account; absent for land */
+  accDepGl?: string;
+  description: string;
+  site: string;
+  acquired: IsoDate;
+  usefulLifeYears?: number;
+  openingCost: Amount;
+  /** capitalised in the period */
+  additions: Amount;
+  /** the capitalisation posting, for an asset added in the period */
+  capitalisationKey?: string;
+  openingAccDep: Amount;
+  /** charge for the period */
+  depreciation: Amount;
+  /** what the cost is made of (price, stamp duty, registration, other) for immovable property */
+  costParts?: { label: string; amount: Amount }[];
+  title?: "In company name" | "Charge registered" | "Not in company name";
+  titleNote?: string;
+  usage: "In use" | "Idle" | "Partly let out";
+  usageSince?: IsoDate;
+  lastVerified: IsoDate;
+}
+
 export interface World {
   asOf: IsoDate;
   extractedAt: string;
+  /** the fixed asset register for the review period */
+  assets: FixedAsset[];
   businessUnits: BusinessUnit[];
   profitCentres: ProfitCentre[];
   projects: Project[];

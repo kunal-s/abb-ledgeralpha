@@ -19,6 +19,15 @@ import { postMigration, postMonthlyActivity, postSettlements } from "@/data/gene
 import { buildBankGuarantees, buildForwards, buildFxRates, buildGst, buildPurchaseOrders, buildTaxCredits } from "@/data/generator/reference";
 import { generateReconciliations } from "@/data/generator/recs";
 import { alignProjects } from "@/data/generator/projects";
+import { buildAssetRegister } from "@/data/generator/assets";
+import { monthEnd } from "@/lib/dates";
+
+/** The quarter end before a period end (the review period starts there). */
+function priorQuarterEnd(asOf: string): string {
+  const m = Number(asOf.slice(5, 7)) - 3;
+  const y = Number(asOf.slice(0, 4)) - (m <= 0 ? 1 : 0);
+  return monthEnd(`${y}-${String(m <= 0 ? m + 12 : m).padStart(2, "0")}-01`);
+}
 
 export function generateWorld(): World {
   const rng = makeRng(S.seed);
@@ -51,6 +60,7 @@ export function generateWorld(): World {
   return {
     asOf: S.asOf,
     extractedAt: S.extractedAt,
+    assets: buildAssetRegister({ lines, gls: glAccounts, asOf: S.asOf, prior: priorQuarterEnd(S.asOf), seed: S.seed + 17, fyStartMonth: TENANT.fiscalYear.startMonth }),
     businessUnits: [...TENANT.businessUnits, { id: S.corporateProfitCentre.businessUnitId, name: "Corporate" }],
     profitCentres: masters.profitCentres,
     projects: masters.projects,

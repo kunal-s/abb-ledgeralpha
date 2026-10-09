@@ -8,6 +8,8 @@ import { BalanceTrend, type TrendPoint } from "@/components/review/BalanceTrend"
 import { ItemsTable } from "@/components/review/ItemsTable";
 import { SignOffPanel } from "@/components/review/SignOffPanel";
 import { BulkButtons } from "@/components/review/BulkButtons";
+import { AssetRegister } from "@/components/review/AssetRegister";
+import { assetRows, registerTotals } from "@/engine/assets";
 import { BALANCES, GL_BY_ID, PERSON_BY_ID, WORLD } from "@/data";
 import { useReview, rowFor } from "@/state/ReviewContext";
 import { AGEING_POLICY } from "@/config/policies";
@@ -30,6 +32,12 @@ export function AccountScrutiny() {
 
   const account = gl ? GL_BY_ID.get(gl) : undefined;
   const rows = useMemo(() => (gl ? review.rows.filter((r) => r.item.gl === gl) : []), [review.rows, gl]);
+  // fixed asset accounts are read through the asset register behind them
+  const register = useMemo(() => {
+    if (!gl || account?.category !== "fixed-assets") return undefined;
+    const t = registerTotals(assetRows(gl, review.asOf));
+    return t.count ? t : undefined;
+  }, [gl, account, review.asOf]);
   const openRows = useMemo(() => rows.filter((r) => r.isOpen), [rows]);
 
   const buckets = useMemo<BreakdownBucket[]>(
@@ -121,6 +129,11 @@ export function AccountScrutiny() {
             <KpiTile label={`Older than ${AGEING_POLICY.reviewThresholdDays} days`} value={fmtINRCompact(s.overAmount)} sublabel={`${fmtInt(s.overCount)} of ${fmtInt(s.openCount)} open items`} accent={s.overCount ? "warn" : "none"} />
             <KpiTile label="Items flagged" value={fmtInt(flagged.length)} sublabel={fmtINRCompact(flagged.reduce((t, r) => t + Math.abs(r.item.amount), 0))} accent={flagged.length ? "danger" : "none"} />
           </>
+        ) : register ? (
+          <>
+            <KpiTile label="Assets" hint="Assets in the fixed asset register behind this account" value={fmtInt(register.count)} sublabel={`Net book value ${fmtINRCompact(register.nbv)}`} />
+            <KpiTile label="Review risk" hint="Assets by their most serious review check: title, use, physical verification, useful life" value={`${fmtInt(register.byRisk.High)} high`} sublabel={`${fmtInt(register.byRisk.Medium)} medium · ${fmtInt(register.byRisk.Low)} low`} accent={register.byRisk.High ? "danger" : register.byRisk.Medium ? "warn" : "none"} />
+          </>
         ) : (
           <>
             <KpiTile label="Postings this period" value={fmtInt(postings.length)} sublabel={`since ${fmtDate(review.priorDate)}`} />
@@ -140,6 +153,9 @@ export function AccountScrutiny() {
         </Panel>
       )}
 
+      {register ? (
+        <AssetRegister gl={account.gl} priorDate={review.priorDate} asOf={review.asOf} />
+      ) : (
       <Panel
         title={account.openItemManaged ? "Items" : "Postings in the review period"}
         bodyClassName="p-0"
@@ -172,6 +188,7 @@ export function AccountScrutiny() {
           empty={show === "flagged" && account.openItemManaged ? "No flagged items" : "No items"}
         />
       </Panel>
+      )}
 
       <SignOffPanel key={`${acct.summary.gl.gl}-${acct.status}`} acct={acct} review={review} rows={rows} />
     </div>

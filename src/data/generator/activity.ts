@@ -40,10 +40,12 @@ export function postMigration(ctx: Ctx): void {
     [
       ["110100", j(cr(48.17))], ["110200", j(cr(620.4))], ["110300", j(cr(1450.9))], ["110400", j(cr(60.3))],
       ["110500", j(cr(18.2))], ["110600", j(cr(140.6))], ["119200", j(-cr(210.5))], ["119300", j(-cr(780.8))],
-      ["119600", j(-cr(110.1))], ["125100", j(cr(85.4))], ["130100", j(cr(820.7))], ["130200", j(cr(410.2))],
+      ["119600", j(-cr(58.4))], ["125100", j(cr(85.4))], ["130100", j(cr(820.7))], ["130200", j(cr(410.2))],
       ["130300", j(cr(350.9))], ["130400", j(cr(90.3))], ["181100", j(cr(1850.6))], ["181200", j(cr(900.2))],
       ["181300", j(cr(650.8))], ["181400", j(cr(120.4))], ["182100", 12_40_310], ["231400", j(-cr(160.2))],
       ["231500", j(-cr(95.6))], ["310100", -42_38_09_000], ["320200", j(-cr(1100.3))],
+      // fixed amounts, so adding them leaves the random stream (and every document after it) as it was
+      ["119400", -27_48_57_310], ["119500", -7_63_16_420], ["125900", -42_06_31_540],
     ] as [string, number][]
   ).map(([gl, amount]) => ({ gl, amount, pc: CORP }));
   const plug = -legs.reduce((s, l) => s + l.amount, 0);
@@ -159,12 +161,17 @@ export function postMonthlyActivity(ctx: Ctx): void {
 
       // Depreciation
       const D = Math.round(R * 0.017);
-      const dParts = split(D, [0.7, 0.18, 0.12]);
+      // every depreciable class, in proportion to its cost over its useful life: plant (15 years),
+      // buildings (30), IT (5), furniture (10), vehicles (8), software amortisation (6)
+      const dParts = split(D, [0.574, 0.122, 0.167, 0.036, 0.014, 0.087]);
       b.post({ docType: "AF", postingDate: e, enteredBy: U.assets, text: "Depreciation run", entryTime: "01:30" }, [
         { gl: "540100", amount: D, pc: pc.id },
         { gl: "119300", amount: -dParts[0], pc: pc.id },
         { gl: "119200", amount: -dParts[1], pc: pc.id },
         { gl: "119600", amount: -dParts[2], pc: pc.id },
+        { gl: "119400", amount: -dParts[3], pc: pc.id },
+        { gl: "119500", amount: -dParts[4], pc: pc.id },
+        { gl: "125900", amount: -dParts[5], pc: pc.id },
       ]);
 
       // Warranty provision (monthly) and utilisation (quarter-end)

@@ -57,10 +57,13 @@ const ROWS: Row[] = [
   ["110600", "Computers and IT equipment", "fixed-assets"],
   ["119200", "Accumulated depreciation - Buildings", "fixed-assets", CONTRA],
   ["119300", "Accumulated depreciation - Plant and machinery", "fixed-assets", CONTRA],
+  ["119400", "Accumulated depreciation - Furniture and fixtures", "fixed-assets", CONTRA],
+  ["119500", "Accumulated depreciation - Vehicles", "fixed-assets", CONTRA],
   ["119600", "Accumulated depreciation - IT equipment", "fixed-assets", CONTRA],
   ["120100", "Capital work in progress - Buildings", "cwip"],
   ["120200", "Capital work in progress - Plant and machinery", "cwip"],
   ["125100", "Software", "fixed-assets", { statementLine: "Other intangible assets" }],
+  ["125900", "Accumulated amortisation - Software", "fixed-assets", { statementLine: "Other intangible assets", normalBalance: "Cr" }],
   // Inventories
   ["130100", "Raw materials and components", "inventory"],
   ["130200", "Work in progress", "inventory"],
