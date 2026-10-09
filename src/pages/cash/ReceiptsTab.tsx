@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SortHead, nextSort, parseSort } from "@/components/ui/sort-head";
 import { AGE_BUCKETS, CASH_GROUPS, bucketOfAge, groupOfStatus } from "@/pages/cash/OverviewTab";
 import { useCashApp } from "@/state/cashAppHooks";
 import { useWorkflow } from "@/state/workflow";
@@ -19,6 +20,10 @@ import { fmtINR, fmtINRCompact, fmtInt } from "@/lib/format";
 import { toast } from "@/lib/toast";
 
 const LEVELS: MatchLevel[] = ["L1", "L2", "L3", "L4"];
+const SORT_KEYS = ["age", "amount", "status"] as const;
+type SortKey = (typeof SORT_KEYS)[number];
+/** status order follows the work: ready first, then to review, in approval, applied, parked, no match */
+const statusRank = (s: Parameters<typeof groupOfStatus>[0]) => CASH_GROUPS.findIndex((g) => g.key === groupOfStatus(s));
 
 export function ReceiptsTab() {
   const { rows } = useCashApp();
@@ -31,18 +36,22 @@ export function ReceiptsTab() {
   const age = params.get("cage") ?? "all";
   const q = params.get("cq") ?? "";
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const sort = parseSort(params.get("csort"), SORT_KEYS);
+  const onSort = (k: SortKey) => setParams({ csort: nextSort(sort, k) });
 
-  const shown = useMemo(
-    () =>
-      rows.filter(
-        (r) =>
-          (status === "all" || groupOfStatus(r.status) === status) &&
-          (level === "all" || (level === "none" ? !r.best : r.best?.level === level)) &&
-          (age === "all" || bucketOfAge(r.age) === age) &&
-          (!q || `${r.receipt.narration} ${r.receipt.utr ?? ""} ${r.customerName ?? ""}`.toLowerCase().includes(q.toLowerCase()))
-      ),
-    [rows, status, level, age, q]
-  );
+  const shown = useMemo(() => {
+    const list = rows.filter(
+      (r) =>
+        (status === "all" || groupOfStatus(r.status) === status) &&
+        (level === "all" || (level === "none" ? !r.best : r.best?.level === level)) &&
+        (age === "all" || bucketOfAge(r.age) === age) &&
+        (!q || `${r.receipt.narration} ${r.receipt.utr ?? ""} ${r.customerName ?? ""}`.toLowerCase().includes(q.toLowerCase()))
+    );
+    if (!sort.k) return list;
+    const dir = sort.desc ? -1 : 1;
+    const value = (r: (typeof list)[number]) => (sort.k === "age" ? r.age : sort.k === "amount" ? Math.abs(r.receipt.amount) : statusRank(r.status));
+    return [...list].sort((a, b) => dir * (value(a) - value(b)) || b.age - a.age);
+  }, [rows, status, level, age, q, sort.k, sort.desc]);
   const ready = rows.filter((r) => r.status === "ready");
   const chosen = shown.filter((r) => selected.has(r.key));
   const canPropose = can(role, "propose");
@@ -142,11 +151,11 @@ export function ReceiptsTab() {
                 onChange={(e) => setSelected(e.target.checked ? new Set(shown.slice(0, 100).map((r) => r.key)) : new Set())}
               />
             </TableHead>
-            <TableHead>Receipt</TableHead>
+            <SortHead label="Receipt · age" k="age" sort={sort.k} desc={sort.desc} onSort={onSort} />
             <TableHead>Customer</TableHead>
-            <TableHead className="text-right">Amount</TableHead>
+            <SortHead label="Amount" k="amount" sort={sort.k} desc={sort.desc} onSort={onSort} className="text-right" />
             <TableHead>Match</TableHead>
-            <TableHead>Status</TableHead>
+            <SortHead label="Status" k="status" sort={sort.k} desc={sort.desc} onSort={onSort} />
           </TableRow>
         </TableHeader>
         <TableBody>

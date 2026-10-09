@@ -36,23 +36,6 @@ function movementLine(rows: Rollforward["additions"]): string {
   return rows.slice(0, 2).map((r) => `${r.label} ${fmtInt(r.count)}`).join(" · ");
 }
 
-/** When the stage waits on someone else, say who, and let the presenter act as them. */
-function Handoff({ stage }: { stage: ItemStage }) {
-  const role = useRoleStore((s) => s.role);
-  const setRole = useRoleStore((s) => s.setRole);
-  if (!stage.role || !stage.personId || role === stage.role || (stage.state !== "current" && stage.state !== "optional")) return null;
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-warn-subtle/60 px-4 py-2 text-xs text-warn-foreground">
-      <span>
-        This step is with <span className="font-medium">{nameOf(stage.personId)}</span> ({ROLES[stage.role].label}). You are acting as {ROLES[role].label}.
-      </span>
-      <Button size="sm" variant="outline" className="h-7 bg-card" onClick={() => setRole(stage.role!)}>
-        Act as {nameOf(stage.personId)}
-      </Button>
-    </div>
-  );
-}
-
 function DataIn({ row }: { row: ItemRow }) {
   const it = row.item;
   const line = DATASETS.find((d) => d.sourceSystem === it.sourceSystem && (d.id === "acdoca" || d.id === "legacy-items"));
@@ -265,7 +248,6 @@ export function ItemDetail() {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
         <div className="min-w-0 space-y-4">
           <Panel title={`${selected.label} · ${selected.who || selected.detail}`} bodyClassName="p-0 [&>section:first-of-type]:border-t-0">
-            <Handoff stage={selected} />
             <StageWork id={selected.id} row={row} stage={selected} review={review} onAsk={() => setChosen("evidence")} />
           </Panel>
           {selected.id === "account" && acct && <SignOffPanel key={`${gl.gl}-${acct.status}`} acct={acct} review={review} rows={review.rows.filter((r) => r.item.gl === gl.gl)} />}

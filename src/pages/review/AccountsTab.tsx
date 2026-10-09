@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { SortHead, nextSort, parseSort } from "@/components/ui/sort-head";
 import { StatusBars, STATUS_GROUPS } from "@/components/review/StatusBars";
 import { PERSON_BY_ID } from "@/data";
 import { useReview } from "@/state/ReviewContext";
+import type { AccountRow } from "@/state/hooks";
 import { useQueryParams } from "@/lib/useQueryParams";
 import { CATEGORY_LABELS } from "@/lib/labels";
 import { downloadCsv } from "@/lib/exportCsv";
@@ -16,6 +18,18 @@ import { fmtDrCr, fmtINRCompact, fmtInt } from "@/lib/format";
 import type { AccountCategory, RiskTier } from "@/types";
 
 const SEVERITY = { High: "high", Medium: "medium", Low: "low" } as const;
+
+const SORT_KEYS = ["risk", "balance", "older", "flagged", "status"] as const;
+type SortKey = (typeof SORT_KEYS)[number];
+const RISK_RANK: Record<RiskTier, number> = { High: 3, Medium: 2, Low: 1 };
+const STATUS_RANK: Record<string, number> = { "not-started": 1, "in-review": 2, reopened: 2, "ready-for-signoff": 3, "preparer-signed": 4, "reviewer-signed": 5 };
+const SORT_VALUE: Record<SortKey, (a: AccountRow) => number> = {
+  risk: (a) => RISK_RANK[a.summary.gl.riskTier],
+  balance: (a) => Math.abs(a.summary.closing),
+  older: (a) => a.summary.overAmount,
+  flagged: (a) => a.flaggedCount,
+  status: (a) => STATUS_RANK[a.status] ?? 0,
+};
 
 export function AccountsTab() {
   const review = useReview();
@@ -26,18 +40,23 @@ export function AccountsTab() {
   const group = params.get("astatus") ?? "all";
   const q = params.get("aq") ?? "";
 
+  const sort = parseSort(params.get("asort"), SORT_KEYS);
+  const onSort = (k: SortKey) => setParams({ asort: nextSort(sort, k) });
+
   const statusOf = (s: string) => STATUS_GROUPS.find((g) => g.statuses.includes(s as never))?.key ?? "not-started";
-  const rows = useMemo(
-    () =>
-      review.accounts.filter(
-        (a) =>
-          (category === "all" || a.summary.gl.category === category) &&
-          (risk === "all" || a.summary.gl.riskTier === risk) &&
-          (group === "all" || statusOf(a.status) === group) &&
-          (!q || a.summary.gl.gl.includes(q) || a.summary.gl.description.toLowerCase().includes(q.toLowerCase()))
-      ),
-    [review.accounts, category, risk, group, q]
-  );
+  const rows = useMemo(() => {
+    const list = review.accounts.filter(
+      (a) =>
+        (category === "all" || a.summary.gl.category === category) &&
+        (risk === "all" || a.summary.gl.riskTier === risk) &&
+        (group === "all" || statusOf(a.status) === group) &&
+        (!q || a.summary.gl.gl.includes(q) || a.summary.gl.description.toLowerCase().includes(q.toLowerCase()))
+    );
+    if (!sort.k) return list;
+    const value = SORT_VALUE[sort.k];
+    const dir = sort.desc ? -1 : 1;
+    return [...list].sort((a, b) => dir * (value(a) - value(b)) || a.summary.gl.gl.localeCompare(b.summary.gl.gl));
+  }, [review.accounts, category, risk, group, q, sort.k, sort.desc]);
 
   const chart = useMemo(() => {
     const data: Record<RiskTier, Record<string, number>> = { High: {}, Medium: {}, Low: {} };
@@ -122,11 +141,11 @@ export function AccountsTab() {
               <TableHead>Account</TableHead>
               <TableHead>Statement line</TableHead>
               <TableHead>Owner</TableHead>
-              <TableHead>Risk</TableHead>
-              <TableHead className="text-right">Balance</TableHead>
-              <TableHead className="text-right">Older than threshold</TableHead>
-              <TableHead className="text-right">Flagged</TableHead>
-              <TableHead>Status</TableHead>
+              <SortHead label="Risk" k="risk" sort={sort.k} desc={sort.desc} onSort={onSort} />
+              <SortHead label="Balance" k="balance" sort={sort.k} desc={sort.desc} onSort={onSort} className="text-right" />
+              <SortHead label="Older than threshold" k="older" sort={sort.k} desc={sort.desc} onSort={onSort} className="text-right" />
+              <SortHead label="Flagged" k="flagged" sort={sort.k} desc={sort.desc} onSort={onSort} className="text-right" />
+              <SortHead label="Status" k="status" sort={sort.k} desc={sort.desc} onSort={onSort} />
             </TableRow>
           </TableHeader>
           <TableBody>

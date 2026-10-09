@@ -155,6 +155,11 @@ export function Decision({ row, onAsk }: { row: ItemRow; onAsk?: () => void }) {
           Propose {action.toLowerCase()}
         </Button>
       </div>
+      {!can(role, "propose") && (
+        <div className="text-xs text-muted-foreground">
+          Proposed by the account owner, {PERSON_BY_ID.get(GL_BY_ID.get(row.item.gl)!.ownerId)?.name}. You are acting as {ROLES[role].label}.
+        </div>
+      )}
     </div>
   );
 
