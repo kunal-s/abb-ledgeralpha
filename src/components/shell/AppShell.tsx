@@ -1,4 +1,5 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Sidebar } from "@/components/shell/Sidebar";
 import { TopBar } from "@/components/shell/TopBar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -6,11 +7,17 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/Toaster";
 import { ItemDrawer } from "@/components/review/ItemDrawer";
 import { ReviewProvider } from "@/state/ReviewContext";
+import { setItemNavigator } from "@/state/drawer";
 import { StoryBar } from "@/components/shell/StoryBar";
 import { TruncationTooltip } from "@/components/shell/TruncationTooltip";
 
 export function AppShell() {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    setItemNavigator((to) => navigate(to));
+    return () => setItemNavigator(undefined);
+  }, [navigate]);
   return (
     <TooltipProvider delayDuration={150}>
       <ReviewProvider>

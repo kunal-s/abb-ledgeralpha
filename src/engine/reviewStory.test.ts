@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { GL_BY_ID, WORLD } from "@/data";
+import { GL_BY_ID, PERSON_BY_ID, WORLD } from "@/data";
 import { APPROVAL_BANDS, ESCALATION_POLICY, bandFor, escalatedBandFor } from "@/config/policies";
-import { actionMix, draftPortfolioCommentary, focusAreas, itemTimeline, portfolioFacts, staleBalances, FOCUS_CATEGORIES, STALE_DAYS } from "@/engine/reviewStory";
+import { actionMix, currentStage, draftPortfolioCommentary, focusAreas, itemStages, itemTimeline, portfolioFacts, staleBalances, FOCUS_CATEGORIES, STALE_DAYS } from "@/engine/reviewStory";
 import { fmtINRCompact } from "@/lib/format";
 import { modelsAt } from "@/test/models";
 import { useRoleStore } from "@/lib/stores";
@@ -84,6 +84,69 @@ describe("Escalate", () => {
     expect(d.approvalBandId).toBe(escalatedBandFor(r.item.amount).id);
     expect(d.approvalBandId).not.toBe(bandFor(r.item.amount).id);
     expect(d.taxReviewRequired).toBe(false);
+  });
+});
+
+describe("item process", () => {
+  const s01 = () => WORLD.anchors["S-01"][0];
+  const stagesOf = (key: string) => {
+    const m = modelsAt().review;
+    const row = m.rows.find((r) => r.key === key)!;
+    const acct = m.accountByGl.get(row.item.gl);
+    return itemStages({ row, accountStatus: acct?.status, signOff: acct?.signOff, extractedAt: WORLD.extractedAt });
+  };
+  const at = (key: string, id: string) => stagesOf(key).find((s) => s.id === id)!;
+  beforeEach(() => {
+    useWorkflow.getState().resetDemo();
+    useRoleStore.setState({ role: "controller" });
+  });
+
+  it("opens a flagged item at the decision, held by the account owner, with the band's checkers next", () => {
+    const st = stagesOf(s01());
+    expect(st.map((s) => s.id)).toEqual(["source", "flagged", "evidence", "propose", "approve", "post", "account"]);
+    expect(st[0].state).toBe("done");
+    expect(st[1].state).toBe("done");
+    expect(at(s01(), "evidence").state).toBe("optional");
+    expect(currentStage(st).id).toBe("propose");
+    expect(currentStage(st).who).toBe(PERSON_BY_ID.get(GL_BY_ID.get("211300")!.ownerId)!.name);
+    expect(at(s01(), "approve").who).toBe("Financial Controller, then Head of Finance");
+    expect(at(s01(), "approve").detail).toBe("Band B2, tax review");
+  });
+
+  it("moves from the maker to each checker in turn, then to posting", () => {
+    const key = s01();
+    const row = modelsAt().review.rows.find((r) => r.key === key)!;
+    useRoleStore.setState({ role: "gl-accountant" });
+    expect(useWorkflow.getState().proposeDecision({ itemKey: key, module: "balance-sheet-review", action: "Write back", amount: row.item.amount, justification: "PO closed, vendor inactive, no invoice will come", recommendation: row.rec, hits: row.hits, rulesVersion: "t" }).ok).toBe(true);
+    expect(at(key, "evidence").state).toBe("skipped");
+    expect(currentStage(stagesOf(key)).id).toBe("approve");
+    expect(currentStage(stagesOf(key)).who).toContain("Meera Iyer");
+    const id = Object.values(useWorkflow.getState().decisions).find((d) => d.itemKey === key)!.id;
+    useRoleStore.setState({ role: "controller" });
+    expect(useWorkflow.getState().approveDecision(id).ok).toBe(true);
+    expect(currentStage(stagesOf(key)).who).toContain("Sanjay Raghavan");
+    useRoleStore.setState({ role: "head-of-finance" });
+    expect(useWorkflow.getState().approveDecision(id).ok).toBe(true);
+    expect(currentStage(stagesOf(key)).who).toContain("Lakshmi Subramanian");
+    useRoleStore.setState({ role: "tax-specialist" });
+    expect(useWorkflow.getState().taxReview(id, "cleared").ok).toBe(true);
+    expect(at(key, "approve").state).toBe("done");
+    expect(at(key, "approve").who).toBe("Lakshmi Subramanian");
+    expect(currentStage(stagesOf(key)).id).toBe("post");
+    expect(at(key, "post").detail).toBe("Export to the proposal file");
+  });
+
+  it("asks for evidence first when the recommendation is to follow up", () => {
+    const r = modelsAt().review.rows.find((x) => x.flagged && x.isOpen && x.rec?.action === "Follow up" && !x.followUp && !x.decision)!;
+    const st = stagesOf(r.key);
+    expect(currentStage(st).id).toBe("evidence");
+    expect(st.find((s) => s.id === "propose")!.state).toBe("upcoming");
+  });
+
+  it("leaves nothing to do for an item within policy", () => {
+    const r = modelsAt().review.rows.find((x) => !x.flagged && x.isOpen)!;
+    const st = stagesOf(r.key);
+    expect(st.filter((s) => ["evidence", "propose", "approve", "post"].includes(s.id)).every((s) => s.state === "skipped")).toBe(true);
   });
 });
 

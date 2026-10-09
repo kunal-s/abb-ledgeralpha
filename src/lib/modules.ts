@@ -128,6 +128,7 @@ export interface DetailRouteDef {
 
 export const DETAIL_ROUTES: DetailRouteDef[] = [
   { path: "/balance-sheet-review/:gl", moduleId: "balance-sheet-review", title: "Account" },
+  { path: "/balance-sheet-review/item/:key", moduleId: "balance-sheet-review", title: "Item" },
   { path: "/reconciliations/:id", moduleId: "reconciliations", title: "Reconciliation" },
   { path: "/cash-application/:id", moduleId: "cash-application", title: "Receipt" },
   { path: "/journals/:id", moduleId: "journals", title: "Journal" },

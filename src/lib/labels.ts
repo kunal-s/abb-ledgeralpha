@@ -30,4 +30,10 @@ export const CATEGORY_LABELS: Record<AccountCategory, string> = {
   pl: "Profit and loss",
 };
 
-export const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+/** What a document is, by its ERP document type. */
+export const DOC_TYPE_LABELS: Record<string, string> = {
+  WE: "Goods receipt", RE: "Invoice receipt", KR: "Vendor invoice", KZ: "Vendor payment", KA: "Vendor document", KG: "Vendor credit note",
+  DR: "Customer invoice", DZ: "Customer receipt", DG: "Customer credit note", SA: "Journal", AB: "Clearing document", AF: "Asset posting", ZP: "Payment",
+};
+
+export const MONTH_NAMES =["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];

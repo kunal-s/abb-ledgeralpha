@@ -10,6 +10,7 @@ import { RulesPolicies } from "@/pages/RulesPolicies";
 import { ActivityLog } from "@/pages/ActivityLog";
 import { BalanceSheetReview } from "@/pages/BalanceSheetReview";
 import { AccountScrutiny } from "@/pages/AccountScrutiny";
+import { ItemDetail } from "@/pages/ItemDetail";
 import { Reconciliations } from "@/pages/Reconciliations";
 import { ReconciliationDetail } from "@/pages/ReconciliationDetail";
 import { CashApplication } from "@/pages/CashApplication";
@@ -43,6 +44,7 @@ const BUILT: Record<string, ReactNode> = {
   "/activity": <ActivityLog />,
   "/balance-sheet-review": <BalanceSheetReview />,
   "/balance-sheet-review/:gl": <AccountScrutiny />,
+  "/balance-sheet-review/item/:key": <ItemDetail />,
   "/reconciliations": <Reconciliations />,
   "/reconciliations/:id": <ReconciliationDetail />,
   "/cash-application": <CashApplication />,

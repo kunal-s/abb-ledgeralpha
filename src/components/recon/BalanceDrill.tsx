@@ -70,9 +70,26 @@ function SubLedger({ rec }: { rec: Reconciliation }) {
   );
 }
 
-/** A supporting schedule's account rolled forward: opening balance, the period's postings, closing balance. */
+/** A supporting schedule's account rolled forward: opening balance, additions, reductions, closing balance. */
 function Rollforward({ rec }: { rec: Reconciliation }) {
-  const f = rollforward(rec.gl!, previousQuarterEnd(WORLD.asOf));
+  const prior = previousQuarterEnd(WORLD.asOf);
+  const f = rollforward(rec.gl!, prior);
+  const group = (title: string, rows: typeof f.additions, total: number) => (
+    <>
+      <TableRow className="bg-secondary/40">
+        <TableCell className="text-xs font-medium text-muted-foreground">{title}</TableCell>
+        <TableCell />
+        <TableCell className="text-right tnum text-xs font-medium text-muted-foreground">{rows.length ? fmtDrCr(total, true) : "Nil"}</TableCell>
+      </TableRow>
+      {rows.map((l) => (
+        <TableRow key={`${title}-${l.key}`}>
+          <TableCell className="pl-8">{l.label}</TableCell>
+          <TableCell className="text-right tnum">{fmtInt(l.count)}</TableCell>
+          <TableCell className="text-right tnum">{fmtDrCr(l.amount, true)}</TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
   return (
     <Panel title="Roll-forward of the account" bodyClassName="p-0">
       <Table>
@@ -80,25 +97,18 @@ function Rollforward({ rec }: { rec: Reconciliation }) {
           <TableRow>
             <TableHead>Movement</TableHead>
             <TableHead className="text-right">Postings</TableHead>
-            <TableHead className="text-right">Debits</TableHead>
-            <TableHead className="text-right">Credits</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           <TableRow className="font-medium">
-            <TableCell colSpan={3}>Opening balance</TableCell>
+            <TableCell colSpan={2}>Opening balance at {fmtDate(prior)}</TableCell>
             <TableCell className="text-right tnum">{fmtDrCr(f.opening, true)}</TableCell>
           </TableRow>
-          {f.lines.map((l) => (
-            <TableRow key={l.key}>
-              <TableCell>{l.label}</TableCell>
-              <TableCell className="text-right tnum">{fmtInt(l.count)}</TableCell>
-              <TableCell className="text-right tnum">{l.debit ? fmtDrCr(l.debit, true) : "-"}</TableCell>
-              <TableCell className="text-right tnum">{l.credit ? fmtDrCr(-l.credit, true) : "-"}</TableCell>
-            </TableRow>
-          ))}
+          {group("Additions", f.additions, f.added)}
+          {group("Reductions", f.reductions, f.reduced)}
           <TableRow className="border-t-2 border-border font-medium">
-            <TableCell colSpan={3}>Closing balance per books</TableCell>
+            <TableCell colSpan={2}>Closing balance per books at {fmtDate(WORLD.asOf)}</TableCell>
             <TableCell className="text-right tnum">{fmtDrCr(f.closing, true)}</TableCell>
           </TableRow>
         </TableBody>

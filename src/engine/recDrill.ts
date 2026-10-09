@@ -1,9 +1,9 @@
-// What stands behind a reconciliation's balances, read straight from the ledger
-// (docs/FRD.md §6.7, D-50): the sub-ledger as open items by business partner,
-// and a supporting schedule's roll-forward from the opening balance.
+// What stands behind a balance, read straight from the ledger (docs/FRD.md §6.7,
+// D-50): the sub-ledger as open items by business partner, and an account's
+// roll-forward from the opening balance (also read by the review's item screen).
 
-import type { IsoDate } from "@/types";
-import { PARTY_BY_ID, WORLD, isOpenAt } from "@/data";
+import type { IsoDate, LineItem } from "@/types";
+import { GL_BY_ID, PARTY_BY_ID, WORLD, isOpenAt } from "@/data";
 import { daysBetween } from "@/lib/dates";
 
 export interface PartnerBalance {
@@ -49,41 +49,69 @@ export function subLedgerByPartner(gl: string, asOf: IsoDate = WORLD.asOf): SubL
 export interface RollforwardLine {
   key: string;
   label: string;
-  debit: number;
-  credit: number;
+  /** signed as the ledger holds it (debit positive) */
+  amount: number;
   count: number;
 }
 
+/**
+ * Opening balance, what was added, what was taken out, closing balance. "Added" means
+ * postings that move the account further in the direction of its balance (credits on a
+ * credit balance), so a reader sees additions and reductions the way a schedule shows them.
+ */
 export interface Rollforward {
   opening: number;
-  lines: RollforwardLine[];
+  additions: RollforwardLine[];
+  reductions: RollforwardLine[];
+  /** totals, signed as the ledger holds them */
+  added: number;
+  reduced: number;
   closing: number;
+  /** the side the balance sits on, which decides what counts as an addition */
+  side: "Dr" | "Cr";
 }
 
 const DOC_LABEL: Record<string, string> = {
   SA: "Journals", KR: "Vendor invoices", KZ: "Vendor payments", KA: "Vendor documents", DR: "Customer invoices", DZ: "Customer receipts",
-  WE: "Goods receipts", RE: "Invoice receipts", AB: "Clearing and reversals",
+  WE: "Goods receipts", RE: "Invoice receipts", AB: "Clearing and adjustments", ZP: "Payments", DG: "Customer credit notes", KG: "Vendor credit notes",
 };
 
-/** Opening balance plus the period's postings by document type equals the closing balance. */
-export function rollforward(gl: string, priorDate: IsoDate, asOf: IsoDate = WORLD.asOf): Rollforward {
+/** A movement's name as a schedule would show it. */
+function movementOf(l: LineItem): { key: string; label: string } {
+  if (/^reversal\b/i.test(l.text ?? "")) return { key: "reversal", label: "Reversals" };
+  if (l.docType === "AF") return /^depreciation\b/i.test(l.text ?? "") ? { key: "depreciation", label: "Depreciation" } : { key: "capitalisation", label: "Capitalisation" };
+  if (l.manual) return { key: "manual", label: "Manual journals" };
+  return { key: l.docType, label: DOC_LABEL[l.docType] ?? `Document type ${l.docType}` };
+}
+
+/** Opening balance plus additions less reductions equals the closing balance, for one account over (prior, asOf]. */
+export function rollforward(gl: string, priorDate: IsoDate, asOf: IsoDate = WORLD.asOf, include: (l: LineItem) => boolean = () => true): Rollforward {
   let opening = 0;
-  const by = new Map<string, RollforwardLine>();
+  let closing = 0;
+  const moves: { line: LineItem; key: string; label: string }[] = [];
   for (const l of WORLD.lines) {
-    if (l.gl !== gl || l.postingDate > asOf) continue;
-    if (l.postingDate <= priorDate) {
-      opening += l.amount;
-      continue;
-    }
-    const key = l.manual ? "manual" : l.docType;
-    const row = by.get(key) ?? { key, label: l.manual ? "Manual journals" : (DOC_LABEL[l.docType] ?? `Document type ${l.docType}`), debit: 0, credit: 0, count: 0 };
-    if (l.amount >= 0) row.debit += l.amount;
-    else row.credit += -l.amount;
-    row.count += 1;
-    by.set(key, row);
+    if (l.gl !== gl || l.postingDate > asOf || !include(l)) continue;
+    closing += l.amount;
+    if (l.postingDate <= priorDate) opening += l.amount;
+    else moves.push({ line: l, ...movementOf(l) });
   }
-  const lines = [...by.values()].sort((a, b) => b.debit + b.credit - (a.debit + a.credit));
-  return { opening, lines, closing: opening + lines.reduce((s, r) => s + r.debit - r.credit, 0) };
+  const anchor = closing !== 0 ? closing : opening !== 0 ? opening : GL_BY_ID.get(gl)?.normalBalance === "Cr" ? -1 : 1;
+  const side = anchor < 0 ? "Cr" : "Dr";
+  const additions = new Map<string, RollforwardLine>();
+  const reductions = new Map<string, RollforwardLine>();
+  for (const m of moves) {
+    const adds = side === "Cr" ? m.line.amount < 0 : m.line.amount >= 0;
+    const into = adds ? additions : reductions;
+    const row = into.get(m.key) ?? { key: m.key, label: m.label, amount: 0, count: 0 };
+    row.amount += m.line.amount;
+    row.count += 1;
+    into.set(m.key, row);
+  }
+  const sorted = (rows: Map<string, RollforwardLine>) => [...rows.values()].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  const sum = (rows: RollforwardLine[]) => rows.reduce((s, r) => s + r.amount, 0);
+  const add = sorted(additions);
+  const red = sorted(reductions);
+  return { opening, additions: add, reductions: red, added: sum(add), reduced: sum(red), closing, side };
 }
 
 export interface PoBalance {

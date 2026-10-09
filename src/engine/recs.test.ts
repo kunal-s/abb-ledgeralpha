@@ -362,7 +362,28 @@ describe("what stands behind the balances", () => {
     for (const r of schedules) {
       const f = rollforward(r.gl!, previousQuarterEnd(WORLD.asOf));
       expect(f.closing).toBeCloseTo(r.booksBalance, 2);
+      expect(f.opening + f.added + f.reduced).toBeCloseTo(f.closing, 2);
     }
+  });
+
+  it("rolls every balance sheet account forward: additions move the balance away from nil, reductions towards it", () => {
+    const prior = previousQuarterEnd(WORLD.asOf);
+    for (const g of WORLD.glAccounts.filter((x) => x.nature === "Asset" || x.nature === "Liability")) {
+      const f = rollforward(g.gl, prior);
+      const quarter = BALANCES.byGl.get(g.gl) ?? [];
+      expect(f.opening).toBeCloseTo(quarter.find((b) => b.periodEnd === prior)?.closing ?? 0, 2);
+      expect(f.closing).toBeCloseTo(quarter.find((b) => b.periodEnd === WORLD.asOf)?.closing ?? 0, 2);
+      expect(f.opening + f.added + f.reduced).toBeCloseTo(f.closing, 2);
+      const grow = f.side === "Cr" ? -1 : 1;
+      for (const a of f.additions) expect(a.amount * grow).toBeGreaterThanOrEqual(0);
+      for (const r of f.reductions) expect(r.amount * grow).toBeLessThan(0);
+    }
+  });
+
+  it("names depreciation and capitalisation apart, though both arrive as asset documents", () => {
+    const prior = previousQuarterEnd(WORLD.asOf);
+    expect(rollforward("119300", prior).additions.map((a) => a.label)).toContain("Depreciation");
+    expect(rollforward("120200", prior).reductions.map((a) => a.label)).toContain("Capitalisation");
   });
 });
 

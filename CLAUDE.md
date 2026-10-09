@@ -82,8 +82,9 @@ workspace (currently set up for an ABB India workshop, week of 12-Oct-2026).
 - Aggregates (heatmap, ledger scan, readiness, account status) are pure functions in `src/engine/review.ts`;
   commentary, follow-up drafts and journal proposals are in `src/engine/{commentary,followup,journals}.ts`.
   Keep new logic there with tests, and keep pages to formatting and drilling.
-- Any document reference opens the item drawer: use `<DocLink itemKey>` (`useItemDrawer`). The drawer is
-  non-modal on purpose - it must not block the top bar.
+- Any document reference goes through `<DocLink itemKey>` / `useItemDrawer().open`: a ledger line opens its
+  screen (`pages/ItemDetail`, D-66: roll-forward, process rail from `itemStages`, stage work, audit trail);
+  a reconciling item opens the non-modal drawer. The screen's parts are `components/review/itemParts.tsx`.
 - Filters live in the URL (`useQueryParams`); each tab uses its own param names.
 - Data generator: new categories need a "settled in the quarter" maker in `src/data/generator/settled.ts`
   or their quarterly movement will look wrong.
