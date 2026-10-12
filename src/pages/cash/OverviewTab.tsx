@@ -92,7 +92,7 @@ export function OverviewTab() {
   const go = (extra: Record<string, string | null>) => setParams({ tab: "receipts", cstatus: null, clevel: null, cage: null, ...extra }, { replace: false });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Receipts in clearing" value={fmtInt(rows.length)} sublabel={fmtINRCompact(stats.sum(rows))} onClick={() => go({})} />
         <KpiTile label="Ready to confirm" value={fmtInt(stats.by("ready").length)} sublabel={fmtINRCompact(stats.sum(stats.by("ready")))} accent="ok" onClick={() => go({ cstatus: "ready" })} />
@@ -119,8 +119,8 @@ export function OverviewTab() {
         </Panel>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="Unapplied credits by customer" className="xl:col-span-2" bodyClassName="p-0">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <Panel fit title="Unapplied credits by customer" bodyClassName="p-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -134,7 +134,7 @@ export function OverviewTab() {
                 <TableRow key={c.name}>
                   <TableCell className={c.name === "Not identified" ? "text-muted-foreground" : ""}>{c.name}</TableCell>
                   <TableCell className="text-right tnum">{fmtInt(c.count)}</TableCell>
-                  <TableCell className="text-right tnum">{fmtINRCompact(c.value)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-right tnum">{fmtINRCompact(c.value)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

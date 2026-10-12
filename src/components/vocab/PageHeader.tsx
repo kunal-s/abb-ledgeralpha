@@ -21,7 +21,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, breadcrumbs, badge, actions, className }: PageHeaderProps) {
   return (
-    <div className={cn("flex items-end justify-between gap-3 pb-5", className)}>
+    <div className={cn("flex items-end justify-between gap-3 pb-3", className)}>
       <div className="min-w-0">
         {breadcrumbs && breadcrumbs.length > 0 && (
           <nav className="mb-1 flex items-center gap-1 text-2xs text-muted-foreground">

@@ -59,7 +59,7 @@ export function KpiTile({
     <Card
       onClick={onClick}
       className={cn(
-        "kpi-tile relative overflow-hidden px-4 py-3.5",
+        "kpi-tile relative overflow-hidden px-3.5 py-2.5",
         onClick && "cursor-pointer transition-colors hover:border-primary/40 hover:bg-accent/40",
         className
       )}
@@ -79,7 +79,7 @@ export function KpiTile({
         </span>
         {icon && <span className="text-muted-foreground">{icon}</span>}
       </div>
-      <div className="mt-1.5 flex items-end justify-between gap-2">
+      <div className="mt-1 flex items-end justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-baseline gap-1">
             <span className="text-2xl font-medium tracking-tight tnum text-foreground">

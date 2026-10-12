@@ -21,7 +21,7 @@ export function PayableTab() {
   const shown = rows.filter((r) => r.month >= yearStart || r.outstanding > 0).slice(0, 60);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label="Deducted this tax year" value={fmtINRCompact(sum(thisYear, "deducted"))} sublabel={`since ${fmtMonth(`${yearStart}-01`)}`} />
         <KpiTile label="Deposited" value={fmtINRCompact(sum(thisYear, "deposited"))} sublabel="of this year's deductions" accent="ok" />

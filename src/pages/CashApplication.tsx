@@ -15,7 +15,7 @@ export function CashApplication() {
   const [params, setParams] = useQueryParams();
   const tab = TABS.some((t) => t.key === params.get("tab")) ? params.get("tab")! : "overview";
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Cash Application" />
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v === "overview" ? null : v }, { replace: false })}>
         <TabsList>

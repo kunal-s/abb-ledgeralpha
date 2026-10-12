@@ -48,7 +48,7 @@ export function StoryBar() {
   if (!thread || !current) return null;
   const last = step === thread.steps.length - 1;
   return (
-    <div className="pointer-events-none fixed bottom-5 left-60 z-[60] px-4">
+    <div className="pointer-events-none fixed bottom-5 left-60 z-20 px-4">
       <div className="anim-rise pointer-events-auto w-[560px] max-w-[calc(100vw-17rem)] rounded-md border border-border bg-card shadow-lg">
         <div className="flex items-center gap-1 px-4 pt-3">
           {thread.steps.map((s, i) => (

@@ -35,7 +35,7 @@ function Workspace() {
           ]}
         />
       </Panel>
-      <Panel title="Legal entities" bodyClassName="p-0">
+      <Panel title="Legal entities" className="self-start" bodyClassName="p-0">
         <Table>
           <TableHeader>
             <TableRow>
@@ -219,7 +219,7 @@ function Modules() {
 
 export function Settings() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Settings" actions={<ResetDemo />} />
       <Tabs defaultValue="workspace">
         <TabsList>

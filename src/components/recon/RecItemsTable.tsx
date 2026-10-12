@@ -38,7 +38,7 @@ export function RecItemsTable({ row, empty = "No reconciling items" }: { row: Re
       <TableBody>
         {row.view.items.length === 0 && (
           <TableRow>
-            <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+            <TableCell colSpan={5} className="py-5 text-center text-sm text-muted-foreground">
               {empty}
             </TableCell>
           </TableRow>
@@ -82,7 +82,7 @@ export function RecItemsTable({ row, empty = "No reconciling items" }: { row: Re
                 {i.cls && <div className="mt-0.5 text-2xs text-muted-foreground">{TREATMENT_LABELS[i.cls.treatment]}</div>}
               </TableCell>
               <TableCell className="py-2">
-                <StatusChip status={status} label={status === "flagged" ? "Needs action" : status === "within-policy" ? (i.cls ? "No action needed" : "Not classified") : undefined} />
+                <StatusChip status={status} label={status === "flagged" ? "Open" : status === "within-policy" ? (i.cls ? "No action needed" : "Not classified") : undefined} />
               </TableCell>
             </TableRow>
           );

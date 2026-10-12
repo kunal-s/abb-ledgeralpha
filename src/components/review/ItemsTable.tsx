@@ -116,7 +116,7 @@ export function ItemsTable({ rows, showAccount, bulk, pageSize = 25, empty = "No
         <TableBody>
           {visible.length === 0 && (
             <TableRow>
-              <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={9} className="py-5 text-center text-sm text-muted-foreground">
                 {empty}
               </TableCell>
             </TableRow>

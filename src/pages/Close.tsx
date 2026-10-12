@@ -35,7 +35,7 @@ export function Close() {
   // the plan is evaluated for the loaded period only
   if (periodEnd !== WORLD.asOf) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <PageHeader title="Close Cockpit" />
         <Card className="flex items-center justify-between gap-4 p-5 text-sm">
           <span>
@@ -54,7 +54,7 @@ export function Close() {
   const openTask = taskId && ev.byId.has(taskId) ? taskId : undefined;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title="Close Cockpit"
         badge={

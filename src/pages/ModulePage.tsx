@@ -21,7 +21,7 @@ export function ModulePage() {
   const paramValue = Object.values(params)[0];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title={detail ? `${detail.title} ${paramValue ?? ""}`.trim() : module.label}
         breadcrumbs={detail ? [{ label: module.label, to: module.path }, { label: paramValue ?? "" }] : undefined}

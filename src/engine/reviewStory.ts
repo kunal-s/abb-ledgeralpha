@@ -67,7 +67,7 @@ export interface ActionSlice {
 
 const ACTION_ORDER: (ActionKind | "No recommendation")[] = ["Write back", "Write off", "Provide", "Clear", "Reclassify", "Escalate", "Follow up", "No recommendation"];
 
-/** What the engine recommends across the flagged open items, by action. */
+/** Recommended actions across the flagged open items, by action. */
 export function actionMix(rows: ItemRow[]): ActionSlice[] {
   const map = new Map<ActionSlice["action"], ActionSlice>();
   for (const r of live(rows)) {

@@ -27,7 +27,7 @@ export function Reconciliations() {
   // reconciliations are prepared for the loaded period only
   if (periodEnd !== WORLD.asOf) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <PageHeader title="Reconciliations" />
         <Card className="flex items-center justify-between gap-4 p-5 text-sm">
           <span>Reconciliations are prepared for {fmtMonth(WORLD.asOf)}. The selected period is {fmtMonth(periodEnd)}.</span>
@@ -40,7 +40,7 @@ export function Reconciliations() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Reconciliations" />
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v === "overview" ? null : v }, { replace: false })}>
         <TabsList>

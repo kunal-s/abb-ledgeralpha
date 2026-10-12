@@ -226,7 +226,7 @@ export function RecItemBody({ recId, itemId }: { recId: string; itemId: string }
         <div className="mt-3 flex items-end justify-between gap-3">
           <div className="tnum text-2xl font-semibold tracking-tight">{fmtDrCr(item.amount)}</div>
           <div className="flex flex-wrap justify-end gap-1.5">
-            <StatusChip status={status} label={status === "flagged" ? "Needs action" : status === "within-policy" ? (item.cls ? "No action needed" : "Not classified") : undefined} />
+            <StatusChip status={status} label={status === "flagged" ? "Open" : status === "within-policy" ? (item.cls ? "No action needed" : "Not classified") : undefined} />
             <span className="rounded-md bg-secondary px-1.5 py-0.5 text-2xs font-medium">{item.side === "books" ? "In the books, not the source" : "In the source, not the books"}</span>
             <span className={aged ? "rounded-md bg-warn-subtle px-1.5 py-0.5 text-2xs font-medium text-warn-foreground" : "rounded-md bg-secondary px-1.5 py-0.5 text-2xs font-medium"}>
               {item.ageDays} days{aged ? ", aged" : ""}

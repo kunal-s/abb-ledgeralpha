@@ -71,7 +71,7 @@ export function OverviewTab() {
   const toReview = (extra: Record<string, string | null>) => setParams({ tab: "review", ...extra }, { replace: false });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Journals posted" value={fmtInt(rows.length)} sublabel={`${fmtInt(manual)} entered manually`} onClick={() => setParams({ tab: "register" }, { replace: false })} />
         <KpiTile label="Manual journal value" value={fmtINRCompact(stats.manualValue)} sublabel="total debits" />
@@ -93,9 +93,9 @@ export function OverviewTab() {
           />
         </Panel>
 
-        <Panel title="Needs review" bodyClassName="p-0">
+        <Panel fit title="Needs review" bodyClassName="p-0">
           {needs.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">No flagged journal is waiting</div>
+            <div className="px-4 py-5 text-center text-sm text-muted-foreground">No flagged journal is waiting</div>
           ) : (
             <ul className="divide-y divide-border/70">
               {needs.map((r: JournalRow) => (
@@ -152,7 +152,7 @@ export function OverviewTab() {
             })}
             {byPreparer.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={6} className="py-5 text-center text-sm text-muted-foreground">
                   No manual journals in the period
                 </TableCell>
               </TableRow>

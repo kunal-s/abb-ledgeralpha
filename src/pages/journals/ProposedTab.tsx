@@ -45,7 +45,7 @@ export function ProposedTab() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <DecisionQueue title="Journal proposals from all modules" sourceLabel="From" itemLabel="Entry" entries={entries} />
       <Panel title="Export batches" bodyClassName="p-0">
         <Table>
@@ -81,7 +81,7 @@ export function ProposedTab() {
             })}
             {batches.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={6} className="py-5 text-center text-sm text-muted-foreground">
                   No proposals exported yet
                 </TableCell>
               </TableRow>

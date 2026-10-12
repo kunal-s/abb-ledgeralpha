@@ -165,7 +165,7 @@ function Movements({ roll, review, gl, selected, onSelect, onClose }: { roll: Ro
   const rows = useMemo(() => (move ? move.lineKeys.map((k) => rowFor(review, LINE_BY_KEY.get(k)!)) : []), [move, review]);
   return (
     <div className="grid gap-4 lg:grid-cols-[26rem_minmax(0,1fr)]">
-      <Panel title={`Account ${gl}: what moved it`} actions={<Button variant="ghost" size="sm" className="h-7" onClick={onClose}>Close</Button>} bodyClassName="p-0">
+      <Panel title={`Account ${gl}: movement`} actions={<Button variant="ghost" size="sm" className="h-7" onClick={onClose}>Close</Button>} bodyClassName="p-0">
         <RollforwardTable f={roll} prior={review.priorDate} asOf={review.asOf} selected={selected} onSelect={onSelect} />
       </Panel>
       <Panel title={move ? `${move.label} · ${fmtInt(move.count)} postings · ${fmtDrCr(move.amount, true)}` : "Postings"} bodyClassName="p-0">
@@ -197,7 +197,7 @@ export function ItemDetail() {
 
   if (!row || !gl || !roll || !current) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <PageHeader title="Item not found" breadcrumbs={[{ label: "Balance Sheet Review", to: "/balance-sheet-review" }, { label: key ?? "" }]} />
         <Card className="p-5 text-sm">
           <Link to="/balance-sheet-review?tab=exceptions" className="font-medium text-primary hover:underline">Go to the exceptions</Link>
@@ -218,7 +218,7 @@ export function ItemDetail() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title={`${docLabel} ${it.docNo}`}
         breadcrumbs={[{ label: "Balance Sheet Review", to: "/balance-sheet-review" }, { label: "Accounts", to: "/balance-sheet-review?tab=accounts" }, { label: gl.gl, to: `/balance-sheet-review/${gl.gl}` }, { label: it.docNo }]}
@@ -251,13 +251,13 @@ export function ItemDetail() {
       </Panel>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
-        <div className="min-w-0 space-y-4">
+        <div className="min-w-0 space-y-3">
           <Panel title={`${selected.label} · ${selected.who || selected.detail}`} bodyClassName="p-0 [&>section:first-of-type]:border-t-0">
             <StageWork id={selected.id} row={row} stage={selected} review={review} onAsk={() => setChosen("evidence")} />
           </Panel>
           {selected.id === "account" && acct && <SignOffPanel key={`${gl.gl}-${acct.status}`} acct={acct} review={review} rows={review.rows.filter((r) => r.item.gl === gl.gl)} />}
         </div>
-        <div className="space-y-4">
+        <div className="space-y-3">
           <Panel title="Item" bodyClassName="p-0 [&>section:first-child]:border-t-0">
             <Related row={row} />
           </Panel>

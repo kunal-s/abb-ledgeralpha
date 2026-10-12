@@ -45,7 +45,7 @@ export function VarianceAnalysis() {
   const peak = Math.max(1, ...bridge.components.map((c) => Math.abs(c.effect)));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title="Variance Analysis"
         badge={scopeName ? <span className="rounded-md bg-secondary px-2 py-0.5 text-2xs font-medium">{scopeName}</span> : undefined}
@@ -67,7 +67,7 @@ export function VarianceAnalysis() {
         <KpiTile label="One-off entries" hint="Manual journals of ₹25 lakh or more on profit and loss accounts." value={oneOff ? signed(oneOff.effect) : "None"} sublabel={oneOff ? `${oneOff.lines} entries` : "in either month"} />
       </div>
 
-      <Panel title={`What moved operating profit, ${fmtMonth(bridge.current.to)}`} actions={<span className="text-xs text-muted-foreground tnum">Residual {Math.abs(bridge.residual) < 0.5 ? "nil" : fmtINRCompact(bridge.residual)}</span>}>
+      <Panel title={`Operating profit bridge, ${fmtMonth(bridge.current.to)}`} actions={<span className="text-xs text-muted-foreground tnum">Residual {Math.abs(bridge.residual) < 0.5 ? "nil" : fmtINRCompact(bridge.residual)}</span>}>
         <Waterfall columns={columns} min={Math.min(0, ...all)} max={Math.max(...all)} plot={250} format={(v) => (v === columns[0].value || v === columns[columns.length - 1].value ? fmtINRCompact(v) : signed(v))} />
       </Panel>
 
@@ -105,7 +105,7 @@ export function VarianceAnalysis() {
             </TableBody>
           </Table>
         </Panel>
-        <Panel title="Reading of the movement" actions={<MethodBadge method="judgement" showConfidence={false} />}>
+        <Panel title="Commentary" className="self-start" actions={<MethodBadge method="judgement" showConfidence={false} />}>
           <p className="text-sm leading-6">{text}</p>
         </Panel>
       </div>
@@ -135,7 +135,7 @@ export function VarianceAnalysis() {
                   <TableCell className={cn("whitespace-nowrap text-right tnum", tone(d.impact))}>{signed(d.impact)}</TableCell>
                 </TableRow>
               ))}
-              {drivers.length === 0 && <TableRow><TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">No posting</TableCell></TableRow>}
+              {drivers.length === 0 && <TableRow><TableCell colSpan={5} className="py-4 text-center text-sm text-muted-foreground">No posting</TableCell></TableRow>}
             </TableBody>
           </Table>
         </Panel>

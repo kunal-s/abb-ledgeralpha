@@ -46,7 +46,7 @@ export function buildThreads(): StoryThread[] {
       summary: "Balance sheet review to a provision, approval and the auditor schedule",
       role: "controller",
       steps: [
-        { title: "Where the risk sits", hint: "Seven areas take most of the manual effort; vendor advances is one of them", to: "/balance-sheet-review" },
+        { title: "Flagged balances by age", hint: "Seven areas take most of the manual effort; vendor advances is one of them", to: "/balance-sheet-review" },
         { title: "Vendor advances, oldest first", hint: "Every flagged item carries the rule that flagged it and what is recommended", to: "/balance-sheet-review?tab=exceptions&category=vendor-adv&show=all" },
         { title: "A 438 day advance", hint: "No purchase order activity, vendor blocked, and a guarantee is held", to: `/balance-sheet-review/${glOf(advance)}`, item: advance },
         { title: "The guarantee behind it", hint: "The advance payment guarantee expires on 31-Dec-2026", to: "/bank-guarantees" },
@@ -58,7 +58,7 @@ export function buildThreads(): StoryThread[] {
     {
       id: "gl-reconciliation",
       title: "GL account reconciliation",
-      summary: "From the difference to the unexplained, for each kind of reconciliation",
+      summary: "Difference to unexplained, by reconciliation type",
       role: "gl-accountant",
       steps: [
         { title: "Difference by type", hint: "In rupees: what is explained and what is still open", to: "/reconciliations" },

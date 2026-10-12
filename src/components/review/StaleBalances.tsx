@@ -4,7 +4,7 @@ import { fmtINRCompact, fmtInt } from "@/lib/format";
 
 /** Accounts holding flagged balances older than a year: the ones a reviewer has to explain first. */
 export function StaleBalances({ accounts }: { accounts: StaleAccount[] }) {
-  if (accounts.length === 0) return <div className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing flagged is older than a year</div>;
+  if (accounts.length === 0) return <div className="px-4 py-5 text-center text-sm text-muted-foreground">Nothing flagged is older than a year</div>;
   const max = Math.max(1, ...accounts.map((a) => a.amount));
   return (
     <ul className="divide-y divide-border">

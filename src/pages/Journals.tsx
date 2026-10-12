@@ -20,7 +20,7 @@ export function Journals() {
   const tab = TABS.some((t) => t.key === params.get("tab")) ? params.get("tab")! : "overview";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Journals" />
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v === "overview" ? null : v }, { replace: false })}>
         <TabsList>

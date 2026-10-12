@@ -84,7 +84,7 @@ export function OverviewTab() {
   const toRegister = (extra: Record<string, string | null>) => setParams({ tab: "register", ...extra }, { replace: false });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Signed off" value={`${stats.signed}/${rows.length}`} sublabel="reviewer signed" accent="ok" onClick={() => toRegister({ rstatus: "signed", type: null })} />
         <KpiTile label="Ready for sign-off" value={fmtInt(stats.ready)} sublabel="preparer can sign" accent={stats.ready ? "warn" : "none"} onClick={() => toRegister({ rstatus: "ready", type: null })} />
@@ -98,7 +98,7 @@ export function OverviewTab() {
         <Panel title="Difference by type" className="xl:col-span-2" actions={<span className="text-xs text-muted-foreground tnum">{fmtINRCompact(stats.unexplained)} unexplained</span>}>
           <TypeDifferences rows={diffs} onSelect={(t) => toRegister({ type: t, rstatus: null })} />
         </Panel>
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           <Panel title="Reconciling items by age">
             <AgeingStack slices={ageing.map((a, i) => ({ ...a, fill: `hsl(var(--age-${i + 1}))` }))} />
           </Panel>
@@ -111,78 +111,76 @@ export function OverviewTab() {
               {fmtInt(reconciler.byReconciler)} by the reconciler at {reconciler.confidence.toFixed(2)} average confidence, {fmtInt(reconciler.needPerson)} need a person
             </div>
           </Panel>
+          <Panel fit title="Exceptions" className="flex-1" bodyClassName="p-0">
+            {needs.length === 0 ? (
+              <div className="px-4 py-5 text-center text-sm text-muted-foreground">Nothing needs attention</div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {needs.map(({ r, a }) => (
+                  <li key={r.rec.id}>
+                    <Link to={`/reconciliations/${r.rec.id}`} className="block px-4 py-2.5 hover:bg-accent/50">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm">{r.rec.name}</span>
+                        <StatusChip status={r.status} />
+                      </div>
+                      <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                        {r.rec.type} · {a.reason}
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Panel>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <Panel title="Needs attention" bodyClassName="p-0">
-          {needs.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing needs attention</div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {needs.map(({ r, a }) => (
-                <li key={r.rec.id}>
-                  <Link to={`/reconciliations/${r.rec.id}`} className="block px-4 py-2.5 hover:bg-accent/50">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm">{r.rec.name}</span>
-                      <StatusChip status={r.status} />
-                    </div>
-                    <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {r.rec.type} · {a.reason}
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
-
-        <Panel title="Who holds what" bodyClassName="p-0">
+          <Panel title="Owners" bodyClassName="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Preparer</TableHead>
+                  <TableHead className="text-right">Reconciliations</TableHead>
+                  <TableHead className="text-right">Certified</TableHead>
+                  <TableHead className="text-right">Unexplained</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {load.map((p) => (
+                  <TableRow key={p.preparerId} className="cursor-pointer" onClick={() => toRegister({ rowner: p.preparerId, type: null, rstatus: null })}>
+                    <TableCell>{PERSON_BY_ID.get(p.preparerId)?.name ?? p.preparerId}</TableCell>
+                    <TableCell className="text-right tnum">{fmtInt(p.total)}</TableCell>
+                    <TableCell className="text-right tnum">{fmtInt(p.signed)}</TableCell>
+                    <TableCell className="text-right tnum">{p.unexplained ? fmtINRCompact(p.unexplained) : "-"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Panel>
+        <Panel title="Reconciling items by treatment" bodyClassName="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Preparer</TableHead>
-                <TableHead className="text-right">Reconciliations</TableHead>
-                <TableHead className="text-right">Certified</TableHead>
-                <TableHead className="text-right">Unexplained</TableHead>
+                <TableHead>Treatment</TableHead>
+                <TableHead className="text-right">Items</TableHead>
+                <TableHead className="text-right">Value</TableHead>
+                <TableHead className="text-right">Aged over {RECON_POLICY.agedItemDays} days</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {load.map((p) => (
-                <TableRow key={p.preparerId} className="cursor-pointer" onClick={() => toRegister({ rowner: p.preparerId, type: null, rstatus: null })}>
-                  <TableCell>{PERSON_BY_ID.get(p.preparerId)?.name ?? p.preparerId}</TableCell>
-                  <TableCell className="text-right tnum">{fmtInt(p.total)}</TableCell>
-                  <TableCell className="text-right tnum">{fmtInt(p.signed)}</TableCell>
-                  <TableCell className="text-right tnum">{p.unexplained ? fmtINRCompact(p.unexplained) : "-"}</TableCell>
+              {byTreatment.map((t) => (
+                <TableRow key={t.key}>
+                  <TableCell>{t.label}</TableCell>
+                  <TableCell className="text-right tnum">{fmtInt(t.count)}</TableCell>
+                  <TableCell className="text-right tnum">{fmtINRCompact(t.value)}</TableCell>
+                  <TableCell className="text-right tnum">{t.aged ? fmtInt(t.aged) : "-"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </Panel>
       </div>
-
-      <Panel title="Reconciling items by treatment" bodyClassName="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Treatment</TableHead>
-              <TableHead className="text-right">Items</TableHead>
-              <TableHead className="text-right">Value</TableHead>
-              <TableHead className="text-right">Aged over {RECON_POLICY.agedItemDays} days</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {byTreatment.map((t) => (
-              <TableRow key={t.key}>
-                <TableCell>{t.label}</TableCell>
-                <TableCell className="text-right tnum">{fmtInt(t.count)}</TableCell>
-                <TableCell className="text-right tnum">{fmtINRCompact(t.value)}</TableCell>
-                <TableCell className="text-right tnum">{t.aged ? fmtInt(t.aged) : "-"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Panel>
     </div>
   );
 }

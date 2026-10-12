@@ -33,7 +33,7 @@ export function BankGuaranteeDetail() {
 
   if (!bg) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <PageHeader title="Guarantee not found" breadcrumbs={[{ label: "Bank Guarantees", to: "/bank-guarantees" }, { label: id ?? "" }]} />
         <Card className="p-5 text-sm"><Link to="/bank-guarantees" className="font-medium text-primary hover:underline">Go to the register</Link></Card>
       </div>
@@ -61,7 +61,7 @@ export function BankGuaranteeDetail() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title={bg.bgNo}
         breadcrumbs={[{ label: "Bank Guarantees", to: "/bank-guarantees" }, { label: bg.type }]}
@@ -147,7 +147,7 @@ export function BankGuaranteeDetail() {
 
       <Panel title="Follow-ups on this guarantee" bodyClassName="p-0">
         {mine.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nothing has been asked of the bank</div>
+          <div className="px-4 py-4 text-center text-sm text-muted-foreground">Nothing has been asked of the bank</div>
         ) : (
           <ul className="divide-y divide-border">
             {mine.map((f) => (

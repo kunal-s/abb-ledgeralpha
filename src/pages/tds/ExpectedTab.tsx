@@ -13,7 +13,7 @@ export function ExpectedTab() {
   const sum = (xs: typeof expected) => xs.reduce((s, e) => s + e.amount, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiTile label="Expected credits" value={fmtInt(expected.length)} sublabel={fmtINRCompact(sum(expected))} />
         <KpiTile label="In the statement" value={fmtInt(at("matched").length)} sublabel={fmtINRCompact(sum(at("matched")))} accent="ok" />
@@ -37,7 +37,7 @@ export function ExpectedTab() {
           <TableBody>
             {expected.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={8} className="py-5 text-center text-sm text-muted-foreground">
                   No receipt application proposes a withholding deduction
                 </TableCell>
               </TableRow>

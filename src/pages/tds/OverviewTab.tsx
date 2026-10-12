@@ -75,7 +75,7 @@ export function OverviewTab() {
   const expectedMissing = expected.filter((e) => e.check.status === "missing" || e.check.status === "short" || e.check.status === "wrong-quarter");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Deductions open" value={fmtInt(lines.length)} sublabel={fmtINRCompact(stats.sum(lines))} onClick={() => go({})} />
         <KpiTile label="Matched to the statement" value={fmtInt(stats.of("matched").length)} sublabel={fmtINRCompact(stats.sum(stats.of("matched")))} accent="ok" onClick={() => go({ tstatus: "matched" })} />
@@ -97,7 +97,7 @@ export function OverviewTab() {
           />
         </Panel>
 
-        <Panel title="Credits at risk by age" bodyClassName="p-4">
+        <Panel title="Credits at risk by age" className="self-start" bodyClassName="p-4">
           <ul className="space-y-3">
             {ageing.map((a) => (
               <li key={a.id}>

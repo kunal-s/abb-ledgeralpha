@@ -86,7 +86,7 @@ export function AccountScrutiny() {
 
   if (!gl || !account || !acct) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <PageHeader title="Account not found" breadcrumbs={[{ label: "Balance Sheet Review", to: "/balance-sheet-review" }, { label: gl ?? "" }]} />
         <Card className="p-5 text-sm">
           <Link to="/balance-sheet-review?tab=accounts" className="font-medium text-primary hover:underline">
@@ -104,7 +104,7 @@ export function AccountScrutiny() {
   const periodLines = !account.openItemManaged ? postings : [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title={`${account.gl} · ${account.description}`}
         breadcrumbs={[{ label: "Balance Sheet Review", to: "/balance-sheet-review" }, { label: "Accounts", to: "/balance-sheet-review?tab=accounts" }, { label: account.gl }]}

@@ -34,7 +34,7 @@ export function ReconciliationDetail() {
 
   if (!row) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <PageHeader title="Reconciliation not found" breadcrumbs={[{ label: "Reconciliations", to: "/reconciliations" }, { label: id ?? "" }]} />
         <Card className="p-5 text-sm">
           <Link to="/reconciliations?tab=register" className="font-medium text-primary hover:underline">
@@ -81,7 +81,7 @@ export function ReconciliationDetail() {
   if (party) detailRows.splice(1, 0, ["Business partner", `${party.name} · ${party.id}`]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title={rec.name}
         breadcrumbs={[{ label: "Reconciliations", to: "/reconciliations" }, { label: rec.type, to: `/reconciliations?tab=register&type=${encodeURIComponent(rec.type)}` }, { label: rec.id }]}
@@ -123,7 +123,7 @@ export function ReconciliationDetail() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="From the difference to the unexplained" className="xl:col-span-2">
+        <Panel title="Difference to unexplained" className="xl:col-span-2">
           <ReconBridge view={view} />
         </Panel>
         <div className="space-y-3">

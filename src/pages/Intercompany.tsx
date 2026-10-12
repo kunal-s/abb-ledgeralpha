@@ -30,7 +30,7 @@ export function Intercompany() {
   const expenseNatures = NATURES.filter((n) => n.side === "expense");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Intercompany" />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label="Owed to us" value={fmtINRCompact(receivable)} sublabel="by group companies" />

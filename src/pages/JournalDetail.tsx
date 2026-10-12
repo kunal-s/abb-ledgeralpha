@@ -32,7 +32,7 @@ export function JournalDetail() {
 
   if (!row) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <PageHeader title="Journal not found" breadcrumbs={[{ label: "Journals", to: "/journals" }, { label: id ?? "" }]} />
         <Card className="p-5 text-sm">
           <Link to="/journals?tab=register" className="font-medium text-primary hover:underline">
@@ -55,7 +55,7 @@ export function JournalDetail() {
   const reviewerOf = review ? PERSON_BY_ID.get(review.personId)?.name : undefined;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title={`Journal ${doc.docNo}`}
         breadcrumbs={[{ label: "Journals", to: "/journals" }, { label: "Review", to: "/journals?tab=review" }, { label: doc.docNo }]}
@@ -73,7 +73,7 @@ export function JournalDetail() {
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <div className="space-y-3 xl:col-span-2">
           {flags.length > 0 && (
-            <Panel title="Why it was flagged" bodyClassName="p-0" actions={<MethodBadge method="deterministic" />}>
+            <Panel title="Flag reason" bodyClassName="p-0" actions={<MethodBadge method="deterministic" />}>
               <ul className="divide-y divide-border/70">
                 {flags.map((f) => {
                   const check = JOURNAL_CHECKS.find((c) => c.id === f.checkId)!;
@@ -196,7 +196,7 @@ export function JournalDetail() {
           </Panel>
 
           {followUp && (
-            <Panel title="Support from the preparer">
+            <Panel title="Preparer support">
               <FollowUpBody key={`${followUp.id}-${followUp.status}`} itemKey={doc.key} module="journals" draft={draft} followUp={followUp} asOf={WORLD.asOf} />
             </Panel>
           )}

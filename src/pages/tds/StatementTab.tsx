@@ -16,7 +16,7 @@ export function StatementTab() {
   const total = rows.reduce((s, c) => s + c.taxCredited, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiTile label="Credits not in the books" value={fmtInt(rows.length)} sublabel={fmtINRCompact(total)} accent={rows.length ? "warn" : "none"} />
         <KpiTile label="Customers" value={fmtInt(new Set(rows.map((c) => c.customerId)).size)} sublabel="with unexplained credits" />

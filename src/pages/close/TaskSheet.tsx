@@ -52,7 +52,7 @@ export function TaskBody({ model, taskId, onOpen }: { model: CloseModel; taskId:
           {s.critical && <span className="rounded-md bg-secondary px-1.5 py-0.5 text-2xs font-medium">On the critical path</span>}
         </div>
       </header>
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-6">
+      <div className="flex-1 space-y-3 overflow-y-auto px-5 pb-6">
         <Fields
           compact
           rows={[
@@ -160,7 +160,7 @@ export function TaskBody({ model, taskId, onOpen }: { model: CloseModel; taskId:
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <Input value={blocker} onChange={(e) => setBlocker(e.target.value)} placeholder="What is in the way" className="h-8" />
+                <Input value={blocker} onChange={(e) => setBlocker(e.target.value)} placeholder="Blocker" className="h-8" />
                 <Button
                   size="sm"
                   variant="outline"

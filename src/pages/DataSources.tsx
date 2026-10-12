@@ -215,7 +215,7 @@ export function DataSources() {
   const extractedDate = WORLD.extractedAt.slice(0, 10);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title="Data Sources"
         badge={<StatusChip status={allPassed ? "approved" : "rejected"} label={allPassed ? "All checks passed" : "Checks with exceptions"} />}
@@ -250,7 +250,7 @@ export function DataSources() {
         <Panel title="Line items by posting month" className="lg:col-span-2">
           <MonthlyVolumeChart data={VOLUME} />
         </Panel>
-        <Panel title="Load checks" bodyClassName="p-0">
+        <Panel fit title="Load checks" bodyClassName="p-0">
           <ul className="divide-y divide-border/70">
             {QUALITY.map((q) => (
               <li key={q.id} className="flex items-start gap-2.5 px-4 py-2">

@@ -74,7 +74,7 @@ export function WorkingCapital() {
   const trendOf = (cur: number, prev?: number): "up" | "down" | "flat" => (prev === undefined || Math.round(cur) === Math.round(prev) ? "flat" : cur > prev ? "up" : "down");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Working Capital" />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Receivable days" hint={DEFINITIONS.dso} value={fmtInt(Math.round(now.dso))} unit="days" delta={delta(now.dso, before?.dso)} trend={trendOf(now.dso, before?.dso)} goodWhen="down" sublabel={`${fmtINRCompact(now.receivables)} outstanding`} />
@@ -86,7 +86,7 @@ export function WorkingCapital() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="Where the days go" className="xl:col-span-2">
+        <Panel title="Days by area" className="xl:col-span-2">
           <CashCycle point={now} />
           <div className="mt-6 border-t border-border pt-4">
             <WcTrend points={trend} />
@@ -169,7 +169,7 @@ export function WorkingCapital() {
                 ))}
                 {msme.vendors.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">No small-enterprise invoice is past the window</TableCell>
+                    <TableCell colSpan={5} className="py-4 text-center text-sm text-muted-foreground">No small-enterprise invoice is past the window</TableCell>
                   </TableRow>
                 )}
               </TableBody>

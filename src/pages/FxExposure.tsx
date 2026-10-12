@@ -40,7 +40,7 @@ function ItemTable({ rows }: { rows: FxItem[] }) {
             <TableCell className={cn("whitespace-nowrap text-right tnum", gl(i.unrealised))}>{signed(i.unrealised)}</TableCell>
           </TableRow>
         ))}
-        {rows.length === 0 && <TableRow><TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">Nothing open</TableCell></TableRow>}
+        {rows.length === 0 && <TableRow><TableCell colSpan={7} className="py-4 text-center text-sm text-muted-foreground">Nothing open</TableCell></TableRow>}
       </TableBody>
     </Table>
   );
@@ -63,7 +63,7 @@ export function FxExposure() {
   const forwards = WORLD.forwards.filter((f) => f.maturity >= periodEnd);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="FX Exposure" />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="To receive" value={fmtINRCompact(t.receivablesInr)} sublabel={`${fmtInt(items.filter((i) => i.side === "receivable").length)} open items at closing rates`} />
@@ -82,7 +82,7 @@ export function FxExposure() {
         <TabsList>
           <TabsTrigger value="receivables">Largest receivables</TabsTrigger>
           <TabsTrigger value="payables">Largest payables</TabsTrigger>
-          <TabsTrigger value="reval">Biggest revaluation effects</TabsTrigger>
+          <TabsTrigger value="reval">Largest revaluation effects</TabsTrigger>
           <TabsTrigger value="forwards">Forward contracts</TabsTrigger>
         </TabsList>
         <TabsContent value="receivables"><Panel title="Foreign-currency receivables" bodyClassName="p-0"><ItemTable rows={byAbs("receivable")} /></Panel></TabsContent>

@@ -121,7 +121,7 @@ export function DecisionsTab() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-5">
         <Panel title="Proposed actions by type and approval band" className="xl:col-span-3">
           <div className="grid grid-cols-[7rem_repeat(3,minmax(0,1fr))] gap-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -160,7 +160,7 @@ export function DecisionsTab() {
 
         <Panel title="Waiting on" className="xl:col-span-2">
           {waitingList.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">No decisions waiting</div>
+            <div className="py-4 text-center text-sm text-muted-foreground">No decisions waiting</div>
           ) : (
             <ul className="space-y-2.5">
               {waitingList.map(([who, n]) => (
@@ -231,7 +231,7 @@ export function DecisionsTab() {
           <TableBody>
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={10} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={10} className="py-5 text-center text-sm text-muted-foreground">
                   {filter === "mine" ? `Nothing is waiting for ${ROLES[role].label}` : "No decisions"}
                 </TableCell>
               </TableRow>
