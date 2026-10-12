@@ -16,7 +16,7 @@ import { toast } from "@/lib/toast";
 /** Counterparty confirmation: request, reply, and the statement of account we send. */
 export function ConfirmationPanel({ row }: { row: RecRow }) {
   const role = useRoleStore((s) => s.role);
-  const { markConfirmationSent, applyReply } = useWorkflow.getState();
+  const { markConfirmationSent } = useWorkflow.getState();
   const { rec, view } = row;
   const conf = view.confirmation;
   if (!conf) return null;
@@ -68,26 +68,36 @@ export function ConfirmationPanel({ row }: { row: RecRow }) {
             Send confirmation request
           </Button>
         )}
-        {replyPending && (
-          <Button
-            size="sm"
-            disabled={!can(role, "propose") || locked}
-            title={can(role, "propose") ? "The reconciler explains the difference from the ledger" : `${ROLES[role].label} cannot apply replies`}
-            onClick={() => {
-              const r = applyReply(rec.id);
-              if (!r.ok) return toast(r.error, { tone: "danger" });
-              if (r.found > 0) toast(`${r.found} item${r.found === 1 ? "" : "s"} explain the difference exactly`, { description: "Review the classes, then propose entries or follow-ups", tone: "ok" });
-              else if (rec.type === "Customer statement") toast("No combination of ledger items explains the difference", { description: `Add the reconciling items by hand; ${fmtINR(Math.abs(rec.booksBalance - rec.reply!.balance))} is unexplained`, tone: "warn" });
-              else toast("Reply applied", { tone: "ok" });
-            }}
-          >
-            Apply reply and diagnose
-          </Button>
-        )}
+        {replyPending && <ApplyReplyButton row={row} />}
         <Button size="sm" variant="outline" className="gap-1.5" onClick={download}>
           <Download className="h-3.5 w-3.5" /> Statement of account
         </Button>
       </div>
     </Panel>
+  );
+}
+
+/** Applies the counterparty's reply and lets the reconciler explain the difference. */
+export function ApplyReplyButton({ row }: { row: RecRow }) {
+  const role = useRoleStore((s) => s.role);
+  const { applyReply } = useWorkflow.getState();
+  const { rec } = row;
+  const locked = !!row.signOff?.preparer;
+  const allowed = can(role, "propose");
+  return (
+    <Button
+      size="sm"
+      disabled={!allowed || locked}
+      title={locked ? "Preparer has signed off" : allowed ? "The reconciler explains the difference from the ledger" : `${ROLES[role].label} cannot apply replies. Switch to a preparer role (GL accountant, AR specialist)`}
+      onClick={() => {
+        const r = applyReply(rec.id);
+        if (!r.ok) return toast(r.error, { tone: "danger" });
+        if (r.found > 0) toast(`${r.found} item${r.found === 1 ? "" : "s"} explain the difference exactly`, { description: "Review the classes, then propose entries or follow-ups", tone: "ok" });
+        else if (rec.type === "Customer statement") toast("No combination of ledger items explains the difference", { description: `Add the reconciling items by hand; ${fmtINR(Math.abs(rec.booksBalance - rec.reply!.balance))} is unexplained`, tone: "warn" });
+        else toast("Reply applied", { tone: "ok" });
+      }}
+    >
+      Apply reply and diagnose
+    </Button>
   );
 }

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ReceiptFlow } from "@/components/cash/ReceiptFlow";
+import { Fold } from "@/components/vocab/Fold";
 import { Factors, MatchArithmetic, levelText } from "@/components/cash/MatchParts";
 import { DecisionApproval, FollowUpBody } from "@/components/review/drawerParts";
 import { GL_BY_ID, PARTY_BY_ID, PERSON_BY_ID, WORLD } from "@/data";
@@ -17,7 +17,7 @@ import { useWorkflow } from "@/state/workflow";
 import { useRoleStore } from "@/lib/stores";
 import { ROLES, can } from "@/config/roles";
 import { CASH_APP_POLICY } from "@/config/policies";
-import { applicationJournal, draftRemittanceRequest, receiptAge } from "@/engine/cashapp";
+import { applicationJournal, draftRemittanceRequest } from "@/engine/cashapp";
 import { fmtDate, fmtDateTime } from "@/lib/dates";
 import { fmtINR } from "@/lib/format";
 import { toast } from "@/lib/toast";
@@ -60,7 +60,6 @@ export function ReceiptDetail() {
   const alternatives = match.proposals.filter((p) => p.signature !== shown?.signature);
   const draft = draftRemittanceRequest(receipt, customer?.name);
   const deducted = shown ? shown.deductions.reduce((s, d) => s + d.amount, 0) : 0;
-  const lineAccount = GL_BY_ID.get("171200")?.description;
   const statementRec = row.customerId ? WORLD.reconciliations.find((r) => r.type === "Customer statement" && r.partyId === row.customerId) : undefined;
 
   return (
@@ -71,26 +70,26 @@ export function ReceiptDetail() {
         badge={<StatusChip status={row.status} />}
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiTile label="Receipt" value={fmtINR(receipt.amount)} sublabel={`${fmtDate(receipt.date)} · ${row.age} days in clearing`} accent={row.age > 30 ? "warn" : "none"} />
         <KpiTile label="Applied to invoices" value={shown ? fmtINR(shown.invoiceTotal - shown.residual) : "-"} sublabel={shown ? `${shown.invoices.length} invoice${shown.invoices.length === 1 ? "" : "s"}` : "no match"} />
         <KpiTile label="Deductions explained" value={shown ? fmtINR(deducted) : "-"} sublabel={shown && shown.deductions.length ? shown.deductions.map((d) => d.label).join(" and ") : "none needed"} />
         <KpiTile label="Unexplained" value={shown ? (shown.residual === 0 ? "Nil" : fmtINR(shown.residual)) : "-"} sublabel={shown && shown.residual > 0 ? "short payment" : undefined} accent={shown && shown.residual > 0 ? "danger" : shown ? "ok" : "none"} />
-        <KpiTile label="Match" value={shown ? levelText(shown) : "No match"} sublabel={shown ? <ConfidenceChip score={shown.confidence} size="sm" showIcon={false} /> : "remitter not identified"} />
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <div className="space-y-3 xl:col-span-2">
-          {shown && (
-            <Panel title="Receipt allocation" bodyClassName="pb-2">
-              <ReceiptFlow proposal={shown} />
-            </Panel>
-          )}
           {shown ? (
             <Panel
-              title={best ? "How the receipt is explained" : "Closest explanation, below the confidence needed"}
+              title={best ? "Receipt application" : "Closest explanation, below the confidence needed"}
               bodyClassName="p-0"
-              actions={<MethodBadge method="deterministic" />}
+              actions={
+                <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {levelText(shown)}
+                  <ConfidenceChip score={shown.confidence} size="sm" showIcon={false} />
+                  <MethodBadge method="deterministic" showConfidence={false} />
+                </span>
+              }
             >
               <MatchArithmetic p={shown} receipt={receipt} />
             </Panel>
@@ -108,7 +107,7 @@ export function ReceiptDetail() {
           )}
 
           {alternatives.length > 0 && (
-            <Panel title="Other explanations" bodyClassName="p-0">
+            <Fold title="Other explanations" summary={`${alternatives.length} below the best match`}>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -139,7 +138,7 @@ export function ReceiptDetail() {
                   ))}
                 </TableBody>
               </Table>
-            </Panel>
+            </Fold>
           )}
 
           {journal && (
@@ -148,7 +147,7 @@ export function ReceiptDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">Dr / Cr</TableHead>
+                    <TableHead className="w-16 whitespace-nowrap">Dr / Cr</TableHead>
                     <TableHead>Account</TableHead>
                     <TableHead>Text</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
@@ -173,8 +172,16 @@ export function ReceiptDetail() {
             </Panel>
           )}
 
+          {shown && (
+            <Fold title="How the confidence is made up" summary={shown.confidence.toFixed(2)}>
+              <div className="px-4 py-3">
+                <Factors factors={shown.factors} confidence={shown.confidence} />
+              </div>
+            </Fold>
+          )}
+
           {invoices.length > 0 && (
-            <Panel title={`Open invoices of ${customer?.name ?? "the customer"}`} bodyClassName="p-0">
+            <Fold title={`Open invoices of ${customer?.name ?? "the customer"}`} summary={`${invoices.length} invoices`}>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -202,7 +209,7 @@ export function ReceiptDetail() {
                 </TableBody>
               </Table>
               {invoices.length > 40 && <div className="border-t border-border/70 px-4 py-2 text-xs text-muted-foreground">Showing the oldest 40 of {invoices.length} open invoices</div>}
-            </Panel>
+            </Fold>
           )}
         </div>
 
@@ -282,8 +289,6 @@ export function ReceiptDetail() {
                 ["Bank narration", receipt.narration || "-"],
                 ["Bank reference", receipt.utr ?? "-"],
                 ["Document", <DocLink key="d" itemKey={receipt.key}>{receipt.docNo}</DocLink>],
-                ["Account", `171200 · ${lineAccount}`],
-                ["Posted", `${fmtDate(receipt.date)} · ${receiptAge(receipt, WORLD.asOf)} days ago`],
                 ["Customer", customer ? `${customer.name}` : "Not identified"],
                 ...(shown ? ([["Identified by", shown.customerBasis]] as [string, string][]) : match.customers[0] ? ([["Closest name", match.customers[0].basis]] as [string, string][]) : []),
                 ...(statementRec ? ([["Customer statement", <Link key="st" to={`/reconciliations/${statementRec.id}`} className="font-medium text-primary hover:underline">{statementRec.id}</Link>]] as [string, React.ReactNode][]) : []),
@@ -292,11 +297,6 @@ export function ReceiptDetail() {
             />
           </Panel>
 
-          {shown && (
-            <Panel title="Confidence" actions={<MethodBadge method="judgement" showConfidence={false} />}>
-              <Factors factors={shown.factors} confidence={shown.confidence} />
-            </Panel>
-          )}
 
           {!live && !row.parked && (
             <Panel title="Request the remittance advice">

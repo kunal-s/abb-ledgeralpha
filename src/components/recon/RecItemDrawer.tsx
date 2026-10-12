@@ -23,6 +23,8 @@ import { MATERIALITY_POLICY, RECON_POLICY, bandFor } from "@/config/policies";
 import { RECON_CLASSES, TREATMENT_LABELS } from "@/engine/recClasses";
 import { adjustmentJournal, draftRecFollowUp, needsAction, recItemKey, type EffItem } from "@/engine/recs";
 import { fmtDate } from "@/lib/dates";
+import { useCashApp } from "@/state/cashAppHooks";
+import { LEVEL_LABELS } from "@/engine/cashapp";
 import { fmtDrCr, fmtINR } from "@/lib/format";
 import { toast } from "@/lib/toast";
 
@@ -167,17 +169,61 @@ function ItemFollowUp({ row, item }: { row: RecRow; item: EffItem }) {
   );
 }
 
-/** A receipt the customer has paid that waits in clearing: the entry is the application proposed in Cash Application. */
+/** A receipt the customer has paid that waits in clearing: the arithmetic behind its application, and the screen where it is applied. */
 function ReceiptApplication({ item }: { item: EffItem }) {
   const decisions = useDecisionsByItem();
+  const { byKey } = useCashApp();
   const d = item.lineKey ? decisions.get(item.lineKey) : undefined;
+  const r = item.lineKey ? byKey.get(item.lineKey) : undefined;
+  const p = r?.best ?? r?.weak;
+  const cell = "px-1 py-1.5 text-right tnum whitespace-nowrap";
   return (
-    <Section title="Apply the receipt" aside={d ? <StatusChip status={itemStatus(false, d)} /> : undefined}>
-      <p className="text-sm text-muted-foreground">The invoices stay open in our books until the receipt is applied in Cash Application.</p>
+    <Section title="Receipt application" aside={d ? <StatusChip status={itemStatus(false, d)} /> : undefined}>
+      {p ? (
+        <table className="w-full text-xs">
+          <tbody>
+            {p.invoices.map((i) => (
+              <tr key={i.key} className="border-b border-border/60">
+                <td className="py-1.5">
+                  Invoice {i.reference}
+                  <span className="ml-2 text-muted-foreground">{fmtDate(i.date)}{i.dueDate ? `, due ${fmtDate(i.dueDate)}` : ""}</span>
+                </td>
+                <td className={cell}>{fmtINR(i.gross)}</td>
+              </tr>
+            ))}
+            <tr className="border-b border-border/60 font-medium">
+              <td className="py-1.5">Total of the invoices</td>
+              <td className={cell}>{fmtINR(p.invoiceTotal)}</td>
+            </tr>
+            {p.deductions.map((x) => (
+              <tr key={x.kind + x.label} className="border-b border-border/60">
+                <td className="py-1.5">
+                  Less: {x.label}
+                  <span className="ml-2 text-muted-foreground">{x.basis}</span>
+                </td>
+                <td className={cell}>{fmtINR(-x.amount)}</td>
+              </tr>
+            ))}
+            <tr className="border-b border-border/60 font-medium">
+              <td className="py-1.5">Receipt per bank {r?.receipt.utr ? `(${r.receipt.utr})` : ""}</td>
+              <td className={cell}>{fmtINR(p.receipt)}</td>
+            </tr>
+            <tr className="font-semibold">
+              <td className="py-1.5">Unexplained</td>
+              <td className={cell}>{p.residual === 0 ? "Nil" : fmtINR(p.residual)}</td>
+            </tr>
+          </tbody>
+        </table>
+      ) : (
+        <p className="text-sm text-muted-foreground">No invoices matched to this receipt yet</p>
+      )}
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">{d ? `${d.action} ${d.status === "proposed" ? "in approval" : d.status}` : "No application proposed yet"}</span>
+        <span className="text-xs text-muted-foreground">
+          {d ? `${d.action} ${d.status === "proposed" ? "in approval" : d.status}` : "Not yet applied"}
+          {p ? ` · ${LEVEL_LABELS[p.level]} match, confidence ${Math.round(p.confidence * 100)}%` : ""}
+        </span>
         <Link to={`/cash-application/${item.lineKey}`} onClick={() => useItemDrawer.getState().close()} className="text-sm font-medium text-primary hover:underline">
-          Open the receipt
+          Apply in Cash Application
         </Link>
       </div>
     </Section>
@@ -254,6 +300,71 @@ export function RecItemBody({ recId, itemId }: { recId: string; itemId: string }
         )}
         <Related row={row} item={item} />
         <History itemKey={key} />
+      </div>
+    </div>
+  );
+}
+
+const NextStep = ({ row, item }: { row: RecRow; item: EffItem }) => {
+  const treatment = item.cls?.treatment;
+  const decision = row.decisionByItem.get(item.id);
+  const key = recItemKey(row.rec.id, item.id);
+  return (
+    <>
+      {item.classId === "receipt-unapplied" && item.lineKey && <ReceiptApplication item={item} />}
+      {treatment === "adjust-books" && item.classId !== "receipt-unapplied" && <AdjustBooks key={`a-${key}-${decision?.id ?? "none"}-${decision?.status ?? ""}-${item.classId}`} row={row} item={item} />}
+      {(treatment === "adjust-source" || treatment === "dispute" || treatment === "investigate") && <ItemFollowUp row={row} item={item} />}
+      {(treatment === "timing" || treatment === "classification") && (
+        <Section title="Next step">
+          <p className="text-sm text-muted-foreground">
+            {treatment === "timing"
+              ? `No entry is needed. The item should clear with the next statement or run; it is flagged as aged after ${RECON_POLICY.agedItemDays} days.`
+              : "No entry or follow-up is needed. The balances differ only in presentation."}
+          </p>
+        </Section>
+      )}
+    </>
+  );
+};
+
+/** The same facts and actions as the drawer, laid out in two columns for the row that expands in the items table. */
+export function RecItemDetail({ row, item }: { row: RecRow; item: EffItem }) {
+  const line = item.lineKey ? LINE_BY_KEY.get(item.lineKey) : undefined;
+  const party = row.rec.partyId ? PARTY_BY_ID.get(row.rec.partyId) : line?.partner ? PARTY_BY_ID.get(line.partner.id) : undefined;
+  const locked = !!row.signOff?.preparer;
+  const aged = !!item.cls && item.cls.treatment !== "classification" && item.ageDays > RECON_POLICY.agedItemDays;
+  const facts: [string, React.ReactNode][] = [
+    ["Narration", item.narration],
+    ["Dated", `${fmtDate(item.date)}, ${item.ageDays} days${aged ? " (aged)" : ""}`],
+    ["Sits in", item.side === "books" ? "Our books, not the other side" : "The other side, not our books"],
+  ];
+  if (line) {
+    facts.push(["Ledger document", <DocLink key="d" itemKey={line.key}>{line.docNo}</DocLink>]);
+    facts.push(["Account", `${line.gl} ${GL_BY_ID.get(line.gl)?.description ?? ""}`]);
+    facts.push(["Posted", `${fmtDate(line.postingDate)}, ${line.docType}${line.manual ? ", manual entry" : ""}`]);
+  }
+  if (party) facts.push(["Business partner", party.name]);
+  if (item.origin === "agent") facts.push(["Found by", "The reconciler"]);
+  if (item.origin === "person") facts.push(["Added by", "A person"]);
+
+  return (
+    <div className="grid grid-cols-1 gap-x-6 bg-muted/30 lg:grid-cols-2 [&_section]:border-t-0 [&_section]:px-4 [&_section]:py-3">
+      <div>
+        <Section title="Item">
+          <dl className="divide-y divide-border/60 text-sm">
+            {facts.map(([label, value]) => (
+              <div key={label} className="grid grid-cols-[8rem_1fr] gap-3 py-1.5">
+                <dt className="text-muted-foreground">{label}</dt>
+                <dd className="min-w-0">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </Section>
+        <History itemKey={recItemKey(row.rec.id, item.id)} />
+      </div>
+      <div>
+        <Classification row={row} item={item} locked={locked} />
+        <NextStep row={row} item={item} />
       </div>
     </div>
   );

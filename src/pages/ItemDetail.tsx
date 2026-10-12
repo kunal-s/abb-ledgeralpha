@@ -8,6 +8,10 @@ import { DecisionApproval, History, Section } from "@/components/review/drawerPa
 import { Decision, DocumentFields, Findings, FollowUp, Recommendation, Related } from "@/components/review/itemParts";
 import { ItemTimeline } from "@/components/review/ItemTimeline";
 import { ItemsTable } from "@/components/review/ItemsTable";
+import { CreditStatement } from "@/components/review/CreditStatement";
+import { ExposureStatement } from "@/components/review/ExposureStatement";
+import { ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ProcessRail } from "@/components/review/ProcessRail";
 import { SignOffPanel } from "@/components/review/SignOffPanel";
 import { RollforwardTable, type MovementId } from "@/components/recon/BalanceDrill";
@@ -231,19 +235,31 @@ export function ItemDetail() {
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <KpiTile label={`Account opening ${fmtDate(review.priorDate)}`} hint={`Balance of ${gl.gl} ${gl.description} at the start of the period. Click for what moved it`} value={fmtDrCr(roll.opening, true)} sublabel={`${gl.gl} · ${gl.description}`} onClick={() => open("add")} />
-        <KpiTile label="Account additions" hint="Postings that moved the account's balance away from nil. Click for each kind and its documents" value={`+${fmtINRCompact(Math.abs(roll.added))}`} sublabel={movementLine(roll.additions)} onClick={() => open("add")} />
-        <KpiTile label="Account reductions" hint="Postings that moved the account's balance towards nil. Click for each kind and its documents" value={`−${fmtINRCompact(Math.abs(roll.reduced))}`} sublabel={movementLine(roll.reductions)} onClick={() => open("red")} />
-        <KpiTile label={`Account closing ${fmtDate(review.asOf)}`} hint="Opening plus additions less reductions; ties to the trial balance" value={fmtDrCr(roll.closing, true)} sublabel={`Owner ${nameOf(gl.ownerId)}`} onClick={() => open("red")} />
         <KpiTile
           label={`This ${docLabel.toLowerCase()}`}
-          hint="This document's share of the account's closing balance, and whether it was already in the opening balance"
+          hint="Amount of this document and its share of the account's closing balance"
           value={fmtDrCr(it.amount, true)}
-          sublabel={`${fmtInt(row.age)} days · ${(share * 100).toFixed(1)}% of closing · ${broughtForward ? "in the opening balance" : "one of the additions"}`}
+          sublabel={`${fmtDrCr(it.amount)} · ${(share * 100).toFixed(1)}% of account`}
           accent={row.flagged ? "danger" : "none"}
         />
+        <KpiTile label="Age" hint="Days from the posting date to the review date" value={`${fmtInt(row.age)} days`} sublabel={`posted ${fmtDate(it.postingDate)}`} />
+        <KpiTile label="Flagged by" hint="The rule that drives the recommendation" value={row.rec?.primaryRuleId ?? "-"} sublabel={row.hits.length ? `${row.hits.length} rule${row.hits.length === 1 ? "" : "s"} apply` : "within policy"} />
+        <KpiTile label="Recommended" hint="The recommendation; the preparer decides" value={row.rec?.action ?? "-"} sublabel={row.rec ? `confidence ${row.rec.confidence.toFixed(2)}, band ${row.rec.approvalBandId}` : ""} />
+        <KpiTile label="Waiting on" value={waiting?.who.split(",")[0] ?? "-"} sublabel={waiting ? waiting.label : "no step open"} />
       </div>
 
+      <ExposureStatement row={row} />
+      <CreditStatement row={row} />
+
+      <Card>
+        <button type="button" aria-expanded={!!movement} onClick={() => (movement ? setMovement(undefined) : open("add"))} className="flex w-full items-center gap-2 px-4 py-3 text-left">
+          <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", movement && "rotate-90")} />
+          <h2 className="text-sm font-semibold">Account {gl.gl} movement</h2>
+          <span className="ml-auto text-xs tnum text-muted-foreground">
+            opening {fmtDrCr(roll.opening, true)}, additions +{fmtINRCompact(Math.abs(roll.added))}, reductions −{fmtINRCompact(Math.abs(roll.reduced))}, closing {fmtDrCr(roll.closing, true)}
+          </span>
+        </button>
+      </Card>
       {movement && <Movements roll={roll} review={review} gl={gl.gl} selected={movement} onSelect={setMovement} onClose={() => setMovement(undefined)} />}
 
       <Panel title="Process" actions={waiting ? <span className="text-xs text-muted-foreground">Waiting on <span className="font-medium text-foreground">{waiting.who}</span></span> : <StatusChip status={row.status} />} bodyClassName="px-2 py-2">
@@ -259,7 +275,7 @@ export function ItemDetail() {
         </div>
         <div className="space-y-3">
           <Panel title="Item" bodyClassName="p-0 [&>section:first-child]:border-t-0">
-            <Related row={row} />
+            <Related row={row} omit={row.hits.some((h) => h.ruleId === "BSR-05") ? ["Business partner", "Purchase order", "Bank guarantee"] : row.hits.some((h) => h.ruleId === "BSR-07") ? ["Tax credit statement"] : []} />
           </Panel>
           <Panel title="Audit trail" bodyClassName="p-0 [&>section:first-child]:border-t-0">
             <History itemKey={row.key} />
