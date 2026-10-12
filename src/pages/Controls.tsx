@@ -89,7 +89,7 @@ export function Controls() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="Control register" className="xl:col-span-2" bodyClassName="p-0" actions={processFilter !== "all" || statusFilter !== "all" ? <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => setParams({ process: null, cstatus: null })}>Clear filters</button> : undefined}>
+        <Panel fit title="Control register" className="xl:col-span-2" bodyClassName="p-0" actions={processFilter !== "all" || statusFilter !== "all" ? <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => setParams({ process: null, cstatus: null })}>Clear filters</button> : undefined}>
           <Table>
             <TableHeader>
               <TableRow>

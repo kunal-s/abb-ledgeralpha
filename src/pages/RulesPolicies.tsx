@@ -321,7 +321,7 @@ export function RulesPolicies() {
         </TabsList>
         <TabsContent value="rules">
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <Panel title="Hits by rule" actions={<span className="text-2xs text-muted-foreground">items · value</span>}>
+            <Panel title="Hits by rule" className="self-start xl:sticky xl:top-0" actions={<span className="text-2xs text-muted-foreground">items · value</span>}>
               <HitsByRule rules={rows} selected={selected} onSelect={setSelected} />
             </Panel>
             <RuleDetail rule={rule} lastDelta={lastDelta} onApplied={setLastDelta} />

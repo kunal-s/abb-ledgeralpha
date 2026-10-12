@@ -115,7 +115,7 @@ export function BankGuarantees() {
             </div>
           )}
         </Panel>
-        <Panel title="Bank limits and commission" bodyClassName="p-0">
+        <Panel fit title="Bank limits and commission" bodyClassName="p-0">
           <ul className="divide-y divide-border">
             {use.map((u, i) => (
               <li key={u.bank} className="px-4 py-2.5">

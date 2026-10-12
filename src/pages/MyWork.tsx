@@ -208,7 +208,7 @@ export function MyWork() {
             <StatusBars data={chart} rows={chartRows} groups={GROUPS} unit="items" labelWidth="12rem" onSelect={(kind, bucket) => setParams({ wtype: kind, wdue: bucket })} />
           )}
         </Panel>
-        <Panel title="Next up" bodyClassName="p-0">
+        <Panel fit title="Next up" bodyClassName="p-0">
           {next.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing is waiting</div>
           ) : (

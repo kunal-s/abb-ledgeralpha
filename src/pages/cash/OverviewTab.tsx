@@ -120,7 +120,7 @@ export function OverviewTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="Unapplied credits by customer" className="xl:col-span-2" bodyClassName="p-0">
+        <Panel fit title="Unapplied credits by customer" className="xl:col-span-2" bodyClassName="p-0">
           <Table>
             <TableHeader>
               <TableRow>

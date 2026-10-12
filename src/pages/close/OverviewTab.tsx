@@ -95,7 +95,7 @@ export function OverviewTab({ model }: { model: CloseModel }) {
           )}
         </Panel>
 
-        <Panel title="Blockers and late tasks" bodyClassName="p-0">
+        <Panel fit title="Blockers and late tasks" bodyClassName="p-0">
           {trouble.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing is late or blocked</div>
           ) : (

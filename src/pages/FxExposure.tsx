@@ -82,7 +82,7 @@ export function FxExposure() {
         <TabsList>
           <TabsTrigger value="receivables">Largest receivables</TabsTrigger>
           <TabsTrigger value="payables">Largest payables</TabsTrigger>
-          <TabsTrigger value="reval">Biggest revaluation effects</TabsTrigger>
+          <TabsTrigger value="reval">Largest revaluation effects</TabsTrigger>
           <TabsTrigger value="forwards">Forward contracts</TabsTrigger>
         </TabsList>
         <TabsContent value="receivables"><Panel title="Foreign-currency receivables" bodyClassName="p-0"><ItemTable rows={byAbs("receivable")} /></Panel></TabsContent>

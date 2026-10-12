@@ -88,12 +88,12 @@ export function ExceptionsTab() {
         <Panel title="Exception pipeline" className="xl:col-span-2">
           <div className="flex items-stretch gap-1">
             {pipeline.map((p, i) => (
-              <div key={p.key} className="flex flex-1 items-center gap-1">
+              <div key={p.key} className="flex min-w-0 flex-1 items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setParams({ status: status === p.key ? null : p.key, show: null })}
                   aria-pressed={status === p.key}
-                  className={cn("flex-1 rounded-md border px-2 py-2 text-left transition-colors", status === p.key ? "border-primary bg-primary/10" : "border-border hover:bg-accent")}
+                  className={cn("min-w-0 flex-1 rounded-md border px-2 py-2 text-left transition-colors", status === p.key ? "border-primary bg-primary/10" : "border-border hover:bg-accent")}
                 >
                   <div className="tnum text-lg font-semibold leading-tight">{fmtInt(p.count)}</div>
                   <div className="text-2xs text-muted-foreground">{p.label}</div>
