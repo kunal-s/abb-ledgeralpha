@@ -366,7 +366,7 @@ export function Gst() {
         <Panel title="Input credit by return period" className="xl:col-span-2" actions={period ? <button type="button" className="text-xs font-medium text-primary hover:underline" onClick={() => setParams({ gperiod: null })}>All periods</button> : undefined}>
           <ItcBars periods={periods} selected={period} onSelect={(p) => setParams({ gperiod: p ?? null })} />
         </Panel>
-        <Panel title="Returns and payments" bodyClassName="p-0">
+        <Panel fit title="Returns and payments" bodyClassName="p-0">
           <ul className="divide-y divide-border">
             {[...months].reverse().map((m) => {
               const st = RETURN_STATUS[m.status];

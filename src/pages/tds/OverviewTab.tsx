@@ -97,7 +97,7 @@ export function OverviewTab() {
           />
         </Panel>
 
-        <Panel title="Credits at risk by age" bodyClassName="p-4">
+        <Panel title="Credits at risk by age" className="self-start" bodyClassName="p-4">
           <ul className="space-y-3">
             {ageing.map((a) => (
               <li key={a.id}>

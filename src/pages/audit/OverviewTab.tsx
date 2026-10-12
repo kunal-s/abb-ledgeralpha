@@ -80,7 +80,7 @@ export function OverviewTab() {
           <StatusBars data={chart} rows={areas.map((a) => ({ key: a, label: a }))} groups={GROUPS} unit="requests" labelWidth="11rem" onSelect={(area, status) => to("requests", { parea: area, pstatus: status })} />
         </Panel>
 
-        <Panel title="Open requests" bodyClassName="p-0">
+        <Panel fit title="Open requests" bodyClassName="p-0">
           {needs.length === 0 ? (
             <div className="px-4 py-5 text-center text-sm text-muted-foreground">Every request is provided</div>
           ) : (

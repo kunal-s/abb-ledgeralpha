@@ -105,7 +105,7 @@ export function VarianceAnalysis() {
             </TableBody>
           </Table>
         </Panel>
-        <Panel title="Commentary" actions={<MethodBadge method="judgement" showConfidence={false} />}>
+        <Panel title="Commentary" className="self-start" actions={<MethodBadge method="judgement" showConfidence={false} />}>
           <p className="text-sm leading-6">{text}</p>
         </Panel>
       </div>

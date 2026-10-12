@@ -64,7 +64,7 @@ function Attention({ items }: { items: AttentionItem[] }) {
   const navigate = useNavigate();
   const open = useItemDrawer((s) => s.open);
   return (
-    <Panel title="Open actions" bodyClassName="p-0">
+    <Panel fit title="Open actions" bodyClassName="p-0">
       {items.length === 0 ? (
         <div className="px-4 py-5 text-center text-sm text-muted-foreground">Nothing needs attention</div>
       ) : (
@@ -126,7 +126,7 @@ function ReconHealth({ rows }: { rows: RecHealth[] }) {
   const navigate = useNavigate();
   const max = Math.max(1, ...rows.map((r) => r.unexplained));
   return (
-    <Panel title="Reconciliation health" bodyClassName="p-0">
+    <Panel fit title="Reconciliation health" bodyClassName="p-0">
       <ul className="divide-y divide-border">
         {rows.map((r, i) => (
           <li key={r.type}>
