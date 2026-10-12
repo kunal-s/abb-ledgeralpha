@@ -3,20 +3,21 @@
 // Reconciliations and Cash Application; the Balance Sheet Review keeps its own
 // richer Decisions tab.
 
-import { useMemo, useState } from "react";
-import { Download } from "lucide-react";
+import { Fragment, useMemo, useState } from "react";
+import { ChevronRight, Download } from "lucide-react";
 import { Panel, StatusChip } from "@/components/vocab";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PERSON_BY_ID, WORLD } from "@/data";
+import { DecisionApproval } from "@/components/review/drawerParts";
+import { GL_BY_ID, PERSON_BY_ID, WORLD } from "@/data";
 import { itemStatus } from "@/state/hooks";
 import { useWorkflow } from "@/state/workflow";
 import { useRoleStore } from "@/lib/stores";
 import { ROLES, can } from "@/config/roles";
-import { EXPORT_COLUMNS, exportRows } from "@/engine/journals";
+import { EXPORT_COLUMNS, buildProposal, exportRows } from "@/engine/journals";
 import { downloadCsv } from "@/lib/exportCsv";
 import { fmtDate, fmtDateTime } from "@/lib/dates";
-import { fmtINR, fmtInt } from "@/lib/format";
+import { fmtDrCr, fmtINR, fmtInt } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { Decision } from "@/types";
@@ -52,6 +53,7 @@ export function DecisionQueue({ title, sourceLabel, itemLabel, entries }: { titl
   const { approveDecisions, taxReview, exportDecisions, markPosted } = useWorkflow.getState();
   const [filter, setFilter] = useState<FilterKey>("mine");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const awaitingMe = (d: Decision) => d.status === "proposed" && (d.chain[d.approvals.length] === role || (d.taxReviewRequired && !d.taxReview && can(role, "tax-review")));
   const rows = useMemo(
@@ -136,65 +138,112 @@ export function DecisionQueue({ title, sourceLabel, itemLabel, entries }: { titl
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead className="w-6 pr-0" />
             <TableHead className="w-8 pr-0">
               <input type="checkbox" aria-label="Select all entries shown" checked={rows.length > 0 && rows.every((r) => selected.has(r.decision.id))} onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.decision.id)) : new Set())} />
             </TableHead>
             <TableHead>{sourceLabel}</TableHead>
             <TableHead>{itemLabel}</TableHead>
             <TableHead className="text-right">Amount</TableHead>
-            <TableHead>Band</TableHead>
             <TableHead>Proposed by</TableHead>
             <TableHead>Waiting for</TableHead>
-            <TableHead>Tax review</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={9} className="py-5 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={8} className="py-5 text-center text-sm text-muted-foreground">
                 {filter === "mine" ? `Nothing is waiting for ${ROLES[role].label}` : "No entries"}
               </TableCell>
             </TableRow>
           )}
           {rows.slice(0, 200).map((e) => {
             const d = e.decision;
+            const expanded = openId === d.id;
+            const proposal = expanded ? buildProposal(d) : undefined;
             return (
-              <TableRow key={d.id} className="cursor-pointer" onClick={e.open} data-state={selected.has(d.id) ? "selected" : undefined}>
-                <TableCell className="w-8 pr-0" onClick={(ev) => ev.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    aria-label={`Select ${e.primary}`}
-                    checked={selected.has(d.id)}
-                    onChange={() =>
-                      setSelected((s) => {
-                        const n = new Set(s);
-                        if (n.has(d.id)) n.delete(d.id);
-                        else n.add(d.id);
-                        return n;
-                      })
-                    }
-                  />
-                </TableCell>
-                <TableCell className="max-w-56 truncate py-2 text-sm">{e.source}</TableCell>
-                <TableCell className="max-w-64 py-2">
-                  <div className="truncate text-sm">{e.primary}</div>
-                  {e.secondary && <div className="truncate text-2xs text-muted-foreground">{e.secondary}</div>}
-                </TableCell>
-                <TableCell className="whitespace-nowrap py-2 text-right tnum text-sm">{fmtINR(Math.abs(d.amount))}</TableCell>
-                <TableCell className="py-2 font-mono text-xs">{d.approvalBandId}</TableCell>
-                <TableCell className="whitespace-nowrap py-2">
-                  <div className="text-sm">{PERSON_BY_ID.get(d.proposedBy)?.name}</div>
-                  <div className="text-2xs text-muted-foreground">{fmtDateTime(d.proposedAt)}</div>
-                </TableCell>
-                <TableCell className="whitespace-nowrap py-2 text-sm">{nextStep(d) || <span className="text-muted-foreground">-</span>}</TableCell>
-                <TableCell className="py-2">
-                  {d.taxReviewRequired ? <StatusChip status={d.taxReview ? d.taxReview.outcome : "in-review"} label={d.taxReview ? undefined : "Pending"} /> : <span className="text-2xs text-muted-foreground">Not required</span>}
-                </TableCell>
-                <TableCell className="py-2">
-                  <StatusChip status={itemStatus(false, d)} />
-                </TableCell>
-              </TableRow>
+              <Fragment key={d.id}>
+                <TableRow className="cursor-pointer" onClick={() => setOpenId(expanded ? null : d.id)} aria-expanded={expanded} data-state={selected.has(d.id) ? "selected" : undefined}>
+                  <TableCell className="w-6 pr-0">
+                    <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-90")} />
+                  </TableCell>
+                  <TableCell className="w-8 pr-0" onClick={(ev) => ev.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${e.primary}`}
+                      checked={selected.has(d.id)}
+                      onChange={() =>
+                        setSelected((s) => {
+                          const n = new Set(s);
+                          if (n.has(d.id)) n.delete(d.id);
+                          else n.add(d.id);
+                          return n;
+                        })
+                      }
+                    />
+                  </TableCell>
+                  <TableCell className="max-w-28 truncate py-2 text-sm">{e.source}</TableCell>
+                  <TableCell className="max-w-48 py-2">
+                    <div className="truncate text-sm">{e.primary}</div>
+                    {e.secondary && <div className="truncate text-2xs text-muted-foreground">{e.secondary}</div>}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap py-2 text-right">
+                    <div className="tnum text-sm">{fmtINR(Math.abs(d.amount))}</div>
+                    <div className="text-2xs text-muted-foreground">band {d.approvalBandId}</div>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap py-2">
+                    <div className="text-sm">{PERSON_BY_ID.get(d.proposedBy)?.name}</div>
+                    <div className="text-2xs text-muted-foreground">{fmtDateTime(d.proposedAt)}</div>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap py-2">
+                    <div className="text-sm">{nextStep(d) || <span className="text-muted-foreground">-</span>}</div>
+                    {d.taxReviewRequired && <div className="text-2xs text-muted-foreground">tax review {d.taxReview ? d.taxReview.outcome : "pending"}</div>}
+                  </TableCell>
+                  <TableCell className="py-2">
+                    <StatusChip status={itemStatus(false, d)} />
+                  </TableCell>
+                </TableRow>
+                {expanded && (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={8} className="p-0">
+                      <div className="grid grid-cols-1 gap-x-6 bg-muted/30 px-4 py-3 lg:grid-cols-2">
+                        <div>
+                          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{proposal?.kind === "CLEARING" ? "Clearing instruction" : "Entry"}</div>
+                          {proposal ? (
+                            <>
+                              <div className="mb-1 text-sm font-medium">{proposal.header}</div>
+                              {proposal.lines.length > 0 && (
+                                <table className="w-full text-xs">
+                                  <tbody>
+                                    {proposal.lines.map((l, i) => (
+                                      <tr key={i} className="border-b border-border/60 last:border-0">
+                                        <td className="w-8 py-1.5 text-muted-foreground">{l.side}</td>
+                                        <td className="py-1.5">
+                                          <span className="font-mono">{l.gl || "to confirm"}</span> <span className="text-muted-foreground">{l.glDescription}</span>
+                                        </td>
+                                        <td className="py-1.5 text-right tnum whitespace-nowrap">{fmtDrCr(l.side === "Dr" ? l.amount : -l.amount)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No entry: this decision does not post.</p>
+                          )}
+                          <button type="button" onClick={e.open} className="mt-3 text-sm font-medium text-primary hover:underline">
+                            Open the item
+                          </button>
+                        </div>
+                        <div className="[&_section]:border-t-0 [&_section]:px-0">
+                          <DecisionApproval d={d} />
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </Fragment>
             );
           })}
         </TableBody>

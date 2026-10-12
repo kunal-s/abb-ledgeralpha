@@ -111,7 +111,7 @@ export function Decision({ row, onAsk }: { row: ItemRow; onAsk?: () => void }) {
   const fu = row.followUp;
   const answered = !!fu && fu.status !== "open";
   const [action, setAction] = useState<ActionKind>(actionAfterEvidence(row));
-  const [justification, setJustification] = useState("");
+  const [justification, setJustification] = useState(rec && actionAfterEvidence(row) === rec.action ? rec.rationale : "");
   const run = (r: { ok: boolean; error?: string }, ok: string) => (r.ok ? toast(ok, { tone: "ok" }) : toast(r.error ?? "Not allowed", { tone: "danger" }));
   const amount = Math.abs(row.item.amount);
   const needsJustification = amount >= MATERIALITY_POLICY.documentedActionAmount;
@@ -222,7 +222,7 @@ export function FollowUp({ row }: { row: ItemRow }) {
 }
 
 // ---------------------------------------------------------------------------
-export function Related({ row }: { row: ItemRow }) {
+export function Related({ row, omit = [] }: { row: ItemRow; omit?: string[] }) {
   const item = row.item;
   const party = item.partner ? PARTY_BY_ID.get(item.partner.id) : undefined;
   const project = item.wbs ? PROJECT_BY_WBS.get(item.wbs) : undefined;
@@ -250,9 +250,10 @@ export function Related({ row }: { row: ItemRow }) {
   if (bg) rows.push(["Bank guarantee", `${bg.bgNo} · ${bg.type} · ${fmtINRCompact(bg.amount)} · valid to ${fmtDate(bg.validTo)}${bg.claimExpiry ? `, claim period to ${fmtDate(bg.claimExpiry)}` : ""} · ${bg.status}`]);
   if (facts.quarter) rows.push(["Tax credit statement", `${facts.quarter} · ${facts.creditStatus}${Number(facts.credited) ? ` · credited ${fmtINR(Number(facts.credited))}` : ""}`]);
 
+  const shown = rows.filter(([label]) => !omit.includes(label));
   return (
     <Section title="Related records">
-      {rows.length > 0 && <Fields rows={rows} compact />}
+      {shown.length > 0 && <Fields rows={shown} compact />}
       {poLines.length > 1 && (
         <div className="mt-2">
           <div className="mb-1 text-2xs text-muted-foreground">Documents on PO {item.po!.number}</div>

@@ -10,8 +10,8 @@ import { fmtDate } from "@/lib/dates";
 const INCOME_WRITE_BACK = "461500"; // liabilities no longer required written back
 const BAD_DEBTS = "531500";
 const TAX_EXPENSE = "550100";
-const ECL_EXPENSE = "531400";
-const ECL_ALLOWANCE = "149100";
+export const ECL_EXPENSE = "531400";
+export const ECL_ALLOWANCE = "149100";
 const BANK_CHARGES = "531100";
 
 export interface ProposalLine {
