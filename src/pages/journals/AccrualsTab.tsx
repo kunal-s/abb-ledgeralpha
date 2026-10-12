@@ -28,7 +28,7 @@ export function AccrualsTab() {
   const next = calendar[0];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label="Provisions and accruals" value={fmtINRCompact(size(total.closing))} sublabel={`${fmtInt(rows.length)} accounts · was ${fmtINRCompact(size(total.opening))}`} />
         <KpiTile label="Provided in the quarter" value={fmtINRCompact(size(total.provided))} sublabel="credits other than reversals" />
@@ -120,7 +120,7 @@ export function AccrualsTab() {
             ))}
             {calendar.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={7} className="py-5 text-center text-sm text-muted-foreground">
                   Every month-end accrual has been reversed
                 </TableCell>
               </TableRow>

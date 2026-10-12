@@ -221,7 +221,7 @@ function Matches({ rows, cases }: { rows: GstMatch[]; cases?: boolean }) {
             </Fragment>
           );
         })}
-        {rows.length === 0 && <TableRow><TableCell colSpan={cases ? 7 : 6} className="py-8 text-center text-sm text-muted-foreground">Nothing here</TableCell></TableRow>}
+        {rows.length === 0 && <TableRow><TableCell colSpan={cases ? 7 : 6} className="py-4 text-center text-sm text-muted-foreground">Nothing here</TableCell></TableRow>}
       </TableBody>
     </Table>
   );
@@ -344,7 +344,7 @@ export function Gst() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title={TAX} badge={period ? <span className="rounded-md bg-secondary px-2 py-0.5 text-2xs font-medium">{fmtMonth(`${period}-01`)}</span> : undefined} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Tax on sales" hint="Output tax charged on sales in the fiscal year to date, from the output tax accounts" value={fmtINRCompact(fy.output)} sublabel={`${fmtInt(months.length)} months`} />
@@ -440,7 +440,7 @@ export function Gst() {
                     <TableCell className="text-right tnum">{fmtINR(r.tax)}</TableCell>
                   </TableRow>
                 ))}
-                {risk.length === 0 && <TableRow><TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">No invoice is past the window</TableCell></TableRow>}
+                {risk.length === 0 && <TableRow><TableCell colSpan={4} className="py-4 text-center text-sm text-muted-foreground">No invoice is past the window</TableCell></TableRow>}
               </TableBody>
             </Table>
           </Panel>

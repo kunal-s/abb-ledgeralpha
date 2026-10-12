@@ -188,7 +188,7 @@ export function MyWork() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="My Work" badge={<span className="rounded-md bg-secondary px-2 py-0.5 text-2xs font-medium">{ROLES[role].label}, {person.name}</span>} />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
@@ -203,14 +203,14 @@ export function MyWork() {
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <Panel title="Queue by type and due date" className="xl:col-span-2">
           {chartRows.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">Nothing is waiting for {ROLES[role].label}</div>
+            <div className="py-4 text-center text-sm text-muted-foreground">Nothing is waiting for {ROLES[role].label}</div>
           ) : (
             <StatusBars data={chart} rows={chartRows} groups={GROUPS} unit="items" labelWidth="12rem" onSelect={(kind, bucket) => setParams({ wtype: kind, wdue: bucket })} />
           )}
         </Panel>
         <Panel fit title="Next up" bodyClassName="p-0">
           {next.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing is waiting</div>
+            <div className="px-4 py-5 text-center text-sm text-muted-foreground">Nothing is waiting</div>
           ) : (
             <ul className="divide-y divide-border/70">
               {next.map((i) => (
@@ -370,7 +370,7 @@ export function MyWork() {
             ))}
             {shown.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={7} className="py-5 text-center text-sm text-muted-foreground">
                   {items.length === 0 ? `Nothing is waiting for ${ROLES[role].label}` : "No items match"}
                 </TableCell>
               </TableRow>

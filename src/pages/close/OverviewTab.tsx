@@ -49,7 +49,7 @@ export function OverviewTab({ model }: { model: CloseModel }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Close progress" value={`${Math.round(ev.progress * 100)}%`} sublabel={`${stats.complete} of ${ev.states.length} tasks complete`} accent="info" onClick={() => toChecklist({})} />
         <KpiTile label="Working day" value={wdLabel(model.currentWd)} sublabel={`${fmtDate(dateOfWd(model.periodEnd, model.currentWd))} · target ${wdLabel(model.targetWd)}`} />
@@ -97,7 +97,7 @@ export function OverviewTab({ model }: { model: CloseModel }) {
 
         <Panel fit title="Blockers and late tasks" bodyClassName="p-0">
           {trouble.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing is late or blocked</div>
+            <div className="px-4 py-5 text-center text-sm text-muted-foreground">Nothing is late or blocked</div>
           ) : (
             <ul className="divide-y divide-border/70">
               {trouble.map((s) => {

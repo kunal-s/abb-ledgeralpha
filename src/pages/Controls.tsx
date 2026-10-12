@@ -46,7 +46,7 @@ export function Controls() {
   const blocked = sod.filter((s) => s.kind === "Blocked").length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Controls" />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label="Controls" value={fmtInt(controls.length)} sublabel={`across ${fmtInt(processes.length)} processes`} />
@@ -69,7 +69,7 @@ export function Controls() {
         </Panel>
         <Panel title="Segregation of duties" bodyClassName="p-0">
           {sod.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">No conflict found and no refusal recorded</div>
+            <div className="px-4 py-5 text-center text-sm text-muted-foreground">No conflict found and no refusal recorded</div>
           ) : (
             <ul className="divide-y divide-border">
               {sod.slice(0, 8).map((s, i) => (
@@ -111,7 +111,7 @@ export function Controls() {
                   <TableCell><StatusChip status={CHIP[c.status].status} label={CHIP[c.status].label} /></TableCell>
                 </TableRow>
               ))}
-              {shown.length === 0 && <TableRow><TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">No control matches</TableCell></TableRow>}
+              {shown.length === 0 && <TableRow><TableCell colSpan={4} className="py-4 text-center text-sm text-muted-foreground">No control matches</TableCell></TableRow>}
             </TableBody>
           </Table>
         </Panel>
@@ -122,7 +122,7 @@ export function Controls() {
             <div className="mt-1 text-xs text-muted-foreground">Risk: {current.def.risk}</div>
           </div>
           {current.evidence.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nothing has reached this control yet</div>
+            <div className="px-4 py-4 text-center text-sm text-muted-foreground">Nothing has reached this control yet</div>
           ) : (
             <ul className="divide-y divide-border">
               {current.evidence.map((e, i) => (

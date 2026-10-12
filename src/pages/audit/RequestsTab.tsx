@@ -72,7 +72,7 @@ function RequestBody({ s }: { s: PbcState }) {
           <span className="rounded-md bg-secondary px-1.5 py-0.5 text-2xs font-medium">Due {fmtDate(s.req.due)}</span>
         </div>
       </header>
-      <div className="flex-1 space-y-4 overflow-y-auto px-5 pb-6">
+      <div className="flex-1 space-y-3 overflow-y-auto px-5 pb-6">
         <Fields
           compact
           rows={[
@@ -389,7 +389,7 @@ export function RequestsTab() {
             ))}
             {shown.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={5} className="py-5 text-center text-sm text-muted-foreground">
                   No requests match
                 </TableCell>
               </TableRow>

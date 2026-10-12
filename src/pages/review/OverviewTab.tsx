@@ -90,7 +90,7 @@ export function OverviewTab() {
     setParams({ tab: "exceptions", category, bucket, show: "all", status: null, rule: null, q: null }, { replace: false });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Value reviewed" value={fmtINRCompact(open.reduce((s, r) => s + Math.abs(r.item.amount), 0))} sublabel={`${fmtInt(open.length)} open items`} />
         <KpiTile label={`Older than ${threshold} days`} value={fmtINRCompact(over.reduce((s, r) => s + Math.abs(r.item.amount), 0))} sublabel={`${fmtInt(over.length)} items`} accent="warn" />
@@ -143,10 +143,10 @@ export function OverviewTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="Where the risk sits" className="xl:col-span-2" actions={<AgeingLegend />}>
+        <Panel title="Flagged balances by age" className="xl:col-span-2" actions={<AgeingLegend />}>
           <FocusAreas areas={facts.focus} onSelect={(c, b) => drill(c, b ?? null)} />
         </Panel>
-        <Panel title="What the engine recommends" actions={<MethodBadge method="judgement" showConfidence={false} />}>
+        <Panel title="Recommended actions" actions={<MethodBadge method="judgement" showConfidence={false} />}>
           <ActionMix slices={facts.mix} onSelect={(a) => setParams({ tab: "exceptions", category: null, bucket: null, show: "all", status: null, rule: null, q: null, action: a }, { replace: false })} />
         </Panel>
       </div>
@@ -168,9 +168,9 @@ export function OverviewTab() {
           <HeatmapGrid heatmap={heatmap} mode={mode} onSelect={drill} />
         </Panel>
 
-        <Panel title="Needs a decision" bodyClassName="p-0">
+        <Panel title="Pending decisions" bodyClassName="p-0">
           {needsDecision.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">Every recommended action has a decision</div>
+            <div className="px-4 py-5 text-center text-sm text-muted-foreground">Every recommended action has a decision</div>
           ) : (
             <ul className="divide-y divide-border/70">
               {needsDecision.map((r) => (
@@ -201,7 +201,7 @@ export function OverviewTab() {
         <Panel title="Oldest balances, over a year" bodyClassName="p-0" className="xl:col-span-2">
           <StaleBalances accounts={facts.stale.slice(0, 6)} />
         </Panel>
-        <Panel title="Reading of the balance sheet" actions={<MethodBadge method="judgement" showConfidence={false} />}>
+        <Panel title="Commentary" actions={<MethodBadge method="judgement" showConfidence={false} />}>
           <p className="text-sm leading-6">{commentary}</p>
         </Panel>
       </div>

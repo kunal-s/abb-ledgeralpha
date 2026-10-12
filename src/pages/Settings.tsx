@@ -219,7 +219,7 @@ function Modules() {
 
 export function Settings() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Settings" actions={<ResetDemo />} />
       <Tabs defaultValue="workspace">
         <TabsList>

@@ -70,7 +70,7 @@ export function AccountsTab() {
   const categories = [...new Set(review.accounts.map((a) => a.summary.gl.category))] as AccountCategory[];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Panel title="Accounts by risk and review status">
         <StatusBars data={chart} onSelect={(r, g) => setParams({ risk: r, astatus: g })} />
       </Panel>
@@ -174,7 +174,7 @@ export function AccountsTab() {
             ))}
             {rows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={9} className="py-5 text-center text-sm text-muted-foreground">
                   No accounts match
                 </TableCell>
               </TableRow>

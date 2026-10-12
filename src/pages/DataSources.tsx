@@ -215,7 +215,7 @@ export function DataSources() {
   const extractedDate = WORLD.extractedAt.slice(0, 10);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title="Data Sources"
         badge={<StatusChip status={allPassed ? "approved" : "rejected"} label={allPassed ? "All checks passed" : "Checks with exceptions"} />}

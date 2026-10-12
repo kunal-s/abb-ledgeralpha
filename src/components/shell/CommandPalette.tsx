@@ -77,7 +77,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           />
         </div>
         <ul ref={listRef} className="max-h-80 overflow-y-auto py-1">
-          {hits.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Nothing matches</li>}
+          {hits.length === 0 && <li className="px-4 py-4 text-center text-sm text-muted-foreground">Nothing matches</li>}
           {hits.map((h, i) => (
             <li key={h.id}>
               <button

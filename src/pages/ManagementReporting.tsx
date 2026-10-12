@@ -57,7 +57,7 @@ export function ManagementReporting() {
   const scopeName = scope === "all" ? undefined : WORLD.businessUnits.find((b) => b.id === scope)?.name;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Management Reporting" badge={scopeName ? <span className="rounded-md bg-secondary px-2 py-0.5 text-2xs font-medium">{scopeName}</span> : undefined} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Revenue" hint={hint.revenue} value={fmtINRCompact(cur.revenue)} delta={growth === undefined ? undefined : `${Math.abs(growth * 100).toFixed(1)}% on last year`} trend={growth === undefined ? "flat" : growth >= 0 ? "up" : "down"} goodWhen="up" />
@@ -69,7 +69,7 @@ export function ManagementReporting() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="Where each rupee of revenue goes" className="xl:col-span-2">
+        <Panel title="Revenue to profit by business unit" className="xl:col-span-2">
           <RupeeStack rows={bus.filter((b) => b.current.revenue > 0 && inScope(b.businessUnitId)).map((b) => ({ id: b.businessUnitId, name: b.name, current: b.current, prior: b.prior }))} />
         </Panel>
         <Panel title="Revenue and operating margin by month">
@@ -136,7 +136,7 @@ export function ManagementReporting() {
               </TableRow>
             ))}
             {visible.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">No project matches</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="py-5 text-center text-sm text-muted-foreground">No project matches</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

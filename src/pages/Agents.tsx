@@ -67,7 +67,7 @@ export function Agents() {
   const runs = useMemo(() => events.filter((e) => e.actorId === current.agent.id).slice(0, 8), [events, current.agent.id]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Agents" badge={<span className="rounded-md bg-secondary px-2 py-0.5 text-2xs font-medium">Propose only</span>} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label="Agents" value={fmtInt(stats.length)} sublabel={`${fmtInt(stats.filter((s) => s.agent.method === "judgement").length)} judgement, ${fmtInt(stats.filter((s) => s.agent.method === "deterministic").length)} deterministic`} />
@@ -121,7 +121,7 @@ export function Agents() {
           </Panel>
           <Panel title="Recent runs" bodyClassName="p-0">
             {runs.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">No run recorded</div>
+              <div className="px-4 py-4 text-center text-sm text-muted-foreground">No run recorded</div>
             ) : (
               runs.map((e) => <ActivityRow key={e.id} icon={<Bot className="h-4 w-4" />} title={e.action} meta={e.after ?? e.object.label ?? ""} time={fmtDate(e.at.slice(0, 10))} />)
             )}
@@ -129,9 +129,9 @@ export function Agents() {
         </div>
       </div>
 
-      <Panel title="Decisions that differ from the recommendation" bodyClassName="p-0">
+      <Panel title="Overrides" bodyClassName="p-0">
         {overridesList.length === 0 ? (
-          <div className="px-4 py-8 text-center text-sm text-muted-foreground">No person has decided differently from an agent yet</div>
+          <div className="px-4 py-4 text-center text-sm text-muted-foreground">No person has decided differently from an agent yet</div>
         ) : (
           <ul className="divide-y divide-border">
             {overridesList.map((d) => (

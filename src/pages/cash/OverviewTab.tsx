@@ -92,7 +92,7 @@ export function OverviewTab() {
   const go = (extra: Record<string, string | null>) => setParams({ tab: "receipts", cstatus: null, clevel: null, cage: null, ...extra }, { replace: false });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Receipts in clearing" value={fmtInt(rows.length)} sublabel={fmtINRCompact(stats.sum(rows))} onClick={() => go({})} />
         <KpiTile label="Ready to confirm" value={fmtInt(stats.by("ready").length)} sublabel={fmtINRCompact(stats.sum(stats.by("ready")))} accent="ok" onClick={() => go({ cstatus: "ready" })} />

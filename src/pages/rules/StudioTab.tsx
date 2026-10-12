@@ -97,7 +97,7 @@ export function StudioTab() {
   return (
     <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
       <div className="space-y-3 xl:col-span-2">
-        <Panel title="Describe a rule in your own words">
+        <Panel title="New rule">
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -212,9 +212,9 @@ export function StudioTab() {
       </div>
 
       <div className="space-y-3">
-        <Panel title="Patterns no rule covers" actions={<MethodBadge method="judgement" showConfidence={false} />} bodyClassName="p-0">
+        <Panel title="Unclassified patterns" actions={<MethodBadge method="judgement" showConfidence={false} />} bodyClassName="p-0">
           {suggestions.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Every pattern checked is already covered</div>
+            <div className="px-4 py-4 text-center text-sm text-muted-foreground">Every pattern checked is already covered</div>
           ) : (
             <ul className="divide-y divide-border">
               {suggestions.map((s) => (
@@ -235,7 +235,7 @@ export function StudioTab() {
 
         <Panel title="Rules added in this workspace" bodyClassName="p-0">
           {studioRules.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">None yet</div>
+            <div className="px-4 py-4 text-center text-sm text-muted-foreground">None yet</div>
           ) : (
             <ul className="divide-y divide-border">
               {studioRules.map((r) => {

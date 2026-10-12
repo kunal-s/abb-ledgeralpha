@@ -283,7 +283,7 @@ export function RulesPolicies() {
   const rule = run.rules.find((r) => r.id === selected)!;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title="Rules & Policies"
         actions={

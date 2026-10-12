@@ -40,7 +40,7 @@ function AgentActivity() {
   return (
     <Panel title="Agent activity" bodyClassName="p-0">
       {recent.length === 0 ? (
-        <div className="px-4 py-8 text-center text-sm text-muted-foreground">No agent has run yet</div>
+        <div className="px-4 py-4 text-center text-sm text-muted-foreground">No agent has run yet</div>
       ) : (
         recent.map(({ latest: e, count }) => {
           const agent = AGENT_BY_ID.get(e.actorId);
@@ -64,9 +64,9 @@ function Attention({ items }: { items: AttentionItem[] }) {
   const navigate = useNavigate();
   const open = useItemDrawer((s) => s.open);
   return (
-    <Panel title="Needs attention" bodyClassName="p-0">
+    <Panel title="Open actions" bodyClassName="p-0">
       {items.length === 0 ? (
-        <div className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing needs attention</div>
+        <div className="px-4 py-5 text-center text-sm text-muted-foreground">Nothing needs attention</div>
       ) : (
         <ul className="divide-y divide-border/70">
           {items.map((a) => (
@@ -161,7 +161,7 @@ function LeaderHome() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Home" badge={<StatusChip status={ev.onTrack ? "on-track" : "behind"} label={`${wdLabel(close.realWd)} · ${ev.onTrack ? "close on track" : `close ${slip} ${slip === 1 ? "day" : "days"} behind`}`} />} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label="Close progress" value={`${Math.round(kpis.closeProgress * 100)}%`} sublabel={closeDay(close)} accent={ev.onTrack ? "ok" : "warn"} onClick={() => navigate("/close")} />
@@ -201,7 +201,7 @@ function OperatorHome() {
   const go = (i: WorkItem) => (i.itemKey ? open(i.itemKey) : navigate(i.link!));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Home" badge={<span className="rounded-md bg-secondary px-2 py-0.5 text-2xs font-medium">{ROLES[role].label}, {person.name}</span>} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiTile label="In your queue" value={fmtInt(items.length)} sublabel="across modules" accent="info" onClick={() => navigate("/my-work")} />
@@ -215,7 +215,7 @@ function OperatorHome() {
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         <Panel title="Your queue" bodyClassName="p-0" actions={<Link to="/my-work" className="text-xs font-medium text-primary hover:underline">Open My Work</Link>}>
           {preview.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing is waiting for {ROLES[role].label}</div>
+            <div className="px-4 py-5 text-center text-sm text-muted-foreground">Nothing is waiting for {ROLES[role].label}</div>
           ) : (
             <ul className="divide-y divide-border/70">
               {preview.map((i) => (
@@ -242,7 +242,7 @@ function OperatorHome() {
 
 function AuditorHome() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Home" />
       <AuditOverview />
     </div>

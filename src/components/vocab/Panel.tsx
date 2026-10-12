@@ -23,10 +23,10 @@ export function Panel({ title, actions, children, className, bodyClassName, fit 
       </div>
       {fit ? (
         <div className="relative min-h-48 flex-1">
-          <div className={cn("absolute inset-0 overflow-y-auto p-4", bodyClassName)}>{children}</div>
+          <div className={cn("absolute inset-0 overflow-y-auto px-4 py-3", bodyClassName)}>{children}</div>
         </div>
       ) : (
-        <div className={cn("flex-1 p-4", bodyClassName)}>{children}</div>
+        <div className={cn("flex-1 px-4 py-3", bodyClassName)}>{children}</div>
       )}
     </Card>
   );

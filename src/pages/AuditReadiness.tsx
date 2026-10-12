@@ -32,7 +32,7 @@ export function AuditReadiness() {
   const wrongScope = businessUnitId !== "all";
   if (wrongPeriod || wrongScope) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <PageHeader title="Audit Readiness" />
         <Card className="flex items-center justify-between gap-4 p-5 text-sm">
           <span>
@@ -49,7 +49,7 @@ export function AuditReadiness() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Audit Readiness" />
       <Tabs value={tab} onValueChange={(v) => setParams({ tab: v === "overview" ? null : v }, { replace: false })}>
         <TabsList>

@@ -159,7 +159,7 @@ export function ReviewTab() {
           ))}
           {shown.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={7} className="py-5 text-center text-sm text-muted-foreground">
                 No journals match
               </TableCell>
             </TableRow>

@@ -84,7 +84,7 @@ export function OverviewTab() {
   const toRegister = (extra: Record<string, string | null>) => setParams({ tab: "register", ...extra }, { replace: false });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Signed off" value={`${stats.signed}/${rows.length}`} sublabel="reviewer signed" accent="ok" onClick={() => toRegister({ rstatus: "signed", type: null })} />
         <KpiTile label="Ready for sign-off" value={fmtInt(stats.ready)} sublabel="preparer can sign" accent={stats.ready ? "warn" : "none"} onClick={() => toRegister({ rstatus: "ready", type: null })} />
@@ -115,9 +115,9 @@ export function OverviewTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-        <Panel title="Needs attention" bodyClassName="p-0">
+        <Panel title="Exceptions" bodyClassName="p-0">
           {needs.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">Nothing needs attention</div>
+            <div className="px-4 py-5 text-center text-sm text-muted-foreground">Nothing needs attention</div>
           ) : (
             <ul className="divide-y divide-border">
               {needs.map(({ r, a }) => (
@@ -137,7 +137,7 @@ export function OverviewTab() {
           )}
         </Panel>
 
-        <Panel title="Who holds what" bodyClassName="p-0">
+        <Panel title="Owners" bodyClassName="p-0">
           <Table>
             <TableHeader>
               <TableRow>

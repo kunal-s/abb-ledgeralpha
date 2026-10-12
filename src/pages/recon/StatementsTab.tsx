@@ -48,7 +48,7 @@ export function StatementsTab() {
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Panel title="Confirmations by status">
         <ul className="space-y-2">
           {STATUSES.map((s) => {
@@ -167,7 +167,7 @@ export function StatementsTab() {
             })}
             {shown.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={9} className="py-5 text-center text-sm text-muted-foreground">
                   No statements match
                 </TableCell>
               </TableRow>

@@ -83,7 +83,7 @@ export function ExceptionsTab() {
     );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-5">
         <Panel title="Exception pipeline" className="xl:col-span-2">
           <div className="flex items-stretch gap-1">

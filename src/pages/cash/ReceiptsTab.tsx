@@ -161,7 +161,7 @@ export function ReceiptsTab() {
         <TableBody>
           {shown.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={6} className="py-5 text-center text-sm text-muted-foreground">
                 No receipts match
               </TableCell>
             </TableRow>

@@ -141,7 +141,7 @@ export function ReceivableTab() {
         <TableBody>
           {shown.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={8} className="py-5 text-center text-sm text-muted-foreground">
                 No deductions match
               </TableCell>
             </TableRow>

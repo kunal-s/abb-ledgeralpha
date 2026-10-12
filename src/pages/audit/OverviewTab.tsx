@@ -65,7 +65,7 @@ export function OverviewTab() {
   const to = (tab: string, extra: Record<string, string | null> = {}) => setParams({ tab, ...extra }, { replace: false });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Requests provided" value={`${stats.done}/${states.length}`} sublabel="provided or closed" accent="ok" onClick={() => to("requests", { pstatus: "provided" })} />
         <KpiTile label="Overdue" value={fmtInt(stats.overdue.length)} sublabel="past the date asked" accent={stats.overdue.length ? "danger" : "none"} onClick={() => to("requests", { pstatus: "overdue" })} />
@@ -80,9 +80,9 @@ export function OverviewTab() {
           <StatusBars data={chart} rows={areas.map((a) => ({ key: a, label: a }))} groups={GROUPS} unit="requests" labelWidth="11rem" onSelect={(area, status) => to("requests", { parea: area, pstatus: status })} />
         </Panel>
 
-        <Panel title="Needs attention" bodyClassName="p-0">
+        <Panel title="Open requests" bodyClassName="p-0">
           {needs.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">Every request is provided</div>
+            <div className="px-4 py-5 text-center text-sm text-muted-foreground">Every request is provided</div>
           ) : (
             <ul className="divide-y divide-border/70">
               {needs.map(({ s }) => (

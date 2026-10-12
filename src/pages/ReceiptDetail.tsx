@@ -37,7 +37,7 @@ export function ReceiptDetail() {
 
   if (!row) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-3">
         <PageHeader title="Receipt not found" breadcrumbs={[{ label: "Cash Application", to: "/cash-application" }, { label: id ?? "" }]} />
         <Card className="p-5 text-sm">
           <Link to="/cash-application?tab=receipts" className="font-medium text-primary hover:underline">
@@ -64,7 +64,7 @@ export function ReceiptDetail() {
   const statementRec = row.customerId ? WORLD.reconciliations.find((r) => r.type === "Customer statement" && r.partyId === row.customerId) : undefined;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader
         title={`Receipt ${receipt.utr ?? receipt.docNo}`}
         breadcrumbs={[{ label: "Cash Application", to: "/cash-application" }, { label: "Receipts", to: "/cash-application?tab=receipts" }, { label: receipt.utr ?? receipt.docNo }]}
@@ -82,7 +82,7 @@ export function ReceiptDetail() {
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <div className="space-y-3 xl:col-span-2">
           {shown && (
-            <Panel title="From the receipt to the invoices" bodyClassName="pb-2">
+            <Panel title="Receipt allocation" bodyClassName="pb-2">
               <ReceiptFlow proposal={shown} />
             </Panel>
           )}
@@ -95,7 +95,7 @@ export function ReceiptDetail() {
               <MatchArithmetic p={shown} receipt={receipt} />
             </Panel>
           ) : (
-            <Panel title="Why there is no match">
+            <Panel title="Match status">
               <ul className="space-y-1.5 text-sm">
                 <li>{match.customers.length ? "The remittance names a customer, but no combination of its open invoices equals the receipt after standard deductions." : "The narration does not name a customer and cites no invoice."}</li>
                 {match.customers.map((c) => (
@@ -143,7 +143,7 @@ export function ReceiptDetail() {
           )}
 
           {journal && (
-            <Panel title="Entry the application proposes" bodyClassName="p-0">
+            <Panel title="Proposed entry" bodyClassName="p-0">
               <div className="border-b border-border/70 px-4 py-2 text-xs text-muted-foreground">{journal.header}. Proposal only; nothing is posted from the platform.</div>
               <Table>
                 <TableHeader>

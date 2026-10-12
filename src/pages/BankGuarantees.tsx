@@ -62,7 +62,7 @@ function BgTable({ rows, works }: { rows: BankGuarantee[]; works: Record<string,
             </TableRow>
           );
         })}
-        {rows.length === 0 && <TableRow><TableCell colSpan={7} className="py-8 text-center text-sm text-muted-foreground">Nothing here</TableCell></TableRow>}
+        {rows.length === 0 && <TableRow><TableCell colSpan={7} className="py-4 text-center text-sm text-muted-foreground">Nothing here</TableCell></TableRow>}
       </TableBody>
     </Table>
   );
@@ -95,7 +95,7 @@ export function BankGuarantees() {
   const register = bgs.filter((b) => direction === "all" || b.direction === direction).sort((a, b) => b.validTo.localeCompare(a.validTo));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Bank Guarantees" />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Issued, in force" value={fmtINRCompact(sum(issued))} sublabel={`${fmtInt(issued.length)} guarantees to customers`} />

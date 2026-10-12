@@ -152,7 +152,7 @@ export function DecisionQueue({ title, sourceLabel, itemLabel, entries }: { titl
         <TableBody>
           {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={9} className="py-10 text-center text-sm text-muted-foreground">
+              <TableCell colSpan={9} className="py-5 text-center text-sm text-muted-foreground">
                 {filter === "mine" ? `Nothing is waiting for ${ROLES[role].label}` : "No entries"}
               </TableCell>
             </TableRow>

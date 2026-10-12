@@ -72,7 +72,7 @@ export function FinancialStatements() {
   }, [pl]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <PageHeader title="Financial Statements" badge={<StatusChip status={balanced ? "approved" : "rejected"} label={balanced ? "Balance sheet balances" : "Balance sheet out of balance"} />} actions={<MethodBadge method="deterministic" />} />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label="Total assets" value={fmtINRCompact(bs.totalAssets)} delta={bs.comparativeAssets ? `${Math.abs(((bs.totalAssets - bs.comparativeAssets) / bs.comparativeAssets) * 100).toFixed(1)}% on year end` : undefined} trend={bs.totalAssets >= bs.comparativeAssets ? "up" : "down"} goodWhen="up" />
@@ -104,7 +104,7 @@ export function FinancialStatements() {
         </TabsContent>
 
         <TabsContent value="profit-and-loss" className="space-y-3">
-          <Panel title="From revenue to profit">
+          <Panel title="Revenue to profit">
             <Waterfall columns={flow.columns} min={flow.min} max={flow.max} plot={240} format={(v) => fmtINRCompact(v)} />
           </Panel>
           <Panel title={`Statement of profit and loss, ${LOCALISATION.financialStatementsFormat}`} bodyClassName="p-0">

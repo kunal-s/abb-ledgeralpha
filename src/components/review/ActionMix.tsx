@@ -6,7 +6,7 @@ interface ActionMixProps {
   onSelect?: (action: ActionSlice["action"]) => void;
 }
 
-/** What the engine recommends, by action: value as a bar, items as a count. Follow up means the evidence is not yet enough. */
+/** Recommended actions, by action: value as a bar, items as a count. Follow up means the evidence is not yet enough. */
 export function ActionMix({ slices, onSelect }: ActionMixProps) {
   const max = Math.max(1, ...slices.map((s) => s.value));
   return (
