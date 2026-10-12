@@ -102,7 +102,7 @@ export function Controls() {
             <TableBody>
               {shown.map((c) => (
                 <TableRow key={c.def.id} className={cn("cursor-pointer", current.def.id === c.def.id && "bg-accent/60")} onClick={() => setParams({ control: c.def.id })}>
-                  <TableCell className="max-w-[26rem]">
+                  <TableCell className="max-w-[18rem]">
                     <div className="truncate text-sm">{c.def.name}</div>
                     <div className="truncate text-2xs text-muted-foreground"><span className="font-mono">{c.def.id}</span> · {c.def.process} · {c.def.owner}</div>
                   </TableCell>

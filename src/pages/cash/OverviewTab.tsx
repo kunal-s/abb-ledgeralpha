@@ -119,8 +119,8 @@ export function OverviewTab() {
         </Panel>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="Unapplied credits by customer" className="xl:col-span-2" bodyClassName="p-0">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <Panel fit title="Unapplied credits by customer" bodyClassName="p-0">
           <Table>
             <TableHeader>
               <TableRow>
@@ -134,14 +134,14 @@ export function OverviewTab() {
                 <TableRow key={c.name}>
                   <TableCell className={c.name === "Not identified" ? "text-muted-foreground" : ""}>{c.name}</TableCell>
                   <TableCell className="text-right tnum">{fmtInt(c.count)}</TableCell>
-                  <TableCell className="text-right tnum">{fmtINRCompact(c.value)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-right tnum">{fmtINRCompact(c.value)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </Panel>
 
-        <Panel fit title="Deductions on customer receipts" bodyClassName="p-0">
+        <Panel title="Deductions on customer receipts" bodyClassName="p-0">
           <Table>
             <TableHeader>
               <TableRow>
