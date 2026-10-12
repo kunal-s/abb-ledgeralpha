@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
-import { KpiTile, Panel, DocLink, ConfidenceChip } from "@/components/vocab";
+import { KpiTile, Panel } from "@/components/vocab";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HeatmapGrid, type HeatMode } from "@/components/review/Heatmap";
@@ -8,8 +8,8 @@ import { AgeingLegend, FocusAreas } from "@/components/review/FocusAreas";
 import { ActionMix } from "@/components/review/ActionMix";
 import { StaleBalances } from "@/components/review/StaleBalances";
 import { MethodBadge } from "@/components/vocab";
-import { draftPortfolioCommentary, portfolioFacts } from "@/engine/reviewStory";
-import { GL_BY_ID, PARTY_BY_ID, PERSON_BY_ID, WORLD } from "@/data";
+import { portfolioFacts } from "@/engine/reviewStory";
+import { GL_BY_ID, PERSON_BY_ID, WORLD } from "@/data";
 import { useReview } from "@/state/ReviewContext";
 import { useQueryParams } from "@/lib/useQueryParams";
 import { AGEING_POLICY } from "@/config/policies";
@@ -67,22 +67,7 @@ export function OverviewTab() {
   const proposedValue = rows.filter((r) => r.decision && ["proposed", "approved", "exported", "closed-in-erp"].includes(r.decision.status) && actionKinds.has(r.decision.action)).reduce((s, r) => s + Math.abs(r.item.amount), 0);
   const recommendedValue = flagged.filter((r) => r.rec && actionKinds.has(r.rec.action)).reduce((s, r) => s + Math.abs(r.item.amount), 0);
 
-  const needsDecision = flagged
-    .filter((r) => r.rec && r.rec.action !== "Follow up" && !r.decision)
-    .sort((a, b) => Math.abs(b.item.amount) - Math.abs(a.item.amount))
-    .slice(0, 10);
-
-  const byCategory = new Map<AccountCategory, { total: number; signed: number }>();
-  for (const a of accounts) {
-    const c = byCategory.get(a.summary.gl.category) ?? { total: 0, signed: 0 };
-    c.total += 1;
-    if (a.status === "reviewer-signed") c.signed += 1;
-    byCategory.set(a.summary.gl.category, c);
-  }
-  const progress = [...byCategory.entries()].sort((a, b) => b[1].total - a[1].total);
-
   const facts = useMemo(() => portfolioFacts(rows, { signed, total: accounts.length }), [rows, signed, accounts.length]);
-  const commentary = useMemo(() => draftPortfolioCommentary(facts), [facts]);
 
   const movement = REVIEW_CATEGORIES.map((c) => review.scan.categories.get(c)).filter((m): m is NonNullable<typeof m> => !!m && (Math.abs(m.closing) > 0 || m.over > 0 || m.priorOver > 0));
 
@@ -142,109 +127,62 @@ export function OverviewTab() {
         </Select>
       </div>
 
-      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-3">
-        <div className="space-y-3 xl:col-span-2">
-          <Panel title="Flagged balances by age" actions={<AgeingLegend />}>
-            <FocusAreas areas={facts.focus} onSelect={(c, b) => drill(c, b ?? null)} />
-          </Panel>
-          <Panel
-            title="Open items by category and age"
-           
-            actions={
-              <div className="flex rounded-md border border-border p-0.5 text-xs">
-                {(["amount", "count"] as const).map((m) => (
-                  <button key={m} type="button" onClick={() => setParams({ mode: m === "amount" ? null : m })} className={cn("rounded px-2 py-0.5", mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
-                    {m === "amount" ? "Amount" : "Items"}
-                  </button>
-                ))}
-              </div>
-            }
-          >
-            <HeatmapGrid heatmap={heatmap} mode={mode} onSelect={drill} />
-          </Panel>
-          <Panel title="Oldest balances, over a year" bodyClassName="p-0">
-            <StaleBalances accounts={facts.stale.slice(0, 6)} />
-          </Panel>
-          <Panel title={`Movement since ${fmtDate(review.priorDate)}`} bodyClassName="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                  <TableHead className="text-right">Change</TableHead>
-                  <TableHead className="text-right">Older than {threshold} days</TableHead>
-                  <TableHead className="text-right">Change</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {movement.map((m) => (
-                  <TableRow key={m.category} className="cursor-pointer" onClick={() => drill(m.category, null)}>
-                    <TableCell>{CATEGORY_LABELS[m.category]}</TableCell>
-                    <TableCell className="text-right tnum">{fmtDrCr(m.closing, true)}</TableCell>
-                    <TableCell className="text-right text-xs text-muted-foreground tnum">{m.closing - m.prior === 0 ? "-" : `${m.closing - m.prior > 0 ? "+" : "−"}${fmtINRCompact(Math.abs(m.closing - m.prior))}`}</TableCell>
-                    <TableCell className="text-right tnum">{m.over ? fmtINRCompact(m.over) : "-"}</TableCell>
-                    <TableCell className="text-right text-xs">
-                      <Delta value={m.over - m.priorOver} goodWhen="down" />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Panel>
-        </div>
-        <div className="space-y-3">
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+        <Panel title="Flagged balances by age" className="xl:col-span-2" actions={<AgeingLegend />}>
+          <FocusAreas areas={facts.focus} onSelect={(c, b) => drill(c, b ?? null)} />
+        </Panel>
+        <div className="flex flex-col gap-3">
           <Panel title="Recommended actions" actions={<MethodBadge method="judgement" showConfidence={false} />}>
             <ActionMix slices={facts.mix} onSelect={(a) => setParams({ tab: "exceptions", category: null, bucket: null, show: "all", status: null, rule: null, q: null, action: a }, { replace: false })} />
           </Panel>
-          <Panel title="Pending decisions" bodyClassName="p-0">
-            {needsDecision.length === 0 ? (
-              <div className="px-4 py-5 text-center text-sm text-muted-foreground">Every recommended action has a decision</div>
-            ) : (
-              <ul className="divide-y divide-border/70">
-                {needsDecision.map((r) => (
-                  <li key={r.key} className="px-4 py-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <DocLink itemKey={r.key}>{r.item.docNo}</DocLink>
-                      <span className="tnum text-sm">{fmtDrCr(r.item.amount, true)}</span>
-                    </div>
-                    <div className="mt-0.5 flex items-center justify-between gap-2 text-xs">
-                      <span className="truncate text-muted-foreground">
-                        {GL_BY_ID.get(r.item.gl)?.description}
-                        {r.item.partner ? ` · ${PARTY_BY_ID.get(r.item.partner.id)?.name}` : ""}
-                      </span>
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        <span className="text-muted-foreground tnum">{fmtInt(r.age)} d</span>
-                        <span className="font-medium">{r.rec!.action}</span>
-                        <ConfidenceChip score={r.rec!.confidence} showIcon={false} />
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-          <Panel title="Commentary" actions={<MethodBadge method="judgement" showConfidence={false} />}>
-            <p className="text-sm leading-6">{commentary}</p>
-          </Panel>
-          <Panel title="Sign-off progress">
-            <ul className="space-y-2.5">
-              {progress.map(([c, p]) => (
-                <li key={c}>
-                  <div className="flex items-center justify-between text-xs">
-                    <span>{CATEGORY_LABELS[c]}</span>
-                    <span className="tnum text-muted-foreground">
-                      {p.signed}/{p.total}
-                    </span>
-                  </div>
-                  <div className="mt-1 h-1.5 rounded-sm bg-muted">
-                    <div className="h-1.5 rounded-sm bg-ok" style={{ width: `${(p.signed / p.total) * 100}%` }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
+          <Panel fit title="Oldest balances, over a year" className="flex-1" bodyClassName="p-0">
+            <StaleBalances accounts={facts.stale.slice(0, 6)} />
           </Panel>
         </div>
       </div>
+
+      <Panel
+        title="Open items by category and age"
+       
+        actions={
+          <div className="flex rounded-md border border-border p-0.5 text-xs">
+            {(["amount", "count"] as const).map((m) => (
+              <button key={m} type="button" onClick={() => setParams({ mode: m === "amount" ? null : m })} className={cn("rounded px-2 py-0.5", mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+                {m === "amount" ? "Amount" : "Items"}
+              </button>
+            ))}
+          </div>
+        }
+      >
+        <HeatmapGrid heatmap={heatmap} mode={mode} onSelect={drill} />
+      </Panel>
+
+      <Panel title={`Movement since ${fmtDate(review.priorDate)}`} bodyClassName="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Category</TableHead>
+              <TableHead className="text-right">Balance</TableHead>
+              <TableHead className="text-right">Change</TableHead>
+              <TableHead className="text-right">Older than {threshold} days</TableHead>
+              <TableHead className="text-right">Change</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {movement.map((m) => (
+              <TableRow key={m.category} className="cursor-pointer" onClick={() => drill(m.category, null)}>
+                <TableCell>{CATEGORY_LABELS[m.category]}</TableCell>
+                <TableCell className="text-right tnum">{fmtDrCr(m.closing, true)}</TableCell>
+                <TableCell className="text-right text-xs text-muted-foreground tnum">{m.closing - m.prior === 0 ? "-" : `${m.closing - m.prior > 0 ? "+" : "−"}${fmtINRCompact(Math.abs(m.closing - m.prior))}`}</TableCell>
+                <TableCell className="text-right tnum">{m.over ? fmtINRCompact(m.over) : "-"}</TableCell>
+                <TableCell className="text-right text-xs">
+                  <Delta value={m.over - m.priorOver} goodWhen="down" />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Panel>
     </div>
   );
 }
