@@ -108,7 +108,7 @@ export function Agents() {
           </ul>
         </Panel>
 
-        <div className="space-y-3">
+        <div className="space-y-3 self-start xl:sticky xl:top-0">
           <Panel title={current.agent.name} actions={<MethodBadge method={current.agent.method} showConfidence={false} />}>
             <dl className="divide-y divide-border text-sm">
               <div className="flex justify-between py-1.5"><dt className="text-muted-foreground">Module</dt><dd>{current.agent.module.replace(/-/g, " ")}</dd></div>

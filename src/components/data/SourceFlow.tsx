@@ -71,7 +71,7 @@ export function SourceFlow({ datasets, checks, ledger }: SourceFlowProps) {
       </div>
 
       {/* Ledger */}
-      <div className="rounded-md border border-primary/30 bg-primary/[0.03] p-4">
+      <div className="flex flex-col justify-center rounded-md border border-primary/30 bg-primary/[0.03] p-4">
         <div className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">Ledger</div>
         <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-3">
           {ledger.map((s) => (

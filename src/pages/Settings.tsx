@@ -23,7 +23,7 @@ function Workspace() {
   const endMonth = ((startMonth + 10) % 12) + 1;
   return (
     <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-      <Panel fit title="Workspace" bodyClassName="p-0">
+      <Panel title="Workspace" bodyClassName="p-0">
         <Fields
           rows={[
             ["Name", TENANT.workspace],
@@ -35,7 +35,7 @@ function Workspace() {
           ]}
         />
       </Panel>
-      <Panel title="Legal entities" bodyClassName="p-0">
+      <Panel title="Legal entities" className="self-start" bodyClassName="p-0">
         <Table>
           <TableHeader>
             <TableRow>
