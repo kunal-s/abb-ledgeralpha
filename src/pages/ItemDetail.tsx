@@ -260,6 +260,8 @@ export function ItemDetail() {
           </span>
         </button>
       </Card>
+      {movement && <Movements roll={roll} review={review} gl={gl.gl} selected={movement} onSelect={setMovement} onClose={() => setMovement(undefined)} />}
+
       <Panel title="Process" actions={waiting ? <span className="text-xs text-muted-foreground">Waiting on <span className="font-medium text-foreground">{waiting.who}</span></span> : <StatusChip status={row.status} />} bodyClassName="px-2 py-2">
         <ProcessRail stages={stages} selected={selected.id} onSelect={setChosen} />
       </Panel>
