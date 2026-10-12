@@ -8,6 +8,7 @@ import { DecisionApproval, History, Section } from "@/components/review/drawerPa
 import { Decision, DocumentFields, Findings, FollowUp, Recommendation, Related } from "@/components/review/itemParts";
 import { ItemTimeline } from "@/components/review/ItemTimeline";
 import { ItemsTable } from "@/components/review/ItemsTable";
+import { CreditStatement } from "@/components/review/CreditStatement";
 import { ExposureStatement } from "@/components/review/ExposureStatement";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -248,6 +249,7 @@ export function ItemDetail() {
       </div>
 
       <ExposureStatement row={row} />
+      <CreditStatement row={row} />
 
       <Card>
         <button type="button" aria-expanded={!!movement} onClick={() => (movement ? setMovement(undefined) : open("add"))} className="flex w-full items-center gap-2 px-4 py-3 text-left">
@@ -271,7 +273,7 @@ export function ItemDetail() {
         </div>
         <div className="space-y-3">
           <Panel title="Item" bodyClassName="p-0 [&>section:first-child]:border-t-0">
-            <Related row={row} omit={row.hits.some((h) => h.ruleId === "BSR-05") ? ["Business partner", "Purchase order", "Bank guarantee"] : []} />
+            <Related row={row} omit={row.hits.some((h) => h.ruleId === "BSR-05") ? ["Business partner", "Purchase order", "Bank guarantee"] : row.hits.some((h) => h.ruleId === "BSR-07") ? ["Tax credit statement"] : []} />
           </Panel>
           <Panel title="Audit trail" bodyClassName="p-0 [&>section:first-child]:border-t-0">
             <History itemKey={row.key} />

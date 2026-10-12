@@ -1,13 +1,13 @@
 import { useMemo } from "react";
 import { KpiTile, Panel } from "@/components/vocab";
-import { StatusBars, type BarGroup } from "@/components/review/StatusBars";
+import type { BarGroup } from "@/components/review/StatusBars";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PARTY_BY_ID, WORLD } from "@/data";
 import { useExpectedCredits, useTds } from "@/state/tdsHooks";
 import { useQueryParams } from "@/lib/useQueryParams";
-import { CREDIT_AGE_BUCKETS, TDS_STATUS_LABELS, creditAgeBucket, taxQuarterOf, taxYearsElapsed, type TdsCreditStatus } from "@/engine/tds";
-import { fmtDate } from "@/lib/dates";
+import { CREDIT_AGE_BUCKETS, TDS_STATUS_LABELS, creditAgeBucket, taxYearsElapsed, type TdsCreditStatus } from "@/engine/tds";
 import { fmtINRCompact, fmtInt } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 export const TDS_GROUPS: (BarGroup & { status: TdsCreditStatus })[] = [
   { key: "matched", label: TDS_STATUS_LABELS.matched, cls: "bg-ok", status: "matched" },
@@ -28,7 +28,10 @@ export function OverviewTab() {
   const expected = useExpectedCredits();
   const [, setParams] = useQueryParams();
 
-  const lines = useMemo(() => analysis.open.map((l) => ({ l, a: analysis.byLine.get(l.key) })).filter((x): x is { l: (typeof analysis.open)[number]; a: NonNullable<typeof x.a> } => !!x.a), [analysis]);
+  const lines = useMemo(
+    () => analysis.open.map((l) => ({ l, a: analysis.byLine.get(l.key) })).filter((x): x is { l: (typeof analysis.open)[number]; a: NonNullable<typeof x.a> } => !!x.a),
+    [analysis],
+  );
 
   const stats = useMemo(() => {
     const sum = (xs: typeof lines) => xs.reduce((s, x) => s + x.l.amount, 0);
@@ -42,10 +45,13 @@ export function OverviewTab() {
       const q = x.a.quarter;
       data[q] ??= {};
       data[q][x.a.status] = (data[q][x.a.status] ?? 0) + 1;
+      data[q].amount = (data[q].amount ?? 0) + x.l.amount;
     }
     return data;
   }, [lines]);
-  const quarters = Object.keys(byQuarter).sort((a, b) => quarterSortKey(a).localeCompare(quarterSortKey(b))).slice(-12);
+  const quarters = Object.keys(byQuarter)
+    .sort((a, b) => quarterSortKey(a).localeCompare(quarterSortKey(b)))
+    .slice(-12);
 
   const ageing = useMemo(
     () =>
@@ -53,9 +59,8 @@ export function OverviewTab() {
         const xs = stats.risk.filter((x) => creditAgeBucket(x.l.postingDate, WORLD.asOf) === b.id);
         return { ...b, count: xs.length, value: stats.sum(xs), barred: xs.filter((x) => taxYearsElapsed(x.l.postingDate, WORLD.asOf) > params.writeOffYears).length };
       }),
-    [stats, params.writeOffYears]
+    [stats, params.writeOffYears],
   );
-  const maxAge = Math.max(1, ...ageing.map((a) => a.value));
   const barred = stats.risk.filter((x) => taxYearsElapsed(x.l.postingDate, WORLD.asOf) > params.writeOffYears);
 
   const deductors = useMemo(() => {
@@ -68,7 +73,7 @@ export function OverviewTab() {
       if (x.l.postingDate < e.oldest) e.oldest = x.l.postingDate;
       m.set(id, e);
     }
-    return [...m.values()].sort((a, b) => b.v - a.v).slice(0, 8);
+    return [...m.values()].sort((a, b) => b.v - a.v).slice(0, 5);
   }, [stats.risk]);
 
   const go = (extra: Record<string, string | null>) => setParams({ tab: "receivable", tstatus: null, tquarter: null, tage: null, ...extra }, { replace: false });
@@ -78,76 +83,127 @@ export function OverviewTab() {
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <KpiTile label="Deductions open" value={fmtInt(lines.length)} sublabel={fmtINRCompact(stats.sum(lines))} onClick={() => go({})} />
-        <KpiTile label="Matched to the statement" value={fmtInt(stats.of("matched").length)} sublabel={fmtINRCompact(stats.sum(stats.of("matched")))} accent="ok" onClick={() => go({ tstatus: "matched" })} />
-        <KpiTile label="Short, missing or wrong quarter" value={fmtINRCompact(stats.sum(stats.risk))} sublabel={`${fmtInt(stats.risk.length)} deductions`} accent={stats.risk.length ? "danger" : "none"} onClick={() => go({ tstatus: "at-risk" })} />
-        <KpiTile label="Wrong tax ID" value={fmtInt(stats.of("wrong-tan").length)} sublabel={fmtINRCompact(stats.sum(stats.of("wrong-tan")))} accent={stats.of("wrong-tan").length ? "info" : "none"} onClick={() => go({ tstatus: "wrong-tan" })} />
+        <KpiTile
+          label="Matched to the statement"
+          value={fmtInt(stats.of("matched").length)}
+          sublabel={fmtINRCompact(stats.sum(stats.of("matched")))}
+          accent="ok"
+          onClick={() => go({ tstatus: "matched" })}
+        />
+        <KpiTile
+          label="Short, missing or wrong quarter"
+          value={fmtINRCompact(stats.sum(stats.risk))}
+          sublabel={`${fmtInt(stats.risk.length)} deductions`}
+          accent={stats.risk.length ? "danger" : "none"}
+          onClick={() => go({ tstatus: "at-risk" })}
+        />
+        <KpiTile
+          label="Wrong tax ID"
+          value={fmtInt(stats.of("wrong-tan").length)}
+          sublabel={fmtINRCompact(stats.sum(stats.of("wrong-tan")))}
+          accent={stats.of("wrong-tan").length ? "info" : "none"}
+          onClick={() => go({ tstatus: "wrong-tan" })}
+        />
         <KpiTile label="Statement not yet available" value={fmtInt(stats.of("pending").length)} sublabel={fmtINRCompact(stats.sum(stats.of("pending")))} onClick={() => go({ tstatus: "pending" })} />
-        <KpiTile label="Expected from applications" value={fmtINRCompact(expected.reduce((s, e) => s + e.amount, 0))} sublabel={`${fmtInt(expectedMissing.length)} not in the statement`} accent={expectedMissing.length ? "warn" : "none"} onClick={() => setParams({ tab: "expected" }, { replace: false })} />
+        <KpiTile
+          label="Expected from applications"
+          value={fmtINRCompact(expected.reduce((s, e) => s + e.amount, 0))}
+          sublabel={`${fmtInt(expectedMissing.length)} not in the statement`}
+          accent={expectedMissing.length ? "warn" : "none"}
+          onClick={() => setParams({ tab: "expected" }, { replace: false })}
+        />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="Open deductions by tax-year quarter and statement check" className="xl:col-span-2">
-          <StatusBars
-            data={byQuarter}
-            rows={quarters.map((q) => ({ key: q, label: q }))}
-            groups={TDS_GROUPS}
-            unit="deductions"
-            labelWidth="8rem"
-            onSelect={(q, status) => go({ tquarter: q, tstatus: status })}
-          />
-        </Panel>
-
-        <Panel title="Credits at risk by age" className="self-start" bodyClassName="p-4">
-          <ul className="space-y-3">
-            {ageing.map((a) => (
-              <li key={a.id}>
-                <button type="button" className="block w-full text-left" onClick={() => go({ tstatus: "at-risk", tage: a.id })}>
-                  <div className="flex items-baseline justify-between text-sm">
-                    <span>{a.label}</span>
-                    <span className="flex gap-3 text-xs tnum">
-                      <span className="text-muted-foreground">{fmtInt(a.count)}</span>
-                      <span className="w-20 text-right">{fmtINRCompact(a.value)}</span>
-                    </span>
-                  </div>
-                  <div className="mt-1 h-1.5 rounded-sm bg-muted">
-                    <div className="h-1.5 rounded-sm bg-primary" style={{ width: `${a.value ? Math.max(1.5, (a.value / maxAge) * 100) : 0}%` }} />
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-3 border-t border-border/70 pt-2 text-xs text-muted-foreground">
-            {fmtInt(barred.length)} past the claim window of {params.writeOffYears} tax years ({fmtINRCompact(stats.sum(barred))}); write-off needs tax review
-          </div>
-        </Panel>
-      </div>
-
-      <Panel title="Deductors with the most at risk" bodyClassName="p-0">
+      <Panel title="Statement check by tax-year quarter" bodyClassName="p-0">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Customer</TableHead>
-              <TableHead>Deductor ID</TableHead>
-              <TableHead className="text-right">Deductions at risk</TableHead>
-              <TableHead className="text-right">Value</TableHead>
-              <TableHead>Oldest</TableHead>
+              <TableHead>Quarter</TableHead>
+              <TableHead className="text-right">Deducted</TableHead>
+              {TDS_GROUPS.map((g) => (
+                <TableHead key={g.key} className="text-right">
+                  {g.label}
+                </TableHead>
+              ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {deductors.map((d) => (
-              <TableRow key={d.id} className="cursor-pointer" onClick={() => go({ tstatus: "at-risk", tq: PARTY_BY_ID.get(d.id)?.name ?? null })}>
-                <TableCell>{PARTY_BY_ID.get(d.id)?.name}</TableCell>
-                <TableCell className="font-mono text-xs">{PARTY_BY_ID.get(d.id)?.deductorIdMasked ?? "-"}</TableCell>
-                <TableCell className="text-right tnum">{fmtInt(d.n)}</TableCell>
-                <TableCell className="text-right tnum">{fmtINRCompact(d.v)}</TableCell>
-                <TableCell className="whitespace-nowrap tnum text-xs">
-                  {fmtDate(d.oldest)} · {taxQuarterOf(d.oldest)}
-                </TableCell>
+            {quarters.map((q) => (
+              <TableRow key={q}>
+                <TableCell className="whitespace-nowrap">{q}</TableCell>
+                <TableCell className="text-right tnum whitespace-nowrap">{fmtINRCompact(byQuarter[q].amount ?? 0)}</TableCell>
+                {TDS_GROUPS.map((g) => {
+                  const n = byQuarter[q][g.key] ?? 0;
+                  const risky = AT_RISK.includes(g.status) || g.status === "wrong-tan";
+                  return (
+                    <TableCell key={g.key} className={cn("text-right tnum", n && risky && "font-medium text-danger-foreground", !n && "text-muted-foreground")}>
+                      {n ? (
+                        <button type="button" className="hover:underline" onClick={() => go({ tquarter: q, tstatus: g.key })}>
+                          {fmtInt(n)}
+                        </button>
+                      ) : (
+                        "-"
+                      )}
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </Panel>
+
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <Panel title="Credits at risk by age" bodyClassName="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Age</TableHead>
+                <TableHead className="text-right">Deductions</TableHead>
+                <TableHead className="text-right">Value</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {ageing.map((a) => (
+                <TableRow key={a.id} className="cursor-pointer" onClick={() => go({ tstatus: "at-risk", tage: a.id })}>
+                  <TableCell>{a.label}</TableCell>
+                  <TableCell className="text-right tnum">{fmtInt(a.count)}</TableCell>
+                  <TableCell className="text-right tnum whitespace-nowrap">{fmtINRCompact(a.value)}</TableCell>
+                </TableRow>
+              ))}
+              <TableRow className="border-t-2 border-border font-medium">
+                <TableCell>Total at risk</TableCell>
+                <TableCell className="text-right tnum">{fmtInt(stats.risk.length)}</TableCell>
+                <TableCell className="text-right tnum whitespace-nowrap">{fmtINRCompact(stats.sum(stats.risk))}</TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+          <div className="border-t border-border/70 px-4 py-2 text-xs text-muted-foreground">
+            {fmtInt(barred.length)} past the claim window of {params.writeOffYears} tax years ({fmtINRCompact(stats.sum(barred))}); write-off needs tax review
+          </div>
+        </Panel>
+
+        <Panel title="Customers with the most at risk" bodyClassName="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Customer</TableHead>
+                <TableHead className="text-right">Deductions</TableHead>
+                <TableHead className="text-right">Value</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {deductors.map((d) => (
+                <TableRow key={d.id} className="cursor-pointer" onClick={() => go({ tstatus: "at-risk", tq: PARTY_BY_ID.get(d.id)?.name ?? null })}>
+                  <TableCell className="truncate">{PARTY_BY_ID.get(d.id)?.name}</TableCell>
+                  <TableCell className="text-right tnum">{fmtInt(d.n)}</TableCell>
+                  <TableCell className="text-right tnum whitespace-nowrap">{fmtINRCompact(d.v)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Panel>
+      </div>
     </div>
   );
 }
