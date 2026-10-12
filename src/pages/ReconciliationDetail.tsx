@@ -7,7 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AddItemDialog } from "@/components/recon/AddItemDialog";
 import { ConfirmationPanel } from "@/components/recon/ConfirmationPanel";
 import { BalanceDrill } from "@/components/recon/BalanceDrill";
-import { ReconBridge } from "@/components/recon/ReconBridge";
+import { ApplyReplyButton } from "@/components/recon/ConfirmationPanel";
+import { ReconStatement } from "@/components/recon/ReconStatement";
+import { OpenItemsTable } from "@/components/recon/OpenItemsTable";
 import { RecItemsTable } from "@/components/recon/RecItemsTable";
 import { RecSignOffPanel } from "@/components/recon/RecSignOffPanel";
 import { GL_BY_ID, PARTY_BY_ID, PERSON_BY_ID } from "@/data";
@@ -106,7 +108,7 @@ export function ReconciliationDetail() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiTile label={rec.booksLabel} value={fmtDrCr(rec.booksBalance, true)} sublabel={fmtDrCr(rec.booksBalance)} />
-        <KpiTile label={rec.sourceLabel} value={view.sourceBalance === null ? "Awaiting" : fmtDrCr(view.sourceBalance, true)} sublabel={view.sourceBalance === null ? "no balance from the counterparty yet" : fmtDrCr(view.sourceBalance)} />
+        <KpiTile label={rec.sourceLabel} value={view.sourceBalance === null ? (rec.reply ? "Reply received" : "Awaiting") : fmtDrCr(view.sourceBalance, true)} sublabel={view.sourceBalance === null ? (rec.reply ? "not yet applied" : "no balance from the counterparty yet") : fmtDrCr(view.sourceBalance)} />
         <KpiTile label="Difference" value={view.difference === null ? "-" : view.difference === 0 ? "Nil" : fmtDrCr(view.difference, true)} sublabel={`${fmtInt(view.items.length)} reconciling item${view.items.length === 1 ? "" : "s"}`} />
         <KpiTile
           label="Unexplained"
@@ -123,16 +125,27 @@ export function ReconciliationDetail() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
-        <Panel title="Difference to unexplained" className="xl:col-span-2">
-          <ReconBridge view={view} />
-        </Panel>
-        <div className="space-y-3">
-          {rec.confirmation && <ConfirmationPanel row={row} />}
-          <Panel title="Reconciliation" bodyClassName="p-0">
-            <Fields rows={detailRows} compact />
+        <div className="space-y-3 xl:col-span-2">
+          <Panel title="Reconciliation statement">
+            <ReconStatement view={view} replyBalance={rec.reply?.balance} action={rec.reply && !view.work?.source ? <ApplyReplyButton row={row} /> : undefined} />
           </Panel>
+          {rec.type === "Customer statement" && <OpenItemsTable rec={rec} />}
+        </div>
+        <div className="space-y-3 self-start xl:sticky xl:top-0">
+          {rec.confirmation && <ConfirmationPanel row={row} />}
         </div>
       </div>
+
+      <Panel title="Reconciliation">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm md:grid-cols-3 xl:grid-cols-5">
+          {detailRows.map(([label, value]) => (
+            <div key={label} className="min-w-0">
+              <dt className="text-xs text-muted-foreground">{label}</dt>
+              <dd className="truncate">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </Panel>
 
       <BalanceDrill rec={rec} />
 
@@ -169,7 +182,7 @@ export function ReconciliationDetail() {
           </>
         }
       >
-        <RecItemsTable row={row} empty={view.sourceBalance === null ? "Waiting for the counterparty's balance" : view.difference === 0 ? "The balances agree; there are no reconciling items" : "No reconciling items yet"} />
+        <RecItemsTable row={row} empty={view.sourceBalance === null ? (rec.reply ? "Reply received: apply it to list the reconciling items" : "Waiting for the counterparty's balance") : view.difference === 0 ? "The balances agree; there are no reconciling items" : "No reconciling items yet"} />
       </Panel>
 
       {decisions.length > 0 && (
