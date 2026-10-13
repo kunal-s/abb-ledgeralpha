@@ -6,6 +6,7 @@ import { KpiTile, PageHeader, Panel, StatusChip } from "@/components/vocab";
 import { Fields } from "@/components/vocab/Fields";
 import { DecisionApproval, History, Section } from "@/components/review/drawerParts";
 import { Decision, DocumentFields, Findings, FollowUp, Recommendation, Related } from "@/components/review/itemParts";
+import { SystemAssessment } from "@/components/review/Assessment";
 import { ItemTimeline } from "@/components/review/ItemTimeline";
 import { ItemsTable } from "@/components/review/ItemsTable";
 import { CreditStatement } from "@/components/review/CreditStatement";
@@ -234,7 +235,9 @@ export function ItemDetail() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      <SystemAssessment row={row} />
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
         <KpiTile
           label={`This ${docLabel.toLowerCase()}`}
           hint="Amount of this document and its share of the account's closing balance"
@@ -243,8 +246,6 @@ export function ItemDetail() {
           accent={row.flagged ? "danger" : "none"}
         />
         <KpiTile label="Age" hint="Days from the posting date to the review date" value={`${fmtInt(row.age)} days`} sublabel={`posted ${fmtDate(it.postingDate)}`} />
-        <KpiTile label="Flagged by" hint="The rule that drives the recommendation" value={row.rec?.primaryRuleId ?? "-"} sublabel={row.hits.length ? `${row.hits.length} rule${row.hits.length === 1 ? "" : "s"} apply` : "within policy"} />
-        <KpiTile label="Recommended" hint="The recommendation; the preparer decides" value={row.rec?.action ?? "-"} sublabel={row.rec ? `confidence ${row.rec.confidence.toFixed(2)}, band ${row.rec.approvalBandId}` : ""} />
         <KpiTile label="Waiting on" value={waiting?.who.split(",")[0] ?? "-"} sublabel={waiting ? waiting.label : "no step open"} />
       </div>
 
